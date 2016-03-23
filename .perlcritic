@@ -1,0 +1,105 @@
+# HEADER: managed by puppet, do NOT edit manually!
+
+# NOTE: When switching the output format we also need to adjust perlcritic_tap
+# accordingly:
+# verbose = %f line %l col %c\n    [%s] %p (%e) = %m\n    %r\n
+# The ouput format, another nice one is 8, the [%s] is the severity.
+severity  = 4
+
+program-extensions = .pl .t
+
+##
+## Tune and upgrade checks
+##
+
+[BuiltinFunctions::ProhibitStringySplit]
+severity = 4
+
+# Use Module::Runtime for includes
+[BuiltinFunctions::ProhibitStringyEval]
+allow_includes = 0
+
+[CodeLayout::ProhibitQuotedWordLists]
+severity = 4
+
+# Not active, severity 3
+[ControlStructures::ProhibitCascadingIfElse]
+max_elsif = 15
+
+[Documentation::RequirePodSections]
+severity = 4
+# Let's keep this simple for now.
+lib_sections = NAME | DESCRIPTION | LICENSE | AUTHOR
+
+# Not active, severity 1
+[InputOutput::RequireCheckedSyscalls]
+functions = :builtins
+exclude_functions = print
+
+[TestingAndDebugging::RequireUseStrict]
+#equivalent_modules = strictures Sipwise::Base HTML::FormHandler::Moose Mojo::Base
+
+[-TestingAndDebugging::RequireUseWarnings]
+#equivalent_modules = strictures Sipwise::Base HTML::FormHandler::Moose Mojo::Base
+
+[Variables::RequireInitializationForLocalVars]
+severity = 4
+
+[ValuesAndExpressions::ProhibitImplicitNewlines]
+severity = 4
+
+[ValuesAndExpressions::RequireUpperCaseHeredocTerminator]
+severity = 4
+
+##
+## Exclusions
+##
+
+[-ControlStructures::ProhibitPostfixControls]
+[-ControlStructures::ProhibitUnlessBlocks]
+
+# XXX: Too many false positives.
+[-ControlStructures::ProhibitUnreachableCode]
+
+# XXX: Might want to use while development is going on.
+[-ControlStructures::ProhibitYadaOperator]
+
+# XXX: Perhaps. Enable per project.
+[-InputOutput::RequireBriefOpen]
+
+# Depends on existing APIs, might break too much code. Enable per project.
+[-Modules::ProhibitAutomaticExportation]
+
+# XXX: Nice, but might trip on some code? Ideally enabled per project.
+[-Modules::ProhibitMultiplePackages]
+
+# XXX: Nice, but might trip on too much code? Ideally enabled per project.
+[-Objects::ProhibitIndirectSyntax]
+
+[-RegularExpressions::RequireDotMatchAnything]
+[-RegularExpressions::RequireLineBoundaryMatching]
+
+# Too many hits, and annoying for small projects, should be enabled for big
+# and clean projects.
+[-Subroutines::RequireFinalReturn]
+
+# XXX: Nice, but might trip on too much code? Ideally enabled per project.
+[-Subroutines::RequireArgUnpacking]
+
+# Too annoying, and forces to use English.
+[-Variables::ProhibitPunctuationVars]
+
+# XXX: ngcp-panel depends on this, ideally enabled per project.
+[-Variables::RequireNegativeIndices]
+
+# Requires using the non-core Readonly module.
+[-ValuesAndExpressions::ProhibitConstantPragma]
+
+[-ValuesAndExpressions::ProhibitEmptyQuotes]
+[-ValuesAndExpressions::ProhibitNoisyQuotes]
+
+# Too annoying.
+[-ValuesAndExpressions::ProhibitMagicNumbers]
+
+# Too annoying.
+[-ValuesAndExpressions::RequireNumberSeparators]
