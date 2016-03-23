@@ -1,0 +1,57 @@
+verbose = %f line %l col %c\n    [%s] %p (%e) = %m\n    %r\n
+    # the ouput format, another nice one is 8, the [%s] is the severity
+severity  = 3
+theme = security || (pbp && bugs) || cosmetic || sipwise
+
+[Documentation::RequirePodSections]
+add_themes = sipwise
+lib_sections = NAME | DESCRIPTION | LICENSE | AUTHOR
+# let's keep this simple for now
+
+[Bangs::ProhibitCommentedOutCode]
+commentedcoderegex = \$(?!Id)[A-Za-z_].*=/
+add_themes = sipwise
+# should not trigger on the RCS variable
+
+[Perl::Critic::Policy::Tics::ProhibitLongLines]
+add_themes = sipwise
+base_max    = 100
+hard_max    = 160
+pct_allowed = 50
+# terminal width
+
+[InputOutput::RequireCheckedSyscalls]
+add_themes = sipwise
+functions = :builtins
+exclude_functions = print
+
+[-Modules::RequireExplicitInclusion]
+# we dont want this
+
+[BuiltinFunctions::ProhibitStringyEval]
+allow_includes = 0
+# use Module::Runtime for includes
+
+[TestingAndDebugging::RequireUseStrict]
+equivalent_modules = strictures Sipwise::Base HTML::FormHandler::Moose Mojo::Base
+
+[TestingAndDebugging::RequireUseWarnings]
+equivalent_modules = strictures Sipwise::Base HTML::FormHandler::Moose Mojo::Base
+
+##### Other exclusions
+# not: only relevant with perlcritic 1.117-2 from wheezy,
+[-Miscellanea::RequireRcsKeywords]
+
+[-Subroutines::RequireFinalReturn]
+[-CodeLayout::ProhibitHashBarewords]
+# meh, it's super annoying
+[-Lax::ProhibitStringyEval::ExceptForRequire]
+# already covered through BuiltinFunctions::ProhibitStringyEval::allow_includes
+[-ControlStructures::ProhibitPostfixControls]
+[-ControlStructures::ProhibitUnlessBlocks]
+[-RegularExpressions::RequireLineBoundaryMatching]
+[-RegularExpressions::RequireDotMatchAnything]
+[-ValuesAndExpressions::ProhibitEmptyQuotes]
+[-ValuesAndExpressions::ProhibitNoisyQuotes]
+[-References::ProhibitDoubleSigils]
+[-ValuesAndExpressions::RequireNumberSeparators]
