@@ -74,7 +74,7 @@ $DBD::SQLite::COLLATION{no_accents} = sub {
 my $LongReadLen = $LongReadLen_limit; #bytes
 my $LongTruncOk = 0;
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 my $lock_do_chunk = 1;
 my $lock_get_chunk = 1;
@@ -94,7 +94,7 @@ sub new {
 
     bless($self,$class);
 
-    dbdebug($self,__PACKAGE__ . ' connector created',$logger);
+    dbdebug($self,__PACKAGE__ . ' connector created',getlogger(__PACKAGE__));
 
     return $self;
 
@@ -160,7 +160,7 @@ sub getdatabases {
     #my $rjournalpostfix = quotemeta($journalpostfix);
     local *DBDIR;
     if (not opendir(DBDIR, $local_db_path)) {
-        fileerror('cannot opendir ' . $local_db_path . ': ' . $!,$logger);
+        fileerror('cannot opendir ' . $local_db_path . ': ' . $!,getlogger(__PACKAGE__));
         return [];
     }
     my @files = grep { /($rdbextension|$ucrdbextension)$/ && -f $local_db_path . $_ } readdir(DBDIR);
@@ -191,9 +191,9 @@ sub _createdatabase {
                 #sqlite_unicode  => 1, latin 1 chars
                 #AutoCommit      => 0,
             }
-        ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),$logger);
-        $dbh->disconnect() or dbwarn($self,'error disconnecting: ' . $dbh->errstr(),$logger);
-        dbinfo($self,'database \'' . $dbfilename . '\' created',$logger);
+        ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
+        $dbh->disconnect() or dbwarn($self,'error disconnecting: ' . $dbh->errstr(),getlogger(__PACKAGE__));
+        dbinfo($self,'database \'' . $dbfilename . '\' created',getlogger(__PACKAGE__));
     }
 
     return $dbfilename;
@@ -223,8 +223,8 @@ sub db_connect {
             #sqlite_unicode  => 1, latin 1 chars
             #AutoCommit      => 0,
         }
-    ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),$logger);
-    #or sqlitedberror($dbfilename,'error connecting to sqlite db',$logger);
+    ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
+    #or sqlitedberror($dbfilename,'error connecting to sqlite db',getlogger(__PACKAGE__));
 
     $dbh->{InactiveDestroy} = 1;
 
@@ -254,7 +254,7 @@ sub db_connect {
     #PRAGMA locking_mode = NORMAL ... by default
     #$self->db_do('PRAGMA auto_vacuum = INCREMENTAL');
 
-    dbinfo($self,'connected',$logger);
+    dbinfo($self,'connected',getlogger(__PACKAGE__));
 
 }
 
@@ -273,8 +273,8 @@ sub vacuum {
 
     if (defined $self->{dbh}) {
         if ($self->{filemode} == $staticdbfilemode or $self->{filemode} == $timestampdbfilemode) {
-            $self->db_do('VACUUM'); # or sqlitedberror($self,"failed to VACUUM\nDBI error:\n" . $self->{dbh}->errstr(),$logger);
-            dbinfo($self,'VACUUMed',$logger);
+            $self->db_do('VACUUM'); # or sqlitedberror($self,"failed to VACUUM\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
+            dbinfo($self,'VACUUMed',getlogger(__PACKAGE__));
         }
     }
 
@@ -288,16 +288,16 @@ sub _db_disconnect {
 
     if ($self->{filemode} == $temporarydbfilemode and defined $self->{dbfilename} and -e $self->{dbfilename}) {
         if ((unlink $self->{dbfilename}) > 0) {
-            dbinfo($self,'db file removed',$logger);
+            dbinfo($self,'db file removed',getlogger(__PACKAGE__));
         } else {
-            dbwarn($self,'cannot remove db file: ' . $!,$logger);
+            dbwarn($self,'cannot remove db file: ' . $!,getlogger(__PACKAGE__));
         }
         my $journalfilename = $self->{dbfilename} . '-journal';
         if (-e $journalfilename) {
             if ((unlink $journalfilename) > 0) {
-                dbinfo($self,'journal file removed',$logger);
+                dbinfo($self,'journal file removed',getlogger(__PACKAGE__));
             } else {
-                dbwarn($self,'cannot remove journal file: ' . $!,$logger);
+                dbwarn($self,'cannot remove journal file: ' . $!,getlogger(__PACKAGE__));
             }
         }
     }
@@ -313,7 +313,7 @@ sub cleanupdbfiles {
     my $rjournalpostfix = quotemeta($journalpostfix);
     local *DBDIR;
     if (not opendir(DBDIR, $local_db_path)) {
-        fileerror('cannot opendir ' . $local_db_path . ': ' . $!,$logger);
+        fileerror('cannot opendir ' . $local_db_path . ': ' . $!,getlogger(__PACKAGE__));
         return;
     }
     my @files = grep { /($rdbextension|$ucrdbextension)($rjournalpostfix)?$/ && -f $local_db_path . $_ } readdir(DBDIR);
@@ -329,7 +329,7 @@ sub cleanupdbfiles {
         my $filepath = $local_db_path . $file;
         if (not contains($filepath,\@remainingdbfiles)) {
             if ((unlink $filepath) == 0) {
-                filewarn('cannot remove ' . $filepath . ': ' . $!,$logger);
+                filewarn('cannot remove ' . $filepath . ': ' . $!,getlogger(__PACKAGE__));
             }
         }
     }
@@ -384,7 +384,7 @@ sub create_indexes {
                 if (not arrayeq($indexcols,$keycols,1)) {
                     #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                     $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                    indexcreated($self,$tablename,$indexname,$logger);
+                    indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                 }
             }
         }
@@ -405,7 +405,7 @@ sub create_temptable {
 
     $self->db_do('CREATE TEMPORARY TABLE ' . $temp_tablename . ' AS ' . $select_stmt);
     #push(@{$self->{temp_tables}},$temp_tablename);
-    temptablecreated($self,$index_tablename,$logger);
+    temptablecreated($self,$index_tablename,getlogger(__PACKAGE__));
 
     #$self->{temp_table_count} += 1;
 
@@ -416,7 +416,7 @@ sub create_temptable {
                 #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                 $indexname = lc($index_tablename) . '_' . $indexname;
                 $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $temp_tablename . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                indexcreated($self,$index_tablename,$indexname,$logger);
+                indexcreated($self,$index_tablename,$indexname,getlogger(__PACKAGE__));
             #}
         }
     }
@@ -447,7 +447,7 @@ sub create_texttable {
             $statement .= ')';
 
             $self->db_do($statement);
-            texttablecreated($self,$tablename,$logger);
+            texttablecreated($self,$tablename,getlogger(__PACKAGE__));
 
             if (not $defer_indexes and defined $indexes and ref $indexes eq 'HASH' and scalar keys %$indexes > 0) {
                 foreach my $indexname (keys %$indexes) {
@@ -455,7 +455,7 @@ sub create_texttable {
                     if (not arrayeq($indexcols,$keycols,1)) {
                         #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                         $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                        indexcreated($self,$tablename,$indexname,$logger);
+                        indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                     }
                 }
             }
@@ -463,7 +463,7 @@ sub create_texttable {
         } else {
             my $fieldnamesfound = $self->getfieldnames($tablename);
             if (not setcontains($fieldnames,$fieldnamesfound,1)) {
-                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,$logger);
+                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,getlogger(__PACKAGE__));
                 return 0;
             }
         }
@@ -494,7 +494,7 @@ sub truncate_table {
 
     $self->db_do('DELETE FROM ' . $self->tableidentifier($tablename));
     #$self->db_do('VACUUM');
-    tabletruncated($self,$tablename,$logger);
+    tabletruncated($self,$tablename,getlogger(__PACKAGE__));
 
 }
 
@@ -522,7 +522,7 @@ sub drop_table {
 
 
         #$self->db_do('VACUUM');
-        tabledropped($self,$tablename,$logger);
+        tabledropped($self,$tablename,getlogger(__PACKAGE__));
         return 1;
     }
     return 0;

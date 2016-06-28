@@ -16,7 +16,7 @@ our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(sort_by_config_ids
                     sort_by_configs);
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 sub new {
 
@@ -39,7 +39,7 @@ sub add_sorting {
             $self->{sortconfig}->addrow_nodupe($numeric,$dir,@fieldnames);
         }
     } else {
-        sortconfigerror($sorting_id,'chain of object members undefined/invalid',$logger);
+        sortconfigerror($sorting_id,'chain of object members undefined/invalid',getlogger(__PACKAGE__));
     }
 
 }
@@ -128,7 +128,7 @@ sub sort_by_config_ids {
                         } else {
                             sortconfigerror($sorting_id,
                                     'missing/invalid sorting configuration',
-                                    $logger);
+                                    getlogger(__PACKAGE__));
                         }
                     }
                     return $sorter->sort_array($array_ptr);
@@ -136,7 +136,7 @@ sub sort_by_config_ids {
             } else {
                 sortconfigerror(undef,
                                 'missing/invalid sorting configurations',
-                                $logger);
+                                getlogger(__PACKAGE__));
             }
         }
         return $array_ptr;
@@ -168,7 +168,7 @@ sub sort_by_configs {
                     } else {
                         sortconfigerror($sorting_id,
                                 'invalid sorting configuration',
-                                $logger);
+                                getlogger(__PACKAGE__));
                     }
                     $sorting_id -= 1;
                 }

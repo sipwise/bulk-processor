@@ -5,9 +5,6 @@ use strict;
 
 ## no critic
 
-#use threads;
-#use Table;
-
 use Globals qw(
     $root_threadid
     $logfile_path
@@ -22,15 +19,13 @@ use Log::Log4perl qw(get_logger);
 
 use Utils qw(timestampdigits datestampdigits changemod chopstring trim);
 use Array qw (contains);
-#use Mail qw(send_message);
-#require Mail;
 
 require Exporter;
 our @ISA = qw(Exporter);
 
 our @EXPORT_OK = qw(
     getlogger
-    abortthread
+    
     cleanuplogfiles
 
     emailinfo
@@ -70,7 +65,7 @@ our @EXPORT_OK = qw(
 
     mainconfigurationloaded
     configinfo
-    init_log4perl
+    init_log
     $currentlogfile
     $attachmentlogfile
     cleanupinfo
@@ -82,16 +77,20 @@ our @EXPORT_OK = qw(
     servicedebug
     serviceinfo
 );
+#abortthread
 
 my $logfileextension = '.log';
 
 our $currentlogfile;
-our $weblogfile;
+#our $weblogfile;
 our $attachmentlogfile;
 
-#eval {
-    init_log4perl();
-#};
+my $loginitialized = 0;
+
+##eval {
+#    init_log4perl();
+##};
+init_log_default();
 
 sub createlogfile {
 
@@ -107,14 +106,32 @@ sub createlogfile {
 
 }
 
-sub init_log4perl {
+sub init_log_default {
+
+    # log configuration
+    my $conf = "log4perl.logger                       = DEBUG, ScreenApp\n" .
+
+               "log4perl.appender.ScreenApp           = Log::Log4perl::Appender::Screen\n" .
+               #"log4perl.appender.ScreenApp           = Log::Log4perl::Appender::ScreenColoredLevels\n" .
+               "log4perl.appender.ScreenApp.Threshold = INFO\n" .
+               "log4perl.appender.ScreenApp.stderr    = 0\n" .
+               "log4perl.appender.ScreenApp.layout    = Log::Log4perl::Layout::SimpleLayout\n" .
+               'log4perl.appender.ScreenApp.layout.ConversionPattern = %d> %m%n';
+
+    # Initialize logging behaviour
+    Log::Log4perl->init( \$conf );
+    get_logger(__PACKAGE__)->debug('default log4perl configuration applied');
+
+}
+
+sub init_log {
 
     $currentlogfile = $logfile_path . timestampdigits() . $logfileextension;
     createlogfile($currentlogfile);
     $attachmentlogfile = $logfile_path . 'email_' . timestampdigits() . $logfileextension;
     createlogfile($attachmentlogfile);
-    $weblogfile = $logfile_path . 'web_' . datestampdigits() .  $logfileextension;
-    createlogfile($weblogfile);
+    #$weblogfile = $logfile_path . 'web_' . datestampdigits() .  $logfileextension;
+    #createlogfile($weblogfile);
 
     # log configuration
     my $conf = "log4perl.logger                       = DEBUG, FileApp, ScreenApp, MailAttApp\n" .
@@ -148,13 +165,25 @@ sub init_log4perl {
 
     # Initialize logging behaviour
     Log::Log4perl->init( \$conf );
+    
+    $loginitialized = 1;
+    
+    get_logger(__PACKAGE__)->debug('log4perl configuration loaded');
 }
 
 #my $loglogger;
 #eval {
 #    $loglogger = get_logger(__PACKAGE__);
 #};
-my $loglogger = get_logger(__PACKAGE__);
+#my $loglogger = undef; #deferred initialisation required, as log options are loaded from configs
+
+#sub _get_loglogger {
+#    return get_logger(__PACKAGE__);
+#    #if (!defined $loglogger) {
+#    #    $loglogger = get_logger(__PACKAGE__);
+#    #}
+#    #return $loglogger;
+#}
 
 sub getlogger {
 
@@ -166,9 +195,9 @@ sub getlogger {
     #if (defined $loglogger and defined $newlogger) {
     #    $loglogger->debug('logger for category ' . $package . ' created');
     #}
-    my $newlogger = get_logger($package);
-    $loglogger->debug('logger for category ' . $package . ' created');
-    return $newlogger;
+    return get_logger($package);
+    #_get_loglogger()->debug('logger for category ' . $package . ' created');
+    #return $newlogger;
 
 }
 
@@ -179,7 +208,7 @@ sub cleanuplogfiles {
     local *LOGDIR;
     if (not opendir(LOGDIR, $logfile_path)) {
         if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-          &$fileerrorcode('cannot opendir ' . $logfile_path . ': ' . $!,$loglogger);
+          &$fileerrorcode('cannot opendir ' . $logfile_path . ': ' . $!,get_logger(__PACKAGE__));
           return;
         }
     }
@@ -193,7 +222,7 @@ sub cleanuplogfiles {
         if (not contains($filepath,\@remaininglogfiles)) {
             if ((unlink $filepath) == 0) {
                 if (defined $filewarncode and ref $filewarncode eq 'CODE') {
-                  &$filewarncode('cannot remove ' . $filepath . ': ' . $!,$loglogger);
+                  &$filewarncode('cannot remove ' . $filepath . ': ' . $!,get_logger(__PACKAGE__));
                 }
             }
         }

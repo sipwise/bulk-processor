@@ -53,7 +53,7 @@ my $client_encoding = 'LATIN1';
 my $LongReadLen = $LongReadLen_limit; #bytes
 my $LongTruncOk = 0;
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 my $lock_do_chunk = 0;
 my $lock_get_chunk = 0;
@@ -76,7 +76,7 @@ sub new {
 
     bless($self,$class);
 
-    dbdebug($self,__PACKAGE__ . ' connector created',$logger);
+    dbdebug($self,__PACKAGE__ . ' connector created',getlogger(__PACKAGE__));
 
     return $self;
 
@@ -174,7 +174,7 @@ sub _dbd_connect {
                 AutoCommit      => 1,
                 #AutoCommit      => 0,
             }
-        ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),$logger));
+        ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__)));
 }
 
 sub getdatabases {
@@ -182,13 +182,13 @@ sub getdatabases {
     my $self = shift;
 
     my $connected_wo_db = 0;
-    if (not defined $self->{dbh}) {
+    if (!defined $self->{dbh}) {
        $self->{dbh} = $self->_dbd_connect();
        $connected_wo_db = 1;
     }
     my $dbs = $self->db_get_col('SELECT name FROM master..sysdatabases');
     if ($connected_wo_db) {
-        $self->{dbh}->disconnect() or dberror($self,'error disconnecting: ' . $self->{dbh}->errstr(),$logger);
+        $self->{dbh}->disconnect() or dberror($self,'error disconnecting: ' . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
         $self->{dbh} = undef;
     }
 
@@ -203,8 +203,8 @@ sub _createdatabase {
 
         $self->{dbh} = $self->_dbd_connect();
         $self->db_do('CREATE DATABASE ' . $databasename . ' COLLATE ' . $collation_name);
-        dbinfo($self,'database \'' . $databasename . '\' created',$logger);
-        $self->{dbh}->disconnect() or dberror($self,'error disconnecting: ' . $self->{dbh}->errstr(),$logger);
+        dbinfo($self,'database \'' . $databasename . '\' created',getlogger(__PACKAGE__));
+        $self->{dbh}->disconnect() or dberror($self,'error disconnecting: ' . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
         $self->{dbh} = undef;
 }
 
@@ -236,7 +236,7 @@ sub db_connect {
         $self->_createdatabase($databasename);
     }
 
-    dbdebug($self,'connecting',$logger);
+    dbdebug($self,'connecting',getlogger(__PACKAGE__));
 
     my $dbh = $self->_dbd_connect($databasename);
 
@@ -253,7 +253,7 @@ sub db_connect {
         $self->db_do('SET TRANSACTION ISOLATION LEVEL ' . $transaction_isolation_level);
     }
 
-    dbinfo($self,'connected',$logger);
+    dbinfo($self,'connected',getlogger(__PACKAGE__));
 
 }
 
@@ -310,7 +310,7 @@ sub create_temptable {
     my ($select_fields_part,$table_whereclause_part) = split /\s+from\s+/i,$select_stmt,2;
 
     $self->db_do($select_fields_part . ' INTO ' . $temp_tablename . ' FROM ' . $table_whereclause_part);
-    temptablecreated($self,$index_tablename,$logger);
+    temptablecreated($self,$index_tablename,getlogger(__PACKAGE__));
 
     if (defined $indexes and ref $indexes eq 'HASH' and scalar keys %$indexes > 0) {
         foreach my $indexname (keys %$indexes) {
@@ -319,7 +319,7 @@ sub create_temptable {
                 #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                 $indexname = lc($index_tablename) . '_' . $indexname;
                 $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $temp_tablename . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                indexcreated($self,$index_tablename,$indexname,$logger);
+                indexcreated($self,$index_tablename,$indexname,getlogger(__PACKAGE__));
             #}
         }
     }
@@ -338,7 +338,7 @@ sub create_primarykey {
         if (defined $keycols and ref $keycols eq 'ARRAY' and scalar @$keycols > 0 and setcontains($keycols,$fieldnames,1)) {
             my $statement = 'ALTER TABLE ' . $self->tableidentifier($tablename) . ' ADD PRIMARY KEY (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$keycols) . ')';
             $self->db_do($statement);
-            primarykeycreated($self,$tablename,$keycols,$logger);
+            primarykeycreated($self,$tablename,$keycols,getlogger(__PACKAGE__));
             return 1;
         }
 
@@ -360,7 +360,7 @@ sub create_indexes {
                     if (not arrayeq($indexcols,$keycols,1)) {
                         #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                         $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                        indexcreated($self,$tablename,$indexname,$logger);
+                        indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                     }
                 }
             }
@@ -420,7 +420,7 @@ sub create_texttable {
             $statement .= ')'; # CHARACTER SET ' . $texttable_charset . ', COLLATE ' . $texttable_collation . ', ENGINE ' . $texttable_engine;
 
             $self->db_do($statement);
-            texttablecreated($self,$tablename,$logger);
+            texttablecreated($self,$tablename,getlogger(__PACKAGE__));
 
             if (not $defer_indexes and defined $indexes and ref $indexes eq 'HASH' and scalar keys %$indexes > 0) {
                 foreach my $indexname (keys %$indexes) {
@@ -428,7 +428,7 @@ sub create_texttable {
                     if (not arrayeq($indexcols,$keycols,1)) {
                         #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                         $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                        indexcreated($self,$tablename,$indexname,$logger);
+                        indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                     }
                 }
             }
@@ -437,7 +437,7 @@ sub create_texttable {
         } else {
             my $fieldnamesfound = $self->getfieldnames($tablename);
             if (not setcontains($fieldnames,$fieldnamesfound,1)) {
-                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,$logger);
+                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,getlogger(__PACKAGE__));
                 return 0;
             }
         }
@@ -467,7 +467,7 @@ sub truncate_table {
     my $tablename = shift;
 
     $self->db_do('TRUNCATE ' . $self->tableidentifier($tablename));
-    tabletruncated($self,$tablename,$logger);
+    tabletruncated($self,$tablename,getlogger(__PACKAGE__));
 
 }
 
@@ -487,7 +487,7 @@ sub drop_table {
 
     if ($self->table_exists($tablename) > 0) {
         $self->db_do('DROP TABLE ' . $self->tableidentifier($tablename));
-        tabledropped($self,$tablename,$logger);
+        tabledropped($self,$tablename,getlogger(__PACKAGE__));
         return 1;
     }
     return 0;

@@ -48,7 +48,7 @@ my $session_charset = 'latin1';
 my $LongReadLen = $LongReadLen_limit; #bytes
 my $LongTruncOk = 0;
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 my $lock_do_chunk = 1;
 my $lock_get_chunk = 0;
@@ -71,7 +71,7 @@ sub new {
 
     bless($self,$class);
 
-    dbdebug($self,__PACKAGE__ . ' connector created',$logger);
+    dbdebug($self,__PACKAGE__ . ' connector created',getlogger(__PACKAGE__));
 
     return $self;
 
@@ -146,7 +146,7 @@ sub getdatabases {
                                  $self->{username},
                                  $self->{password},
                                  '_ListDBs') or
-        dberror($self,'error listing databases: ' . $self->{drh}->errstr(),$logger);
+        dberror($self,'error listing databases: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
 
     return \@dbs;
 
@@ -163,7 +163,7 @@ sub _createdatabase {
                            $self->{username},
                            $self->{password},
                            'admin')) {
-        dbinfo($self,'database \'' . $databasename . '\' created',$logger);
+        dbinfo($self,'database \'' . $databasename . '\' created',getlogger(__PACKAGE__));
     }
 }
 
@@ -191,7 +191,7 @@ sub db_connect {
         $self->_createdatabase($databasename);
     }
 
-    dbdebug($self,'connecting',$logger);
+    dbdebug($self,'connecting',getlogger(__PACKAGE__));
 
     my $dbh = DBI->connect(
         'dbi:mysql:database=' . $databasename . ';host=' . $host . ';port=' . $port,$username,$password,
@@ -201,7 +201,7 @@ sub db_connect {
             AutoCommit      => 1,
             #AutoCommit      => 0,
         }
-    ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),$logger);
+    ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
 
     $dbh->{InactiveDestroy} = 1;
 
@@ -216,7 +216,7 @@ sub db_connect {
     #    $self->db_do('SET SESSION character_set_connection = \'utf8\'');
     #    $self->db_do('SET SESSION character_set_results = \'utf8\'');
         $self->db_do('SET CHARACTER SET ' . $session_charset . '');
-        dbdebug($self,'session charset ' . $session_charset . ' applied',$logger);
+        dbdebug($self,'session charset ' . $session_charset . ' applied',getlogger(__PACKAGE__));
     } else {
     #    $self->db_do('SET SESSION CHARACTER SET = \'utf8\'');
         #$self->db_do('SET SESSION CHARACTER SET = \'latin1\'');
@@ -241,7 +241,7 @@ sub db_connect {
         $self->db_do('SET SESSION TRANSACTION ISOLATION LEVEL ' . $serialization_level);
     }
 
-    dbinfo($self,'connected',$logger);
+    dbinfo($self,'connected',getlogger(__PACKAGE__));
 
 }
 
@@ -295,7 +295,7 @@ sub create_temptable {
     my $temp_tablename = $self->tableidentifier($index_tablename);
 
     $self->db_do('CREATE TEMPORARY TABLE ' . $temp_tablename . ' AS ' . $select_stmt);
-    temptablecreated($self,$index_tablename,$logger);
+    temptablecreated($self,$index_tablename,getlogger(__PACKAGE__));
 
     if (defined $indexes and ref $indexes eq 'HASH' and scalar keys %$indexes > 0) {
         foreach my $indexname (keys %$indexes) {
@@ -304,7 +304,7 @@ sub create_temptable {
                 #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                 my $temptable_indexname = lc($index_tablename) . '_' . $indexname;
                 $self->db_do('CREATE INDEX ' . $temptable_indexname . ' ON ' . $temp_tablename . ' (' . join(', ', map { local $_ = $_; my @indexcol = _split_indexcol($_); $_ = $self->columnidentifier($indexcol[0]) . $indexcol[1]; $_; } @{$indexes->{$indexname}}) . ')');
-                indexcreated($self,$index_tablename,$indexname,$logger);
+                indexcreated($self,$index_tablename,$indexname,getlogger(__PACKAGE__));
             #}
         }
     }
@@ -323,7 +323,7 @@ sub create_primarykey {
         if (defined $keycols and ref $keycols eq 'ARRAY' and scalar @$keycols > 0 and setcontains($keycols,$fieldnames,1)) {
             my $statement = 'ALTER TABLE ' . $self->tableidentifier($tablename) . ' ADD PRIMARY KEY (' . join(', ',map { local $_ = $_; my @indexcol = _split_indexcol($_); $_ = $self->columnidentifier($indexcol[0]) . $indexcol[1]; $_; } @$keycols) . ')';
             $self->db_do($statement);
-            primarykeycreated($self,$tablename,$keycols,$logger);
+            primarykeycreated($self,$tablename,$keycols,getlogger(__PACKAGE__));
             return 1;
         }
 
@@ -345,7 +345,7 @@ sub create_indexes {
                 if (not arrayeq($self->_extract_indexcols($indexes->{$indexname}),$keycols,1)) {
                     my $statement = 'CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; my @indexcol = _split_indexcol($_); $_ = $self->columnidentifier($indexcol[0]) . $indexcol[1]; $_; } @{$indexes->{$indexname}}) . ')';
                     $self->db_do($statement);
-                    indexcreated($self,$tablename,$indexname,$logger);
+                    indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                     $index_count++;
                 }
             }
@@ -403,12 +403,12 @@ sub create_texttable {
             $statement .= ') CHARACTER SET ' . $texttable_charset . ', COLLATE ' . $texttable_collation . ', ENGINE ' . $texttable_engine;
 
             $self->db_do($statement);
-            texttablecreated($self,$tablename . ' (' . $texttable_engine . ')',$logger);
+            texttablecreated($self,$tablename . ' (' . $texttable_engine . ')',getlogger(__PACKAGE__));
             $created = 1;
         } else {
             my $fieldnamesfound = $self->getfieldnames($tablename);
             if (not setcontains($fieldnames,$fieldnamesfound,1)) {
-                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,$logger);
+                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,getlogger(__PACKAGE__));
                 return 0;
             }
         }
@@ -436,7 +436,7 @@ sub truncate_table {
     my $tablename = shift;
 
     $self->db_do('TRUNCATE ' . $self->tableidentifier($tablename));
-    tabletruncated($self,$tablename,$logger);
+    tabletruncated($self,$tablename,getlogger(__PACKAGE__));
 
 }
 
@@ -458,7 +458,7 @@ sub drop_table {
 
     if ($self->table_exists($tablename) > 0) {
         $self->db_do('DROP TABLE ' . $self->tableidentifier($tablename));
-        tabledropped($self,$tablename,$logger);
+        tabledropped($self,$tablename,getlogger(__PACKAGE__));
         return 1;
     }
     return 0;
@@ -474,7 +474,7 @@ sub lock_tables {
     if (defined $self->{dbh} and defined $tablestolock and ref $tablestolock eq 'HASH') {
 
        my $locks = join(', ',map { local $_ = $_; $_ = $self->tableidentifier($_) . ' ' . $tablestolock->{$_}; $_; } keys %$tablestolock);
-       dbdebug($self,"lock_tables:\n" . $locks,$logger);
+       dbdebug($self,"lock_tables:\n" . $locks,getlogger(__PACKAGE__));
        $self->db_do('LOCK TABLES ' . $locks);
 
     }
@@ -486,7 +486,7 @@ sub unlock_tables {
     my $self = shift;
     if (defined $self->{dbh}) {
 
-       dbdebug($self,'unlock_tables',$logger);
+       dbdebug($self,'unlock_tables',getlogger(__PACKAGE__));
        $self->db_do('UNLOCK TABLES');
 
     }

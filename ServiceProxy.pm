@@ -35,7 +35,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(new_async_do new_do);
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 use Gearman::Client;
 #sub RECEIVE_EXCEPTIONS {
@@ -97,7 +97,7 @@ sub new {
     #$self->{taskset} = undef;
     #$self->{task} = undef;
 
-    servicedebug($self,'service proxy created, job servers ' . join(',',@jobservers),$logger);
+    servicedebug($self,'service proxy created, job servers ' . join(',',@jobservers),getlogger(__PACKAGE__));
 
     return $self;
 
@@ -155,11 +155,11 @@ sub do_async {
     my $arg = serialize(\@args,$self->{serialization_format});
     $self->{arg} = \$arg;
 
-    #if (not defined $self->{queue}) {
+    #if (!defined $self->{queue}) {
         $self->{queue} = Thread::Queue->new();
     #}
 
-    servicedebug($self,'start waiting do_async \'' . $function_name . '\', args length: ' . length(encode_utf8($arg)),$logger);
+    servicedebug($self,'start waiting do_async \'' . $function_name . '\', args length: ' . length(encode_utf8($arg)),getlogger(__PACKAGE__));
     $self->{thread} = threads->create(\&_wait_thread,
 
                                           { proxy                => $self,
@@ -196,7 +196,7 @@ sub _wait_thread {
     #$proxy->{create_tid} = undef;
     $proxy->{wait_tid} = threadid();
     $proxy->{tid} = $proxy->{wait_tid};
-    servicedebug($proxy,'wait thread tid ' . $proxy->{tid} . ' started',$logger);
+    servicedebug($proxy,'wait thread tid ' . $proxy->{tid} . ' started',getlogger(__PACKAGE__));
     my $async_running_ref = $proxy->{async_running_ref};
 
     my $task_opts = $proxy->_get_task_opts();
@@ -221,7 +221,7 @@ sub _wait_thread {
     $task_set->add_task($task);
 
     local $SIG{'KILL'} = sub {
-        servicedebug($proxy,'kill signal received, exiting wait thread tid ' . $proxy->{tid} . ' ...',$logger);
+        servicedebug($proxy,'kill signal received, exiting wait thread tid ' . $proxy->{tid} . ' ...',getlogger(__PACKAGE__));
         #{
         #    lock $async_running_ref;
         #    $$async_running_ref = 0;
@@ -230,7 +230,7 @@ sub _wait_thread {
 
     };
 
-    servicedebug($proxy,'start waiting (do_async) ...',$logger);
+    servicedebug($proxy,'start waiting (do_async) ...',getlogger(__PACKAGE__));
     $task_set->wait(timeout => $task->timeout);
     #return wantarray ? @{$self->{ret}} : $self->{ret}->[0];
     {
@@ -238,7 +238,7 @@ sub _wait_thread {
         $$async_running_ref = 0;
     }
 
-    servicedebug($proxy,'shutting down wait thread tid ' . $proxy->{tid} . ' ...',$logger);
+    servicedebug($proxy,'shutting down wait thread tid ' . $proxy->{tid} . ' ...',getlogger(__PACKAGE__));
     #threads->exit();
 }
 
@@ -289,7 +289,7 @@ sub do {
     #$self->{taskset} = $task_set;
     $task_set->add_task($task);
 
-    servicedebug($self,'start waiting do \'' . $function_name . '\', args length: ' . length(encode_utf8($arg)),$logger);
+    servicedebug($self,'start waiting do \'' . $function_name . '\', args length: ' . length(encode_utf8($arg)),getlogger(__PACKAGE__));
     $task_set->wait(timeout => $task->timeout);
     return wantarray ? @{$self->{ret}} : $self->{ret}->[0];
 
@@ -301,7 +301,7 @@ sub _enqueue_event {
     my $packet = {event     => $event,
                     args     => $args};
     $self->{queue}->enqueue($packet);
-    servicedebug($self,'event ' . $event . ' enqueued, ' . $self->{queue}->pending() . ' event(s) pending',$logger);
+    servicedebug($self,'event ' . $event . ' enqueued, ' . $self->{queue}->pending() . ' event(s) pending',getlogger(__PACKAGE__));
 }
 
 sub _on_complete  {
@@ -312,7 +312,7 @@ sub _on_complete  {
     } elsif ($self->_is_create_thread()) {
         my $result = $$result_ref;
         $self->{ret} = deserialize($result,$self->{serialization_format});
-        servicedebug($self,'on_complete event received, result length: ' . length(encode_utf8($result)),$logger);
+        servicedebug($self,'on_complete event received, result length: ' . length(encode_utf8($result)),getlogger(__PACKAGE__));
         if (defined $self->{on_complete} and ref $self->{on_complete} eq 'CODE') {
             &{$self->{on_complete}}(@{$self->{ret}});
         }
@@ -326,7 +326,7 @@ sub _on_fail {
     if ($self->_is_wait_thread()) {
         $self->_enqueue_event('_on_fail');
     } elsif ($self->_is_create_thread()) {
-        servicedebug($self,'on_fail event received',$logger);
+        servicedebug($self,'on_fail event received',getlogger(__PACKAGE__));
         if (defined $self->{on_fail} and ref $self->{on_fail} eq 'CODE') {
             &{$self->{on_fail}}();
         }
@@ -338,7 +338,7 @@ sub _on_retry {
     if ($self->_is_wait_thread()) {
         $self->_enqueue_event('_on_retry');
     } elsif ($self->_is_create_thread()) {
-        servicedebug($self,'on_retry event received',$logger);
+        servicedebug($self,'on_retry event received',getlogger(__PACKAGE__));
         if (defined $self->{on_retry} and ref $self->{on_retry} eq 'CODE') {
             &{$self->{on_retry}}();
         }
@@ -351,7 +351,7 @@ sub _on_status {
     if ($self->_is_wait_thread()) {
         $self->_enqueue_event('_on_status',[$numerator, $denominator]);
     } elsif ($self->_is_create_thread()) {
-        servicedebug($self,'on_status event received: ' . $numerator . '/' . $denominator,$logger);
+        servicedebug($self,'on_status event received: ' . $numerator . '/' . $denominator,getlogger(__PACKAGE__));
         if (defined $self->{on_status} and ref $self->{on_status} eq 'CODE') {
             &{$self->{on_status}}($numerator, $denominator);
         }
@@ -367,10 +367,10 @@ sub _on_exception {
         #${$self->{async_running_ref}} = 0;
     } elsif ($self->_is_create_thread()) {
         if (defined $self->{on_error} and ref $self->{on_error} eq 'CODE') {
-            servicedebug($self,'on_exception event received: ' . $exception,$logger);
+            servicedebug($self,'on_exception event received: ' . $exception,getlogger(__PACKAGE__));
             &{$self->{on_error}}($exception);
         } else {
-            servicewarn($self,'on_exception event received: ' . $exception,$logger);
+            servicewarn($self,'on_exception event received: ' . $exception,getlogger(__PACKAGE__));
         }
     }
 }
@@ -383,17 +383,17 @@ sub _check_async_running {
         lock $async_running_ref;
         if ($$async_running_ref) {
             if (defined $on_error and ref $on_error eq 'CODE') {
-                servicedebug($self,$message,$logger);
+                servicedebug($self,$message,getlogger(__PACKAGE__));
                 &$on_error($message);
             } elsif (length($message) > 0) {
-                servicewarn($self,$message,$logger);
+                servicewarn($self,$message,getlogger(__PACKAGE__));
             }
             return 1;
         } elsif ($async_running) {
             $$async_running_ref = 1;
         }
     #} else {
-    #    servicewarn($self,$message,$logger);
+    #    servicewarn($self,$message,getlogger(__PACKAGE__));
     }
     return 0;
 }
@@ -412,7 +412,7 @@ sub _get_stop_wait_thread {
                  ($async_running ? 'wait thread running' : 'wait thread not running') .', '.
                  $self->{queue}->pending() . ' event(s) queued, ' .
                  ((defined $timeout_secs) ? 'timeout in ' . sprintf('%.1f',$timeout_secs) . 'secs' : 'no timeout') . ')'
-                 ,$logger);
+                 ,getlogger(__PACKAGE__));
         return 1;
     }
     return 0;
@@ -426,7 +426,7 @@ sub wait {
                 my $packet = $self->{queue}->dequeue_nb();
                 if (defined $packet) {
                     my $event = $packet->{event};
-                    servicedebug($self,'event ' . $event . ' dequeued, ' . $self->{queue}->pending() . ' event(s) pending',$logger);
+                    servicedebug($self,'event ' . $event . ' dequeued, ' . $self->{queue}->pending() . ' event(s) pending',getlogger(__PACKAGE__));
                     $self->$event(@{$packet->{args}});
                     yield();
                 } else {
@@ -442,22 +442,22 @@ sub wait {
                 lock $async_running_ref;
                 $killtread = ($$async_running_ref and (defined $timeout_secs and $timeout_secs <= 0));
                 if ($killtread) {
-                    servicedebug($self,'wait timeout exceeded (' . sprintf('%.1f',$timeout_secs) . '), killing wait thread ...',$logger);
+                    servicedebug($self,'wait timeout exceeded (' . sprintf('%.1f',$timeout_secs) . '), killing wait thread ...',getlogger(__PACKAGE__));
                     $self->{thread}->kill('KILL')->detach();
                     $$async_running_ref = 0;
                 }
             }
             if (not $killtread) {
                 $self->{thread}->join();
-                servicedebug($self,'wait thread joined',$logger);
+                servicedebug($self,'wait thread joined',getlogger(__PACKAGE__));
             }
             ##if ($self->{thread}) {
             #    if ($killtread) {
-            #        servicedebug($self,'killing thread XX',$logger);
+            #        servicedebug($self,'killing thread XX',getlogger(__PACKAGE__));
             #        $self->{thread}->kill('KILL')->detach();
             #    } else {
             #        $self->{thread}->join();
-            #        servicedebug($self,'thread joined',$logger);
+            #        servicedebug($self,'thread joined',getlogger(__PACKAGE__));
             #    }
             ##}
             $self->{queue} = undef;
@@ -465,11 +465,11 @@ sub wait {
             $self->{wait_tid} = undef;
 
             #if ($killtread) {
-            #    #servicedebug($self,'killing thread XX',$logger);
+            #    #servicedebug($self,'killing thread XX',getlogger(__PACKAGE__));
             #    #$self->{thread}->kill('KILL')->detach();
             #} else {
             #    $self->{thread}->join();
-            #    servicedebug($self,'thread joined',$logger);
+            #    servicedebug($self,'thread joined',getlogger(__PACKAGE__));
             #}
             #$self->{queue} = undef;
             #$self->{thread} = undef;
@@ -484,13 +484,13 @@ sub DESTROY {
 
     my $self = shift;
     if ($self->_is_create_thread()) {
-        servicedebug($self,'destroying proxy ...',$logger);
+        servicedebug($self,'destroying proxy ...',getlogger(__PACKAGE__));
         if ($self->{block_destroy}) {
             $self->wait($self->{timeout_secs} > 0 ? $self->{timeout_secs} : undef);
         } else {
             $self->_check_async_running(undef,'do_async \'' . $self->{function} . '\' is still waiting');
         }
-        servicedebug($self,'proxy destroyed',$logger);
+        servicedebug($self,'proxy destroyed',getlogger(__PACKAGE__));
     }
 }
 

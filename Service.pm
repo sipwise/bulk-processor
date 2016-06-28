@@ -33,7 +33,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(); #get_tableidentifier);
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 use Gearman::Worker;
 #use Time::HiRes qw(usleep);
@@ -102,27 +102,27 @@ sub _register_functions {
             if (defined $code and ref $code eq 'CODE') {
                 $self->{worker}->register_function($name,
                     sub {
-                        #servicedebug($self,(ref $self) . ' connector destroyed',$logger);
+                        #servicedebug($self,(ref $self) . ' connector destroyed',getlogger(__PACKAGE__));
                         #my $resultref = serialize(&$code(deserialize($_[0]->argref())));
-                        #servicedebug($self,(ref $self) . ' connector destroyed',$logger);
-                        servicedebug($self,'invoking \'' . $name . '\', args length: ' . length(encode_utf8($_[0]->arg())),$logger);
+                        #servicedebug($self,(ref $self) . ' connector destroyed',getlogger(__PACKAGE__));
+                        servicedebug($self,'invoking \'' . $name . '\', args length: ' . length(encode_utf8($_[0]->arg())),getlogger(__PACKAGE__));
                         my $arg = deserialize($_[0]->arg(),$self->{serialization_format});
                         my (@ret) = &$code(@$arg);
                         my $result = serialize(\@ret,$self->{serialization_format});
-                        servicedebug($self,'returning from \'' . $name . '\', result length: ' . length(encode_utf8($result)),$logger);
+                        servicedebug($self,'returning from \'' . $name . '\', result length: ' . length(encode_utf8($result)),getlogger(__PACKAGE__));
                         #$_[0]->set_status($numerator, $denominator);???
                         return $result;
                     }
                 );
-                servicedebug($self,'function \'' . $name . '\' registered',$logger);
+                servicedebug($self,'function \'' . $name . '\' registered',getlogger(__PACKAGE__));
                 $count++;
             } else {
-                servicewarn($self,'cannot register function ' . $name,$logger);
+                servicewarn($self,'cannot register function ' . $name,getlogger(__PACKAGE__));
             }
         }
-        serviceinfo($self,$count . ' functions registered at job servers ' . join(',',@jobservers),$logger);
+        serviceinfo($self,$count . ' functions registered at job servers ' . join(',',@jobservers),getlogger(__PACKAGE__));
     } else {
-        serviceerror($self,'no functions to register',$logger);
+        serviceerror($self,'no functions to register',getlogger(__PACKAGE__));
     }
 
 }
@@ -136,12 +136,12 @@ sub _unregister_functions {
         my $count = 0;
         foreach my $name (keys %$functions) {
             $self->{worker}->unregister_function($name);
-            servicedebug($self,'function \'' . $name . '\' unregistered',$logger);
+            servicedebug($self,'function \'' . $name . '\' unregistered',getlogger(__PACKAGE__));
             $count++;
         }
-        serviceinfo($self,$count . ' functions unregistered from job servers ' . join(',',@jobservers),$logger);
+        serviceinfo($self,$count . ' functions unregistered from job servers ' . join(',',@jobservers),getlogger(__PACKAGE__));
     } else {
-        serviceerror($self,'no functions to unregister',$logger);
+        serviceerror($self,'no functions to unregister',getlogger(__PACKAGE__));
     }
 
 }
@@ -154,14 +154,14 @@ sub _worker {
     #${$context->{service}->{tid_ref}} = $tid;
     $service->{worker_tid} = threadid();
     $service->{tid} = $service->{worker_tid};
-    servicedebug($service,'worker thread ' . $service->{worker_tid} . ' started',$logger);
+    servicedebug($service,'worker thread ' . $service->{worker_tid} . ' started',getlogger(__PACKAGE__));
     my $running_ref = $service->{running_ref};
 
     my $stop_if = sub {
                         lock($running_ref);
                         #print join ',',@_ . "\n";
                         if (not $$running_ref) {
-                            servicedebug($service,'shutting down work and worker thread ' . $service->{worker_tid} . ' ...',$logger);
+                            servicedebug($service,'shutting down work and worker thread ' . $service->{worker_tid} . ' ...',getlogger(__PACKAGE__));
                             return 1;
                         } else {
                             return 0;
@@ -186,7 +186,7 @@ sub _worker {
         }
     }
     $service->_unregister_functions();
-    #servicedebug($service,'worker thread ' . $service->{worker_tid} . ' shutting down',$logger);
+    #servicedebug($service,'worker thread ' . $service->{worker_tid} . ' shutting down',getlogger(__PACKAGE__));
     #threads->exit();
 }
 
@@ -204,7 +204,7 @@ sub start {
             }
         }
         if ($startup) {
-            servicedebug($self,'starting worker thread ...',$logger);
+            servicedebug($self,'starting worker thread ...',getlogger(__PACKAGE__));
             $self->{thread} = threads->create(\&_worker,
 
                                               { service                => $self,
@@ -214,7 +214,7 @@ sub start {
                                               );
             #$self->{worker_tid} = $self->{thread}->tid();
         } else {
-            servicewarn($self,'worker thread already running?',$logger);
+            servicewarn($self,'worker thread already running?',getlogger(__PACKAGE__));
         }
 
     }
@@ -235,13 +235,13 @@ sub stop {
             }
         }
         if ($shutdown) {
-            servicedebug($self,'stopping worker thread ...',$logger);
+            servicedebug($self,'stopping worker thread ...',getlogger(__PACKAGE__));
             $self->{thread}->join();
             $self->{thread} = undef;
             $self->{worker_tid} = undef;
-            servicedebug($self,'worker thread joined',$logger);
+            servicedebug($self,'worker thread joined',getlogger(__PACKAGE__));
         } else {
-            servicewarn($self,'thread already stopped',$logger);
+            servicewarn($self,'thread already stopped',getlogger(__PACKAGE__));
         }
     }
 
@@ -250,21 +250,21 @@ sub stop {
 sub _on_start {
     my $self = shift;
     if ($self->_is_worker_thread()) {
-        servicedebug($self,'on_start',$logger);
+        servicedebug($self,'on_start',getlogger(__PACKAGE__));
     }
 }
 
 sub _on_complete {
     my $self = shift;
     if ($self->_is_worker_thread()) {
-        servicedebug($self,'on_complete',$logger);
+        servicedebug($self,'on_complete',getlogger(__PACKAGE__));
     }
 }
 
 sub _on_fail {
     my $self = shift;
     if ($self->_is_worker_thread()) {
-        servicedebug($self,'on_fail',$logger);
+        servicedebug($self,'on_fail',getlogger(__PACKAGE__));
     }
 }
 
@@ -273,9 +273,9 @@ sub DESTROY {
     my $self = shift;
     #print "DESTROY is worker: " . $self->_is_worker_thread() . "\n";
     if ($self->_is_create_thread()) {
-        servicedebug($self,'destroying service ...',$logger);
+        servicedebug($self,'destroying service ...',getlogger(__PACKAGE__));
         $self->stop();
-        servicedebug($self,(ref $self) . ' service destroyed',$logger);
+        servicedebug($self,(ref $self) . ' service destroyed',getlogger(__PACKAGE__));
     }
 
 }

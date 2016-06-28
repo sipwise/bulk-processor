@@ -13,7 +13,6 @@ use Logging qw(
     getlogger
     mainconfigurationloaded
     configinfo
-    init_log4perl
 );
 
 use LogError qw(
@@ -34,7 +33,7 @@ our @EXPORT_OK = qw(
     load_config
 );
 
-our $loadedmainconfigfile;
+our $loadedmainconfigfile = undef;
 
 my $tuplesplitpattern = join('|',(quotemeta(','),
                                   quotemeta(';'),
@@ -42,7 +41,7 @@ my $tuplesplitpattern = join('|',(quotemeta(','),
                                   )
                              );
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 sub load_config {
 
@@ -51,22 +50,22 @@ sub load_config {
     my $data;
     if (defined $configfile) {
         if (-e $configfile) {
-            $data = _parse_config($file,$configtype);
+            $data = _parse_config($configfile,$configtype);
         } else {
             $configfile = $application_path . $configfile;
             if (-e $configfile) {
                 $data = _parse_config($configfile,$configtype);
             } else {
-                fileerror('cannot find config file ' . $configfile,$logger);
+                fileerror('cannot find config file ' . $configfile,getlogger(__PACKAGE__));
             }
         }
     } else {
-        configurationerror('no config file specified',$logger);
+        configurationerror('no config file specified',getlogger(__PACKAGE__));
     }
     
     if ('CODE' eq ref $process_code) {
-        my $result = @$process_code($data);
-        configinfo('configuration file ' . $configfile . ' loaded',$logger);
+        my $result = &$process_code($data);
+        configinfo('configuration file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
         return $result;
     } else {
         if (update_mainconfig($data,$configfile,
@@ -74,12 +73,12 @@ sub load_config {
                           \&format_number,
                           \&configurationwarn,
                           \&configurationerror,
-                          $logger)) {
+                          getlogger(__PACKAGE__))) {
             $loadedmainconfigfile = $configfile;
-            mainconfigurationloaded($configfile,$logger);
+            mainconfigurationloaded($configfile,getlogger(__PACKAGE__));
             return 1;
         }
-        log_mainconfig(\&configinfo,$logger);
+        log_mainconfig(\&configinfo,getlogger(__PACKAGE__));
         return 0;
     }
 
@@ -137,7 +136,7 @@ sub _parse_simple_config {
   local *CF;
 
   if (not open (CF, '<' . $file)) {
-    fileerror('parse simple config - cannot open file ' . $file . ': ' . $!,$logger);
+    fileerror('parse simple config - cannot open file ' . $file . ': ' . $!,getlogger(__PACKAGE__));
     return $config;
   }
 
@@ -168,7 +167,7 @@ sub _parse_simple_config {
     $value =~ s/\s+$//g;
 
     if (exists $config->{$key}) {
-        parameterdefinedtwice('parse simple config - parameter ' . $key . ' defined twice in line ' . $count . ' of configuration file ' . $file,$logger);
+        parameterdefinedtwice('parse simple config - parameter ' . $key . ' defined twice in line ' . $count . ' of configuration file ' . $file,getlogger(__PACKAGE__));
     }
 
     $config->{$key} = $value;
@@ -188,7 +187,7 @@ sub _parse_yaml_config {
         $yaml = YAML::Tiny->read($file);
     };
     if ($@) {
-        yamlerror('parse yaml config - error reading file ' . $file . ': ' . $!,$logger);
+        yamlerror('parse yaml config - error reading file ' . $file . ': ' . $!,getlogger(__PACKAGE__));
         return $yaml;
     }
     

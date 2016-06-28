@@ -53,6 +53,10 @@ our @EXPORT_OK = qw(
 	$billing_host
 	$billing_port	
 
+$ngcprestapi_uri
+$ngcprestapi_username
+$ngcprestapi_password
+
 	$csv_path
                     
 
@@ -70,7 +74,6 @@ our @EXPORT_OK = qw(
                     $smtpuser
                     $smtppasswd
                     $writefiles
-                    $tpath
 
                     $logfile_path
                     $fileloglevel
@@ -100,9 +103,9 @@ $mailtype
 umask oct($chmod_umask);
 
 # general constants
-our $system_name = 'Sipwise Bulk Processor Framework';
+our $system_name = 'Sipwise Bulk Processing Framework';
 our $system_version = '0.0.1'; #keep this filename-save
-our $system_abbreviation = 'bpf'; #keep this filename-, dbname-save
+our $system_abbreviation = 'sbpf'; #keep this filename-, dbname-save
 our $system_instance = 'initial'; #'test'; #'2014'; #dbname-save 0-9a-z_
 our $system_instance_label = 'test'; 
 
@@ -139,11 +142,15 @@ our	$accounting_password = '';
 our $accounting_host = '127.0.0.1';
 our $accounting_port = '3306';
 
-our	$billing_databasename = 'accounting';
+our	$billing_databasename = 'billing';
 our $billing_username = 'root';
 our	$billing_password = '';
 our $billing_host = '127.0.0.1';
 our $billing_port = '3306';
+
+our $ngcprestapi_uri = 'https://127.0.0.1:443';
+our $ngcprestapi_username = 'administrator';
+our $ngcprestapi_password = 'administrator';
 
 
 # csv
@@ -190,7 +197,7 @@ our $mailtype = 1; #0 .. mailprog, 1 .. socket, 2 .. Net::SMTP
 
 
 our $ismsexchangeserver = 0;                         # smtp server is a ms exchange server
-our $smtp_server = '10.146.1.17';                    # smtp sever ip/hostname
+our $smtp_server = '192.168.0.99';                   # smtp sever ip/hostname
 our $smtpuser = 'WORKGROUP\rkrenn';
 our $smtppasswd = 'xyz';
 our $sender_address = 'donotreply@sipwise.com';
@@ -205,7 +212,7 @@ our $jobnamespace = $system_abbreviation . '-' . $system_version . '-' . $system
 
 
 # test directory
-our $tpath = $application_path . 't/';
+#our $tpath = $application_path . 't/';
 #mkdir $tpath;
 
 
@@ -237,7 +244,10 @@ sub update_mainconfig {
         $billing_databasename = $config->{billing_databasename} if exists $config->{billing_databasename};
         $billing_username = $config->{billing_username} if exists $config->{billing_username};
         $billing_password = $config->{billing_password} if exists $config->{billing_password};
-        
+
+        $ngcprestapi_uri = $config->{ngcprestapi_uri} if exists $config->{ngcprestapi_uri};
+        $ngcprestapi_username = $config->{ngcprestapi_username} if exists $config->{ngcprestapi_username};
+        $ngcprestapi_password = $config->{ngcprestapi_password} if exists $config->{ngcprestapi_password};        
         
         $enablemultithreading = $config->{enablemultithreading} if exists $config->{enablemultithreading};
         $cells_transfer_memory_limit = $config->{cells_transfer_memory_limit} if exists $config->{cells_transfer_memory_limit};
