@@ -93,7 +93,7 @@ my $table_fieldnames_cached = {};
 my $table_primarykeys = {};
 my $table_target_indexes = {};
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 my $tabletransfer_threadqueuelength = 5; #100; #30; #5; # ... >= 1
 my $minblocksize = 100;
@@ -199,7 +199,7 @@ sub cleartableinfo {
     }
 
     if ($found) {
-        tableinfoscleared($db,$logger);
+        tableinfoscleared($db,getlogger(__PACKAGE__));
     }
 
 }
@@ -291,14 +291,14 @@ sub checktableinfo {
         #$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename} = shared_clone($db->getfieldnames($tablename));
         $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename} = $db->getfieldnames($tablename);
         #my $fieldnames = $db->getfieldnames($tablename);
-        if (not defined $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename} or setcontains($table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename},1)) { #fieldnames are case insensitive in general
+        if (!defined $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename} or setcontains($table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename},1)) { #fieldnames are case insensitive in general
             # if not expected fieldnames are given or queried fieldnames match, we log this:
             #$table_fieldnames_cached->{$connectidentifier}->{$tablename} = $table_expected_fieldnames->{$connectidentifier}->{$tablename};
-            fieldnamesaquired($db,$tablename,$logger);
+            fieldnamesaquired($db,$tablename,getlogger(__PACKAGE__));
         } else {
             # otherwise we log a failure (exit? - see Logging Module)
             #$table_fieldnames_cached->{$connectidentifier}->{$tablename} = {}; #$fieldnames;
-            fieldnamesdiffer($db,$tablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename},$logger);
+            fieldnamesdiffer($db,$tablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename},getlogger(__PACKAGE__));
             $success = 0;
         }
     }
@@ -316,7 +316,7 @@ sub checktableinfo {
         # query the database for primary keys of the table if we don't have them cached yet:
         #$table_primarykeys->{$tid}->{$connectidentifier}->{$tablename} = shared_clone($db->getprimarykeycols($tablename));
         $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename} = $db->getprimarykeycols($tablename);
-        primarykeycolsaquired($db,$tablename,$table_primarykeys->{$tid}->{$connectidentifier}->{$tablename},$logger);
+        primarykeycolsaquired($db,$tablename,$table_primarykeys->{$tid}->{$connectidentifier}->{$tablename},getlogger(__PACKAGE__));
     }
 
     if (not exists $table_target_indexes->{$tid}) {
@@ -403,7 +403,7 @@ sub delete_records {
                     my $new_initial_rowcount = $db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename));
                     my $rowcount = $db->db_get_value($count_stmt,@vals);
                     $db->db_do($delete_stmt,@vals);
-                    rowsdeleted($db,$tablename,$rowcount,$new_initial_rowcount,$logger);
+                    rowsdeleted($db,$tablename,$rowcount,$new_initial_rowcount,getlogger(__PACKAGE__));
                     $total_rowcount += $rowcount;
                 }
 
@@ -414,11 +414,11 @@ sub delete_records {
                 my $delete_stmt = 'DELETE FROM ' . $db->tableidentifier($tablename) . $where_clause;
                 my $rowcount = $db->db_get_value($count_stmt,@ne_vals);
                 $db->db_do($delete_stmt,@ne_vals);
-                rowsdeleted($db,$tablename,$rowcount,$initial_rowcount,$logger);
+                rowsdeleted($db,$tablename,$rowcount,$initial_rowcount,getlogger(__PACKAGE__));
                 $total_rowcount += $rowcount;
             } else {
 
-                deleterowserror($db,$tablename,'deletings rows by complementary identifier values works with a single identifier column only',$logger);
+                deleterowserror($db,$tablename,'deletings rows by complementary identifier values works with a single identifier column only',getlogger(__PACKAGE__));
                 return;
 
             }
@@ -427,14 +427,14 @@ sub delete_records {
             my $count_stmt = 'SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename);
             my $rowcount = $db->db_get_value($count_stmt);
             $db->db_do($delete_stmt);
-            rowsdeleted($db,$tablename,$rowcount,$initial_rowcount,$logger);
+            rowsdeleted($db,$tablename,$rowcount,$initial_rowcount,getlogger(__PACKAGE__));
             $total_rowcount += $rowcount;
         }
 
         $db->vacuum($tablename);
 
         #if ($total_rowcount > 0) {
-            totalrowsdeleted($db,$tablename,$total_rowcount,$initial_rowcount,$logger);
+            totalrowsdeleted($db,$tablename,$total_rowcount,$initial_rowcount,getlogger(__PACKAGE__));
         #}
 
         return $total_rowcount;
@@ -498,10 +498,10 @@ sub insert_record {
 
         if ($allowdupes or $db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @pk_fields) . ' = ?',@pk_vals) == 0) {
             $db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ') VALUES (' . substr(',?' x scalar @fields,1) . ')',@vals);
-            rowinserted($db,$tablename,$logger);
+            rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return 1;
         } else {
-            rowinsertskipped($db,$tablename,$logger);
+            rowinsertskipped($db,$tablename,getlogger(__PACKAGE__));
             return 0;
         }
 
@@ -564,10 +564,10 @@ sub update_record {
 
         if ($db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?',@pk_vals) == 1) {
             $db->db_do('UPDATE ' . $db->tableidentifier($tablename) . ' SET ' . join(' = ?, ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ' = ? WHERE ' . $selectpk_fieldnames . ' = ?',@vals,@pk_vals);
-            rowupdated($db,$tablename,$logger);
+            rowupdated($db,$tablename,getlogger(__PACKAGE__));
             return 1;
         } else {
-            rowupdateskipped($db,$tablename,$logger);
+            rowupdateskipped($db,$tablename,getlogger(__PACKAGE__));
             return 0;
         }
 
@@ -621,10 +621,10 @@ sub transfer_record {
 
         if ($allowdupes or $target_db->db_get_value('SELECT COUNT(*) FROM ' . $target_db->tableidentifier($targettablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @pk_fieldnames) . ' = ?',@pk_vals) == 0) {
             $target_db->db_do('INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . substr(',?' x scalar @fieldnames,1) . ')',@vals);
-            rowtransferred($db,$tablename,$target_db,$targettablename,1,1,$logger);
+            rowtransferred($db,$tablename,$target_db,$targettablename,1,1,getlogger(__PACKAGE__));
             return 1;
         } else {
-            rowskipped($db,$tablename,$target_db,$targettablename,1,1,$logger);
+            rowskipped($db,$tablename,$target_db,$targettablename,1,1,getlogger(__PACKAGE__));
             return 0;
         }
 
@@ -650,7 +650,7 @@ sub transfer_records {
         #get_local_db();
 
         my $numofrows = scalar @$rows;
-        rowtransferstarted($db,$tablename,$target_db,$targettablename,$numofrows,$logger);
+        rowtransferstarted($db,$tablename,$target_db,$targettablename,$numofrows,getlogger(__PACKAGE__));
 
         my @fieldnames = @$expected_fieldnames;
 
@@ -707,15 +707,15 @@ sub transfer_records {
 
                 if ($target_db->db_get_value('SELECT COUNT(*) FROM ' . $target_db->tableidentifier($targettablename) . ' WHERE ' . $selectpk_fieldnames,@pk_vals) == 0) {
                     $target_db->db_do('INSERT INTO ' . $db->target_tableidentifier($targettablename) . ' (' . $setfieldnames . ') VALUES (' . $valueplaceholders . ')',@vals);
-                    rowtransferred($db,$tablename,$target_db,$targettablename,$i,$numofrows,$logger);
+                    rowtransferred($db,$tablename,$target_db,$targettablename,$i,$numofrows,getlogger(__PACKAGE__));
                     $rowstransferred += 1;
                 } else {
-                    rowskipped($db,$tablename,$target_db,$targettablename,$i,$numofrows,$logger);
+                    rowskipped($db,$tablename,$target_db,$targettablename,$i,$numofrows,getlogger(__PACKAGE__));
                 }
                 $i++;
             }
         }
-        rowtransferdone($db,$tablename,$target_db,$targettablename,$numofrows,$logger);
+        rowtransferdone($db,$tablename,$target_db,$targettablename,$numofrows,getlogger(__PACKAGE__));
         return $rowstransferred;
     }
 
@@ -742,9 +742,9 @@ sub transfer_table {
         #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
 
         if ($rowcount > 0) {
-            tabletransferstarted($db,$tablename,$target_db,$targettablename,$rowcount,$logger);
+            tabletransferstarted($db,$tablename,$target_db,$targettablename,$rowcount,getlogger(__PACKAGE__));
         } else {
-            transferzerorowcount($db,$tablename,$target_db,$targettablename,$rowcount,$logger);
+            transferzerorowcount($db,$tablename,$target_db,$targettablename,$rowcount,getlogger(__PACKAGE__));
             return;
         }
 
@@ -789,7 +789,7 @@ sub transfer_table {
 
                 my $queue = Thread::Queue->new();
 
-                tablethreadingdebug('shutting down db connections ...',$logger);
+                tablethreadingdebug('shutting down db connections ...',getlogger(__PACKAGE__));
 
                 $db->db_disconnect();
                 #undef $db;
@@ -799,7 +799,7 @@ sub transfer_table {
                 my $default_connection_reconnect = $default_connection->is_connected();
                 $default_connection->db_disconnect();
 
-                tablethreadingdebug('starting reader thread',$logger);
+                tablethreadingdebug('starting reader thread',getlogger(__PACKAGE__));
 
                 $reader = threads->create(\&_reader,
                                           { queue                => $queue,
@@ -816,7 +816,7 @@ sub transfer_table {
                                             values_ref           => \@values,
                                           });
 
-                tablethreadingdebug('starting writer thread',$logger);
+                tablethreadingdebug('starting writer thread',getlogger(__PACKAGE__));
 
                 $writer = threads->create(\&_writer,
                                           { queue                => $queue,
@@ -833,14 +833,14 @@ sub transfer_table {
                                           });
 
                 $reader->join();
-                tablethreadingdebug('reader thread joined',$logger);
+                tablethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
                 $writer->join();
-                tablethreadingdebug('writer thread joined',$logger);
+                tablethreadingdebug('writer thread joined',getlogger(__PACKAGE__));
 
                 #$errorstate = $readererrorstate | $writererrorstate;
                 $errorstate = _get_other_threads_state(\%errorstates,$tid);
 
-                tablethreadingdebug('restoring db connections ...',$logger);
+                tablethreadingdebug('restoring db connections ...',getlogger(__PACKAGE__));
 
                 #$db = &$get_db($reader_connection_name,1);
                 $target_db = &$get_target_db(undef,1);
@@ -864,11 +864,11 @@ sub transfer_table {
 
                     my $i = 0;
                     while (1) {
-                        fetching_rows($db,$tablename,$i,$blocksize,$rowcount,$logger);
+                        fetching_rows($db,$tablename,$i,$blocksize,$rowcount,getlogger(__PACKAGE__));
                         my $rowblock = $db->db_get_rowblock($blocksize);
                         my $realblocksize = scalar @$rowblock;
                         if ($realblocksize > 0) {
-                            writing_rows($target_db,$targettablename,$i,$realblocksize,$rowcount,$logger);
+                            writing_rows($target_db,$targettablename,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
                             $target_db->db_do_begin($insertstatement,$targettablename);
                             $target_db->db_do_rowblock($rowblock);
                             $target_db->db_finish();
@@ -911,11 +911,11 @@ sub transfer_table {
                     foreach my $fixtable_statement (@$fixtable_statements) {
                         if (ref $fixtable_statement eq '') {
                             $target_db->db_do($fixtable_statement);
-                            tablefixed($target_db,$targettablename,$fixtable_statement,$logger);
+                            tablefixed($target_db,$targettablename,$fixtable_statement,getlogger(__PACKAGE__));
                         } else {
                             $fixtable_statement = &$fixtable_statement($target_db->tableidentifier($targettablename));
                             $target_db->db_do($fixtable_statement);
-                            tablefixed($target_db,$targettablename,$fixtable_statement,$logger);
+                            tablefixed($target_db,$targettablename,$fixtable_statement,getlogger(__PACKAGE__));
                         }
 
                     }
@@ -956,12 +956,12 @@ sub transfer_table {
         }
 
         if ($errorstate == 2) {
-            tabletransferdone($db,$tablename,$target_db,$targettablename,$rowcount,$logger);
+            tabletransferdone($db,$tablename,$target_db,$targettablename,$rowcount,getlogger(__PACKAGE__));
             #$db->db_disconnect();
             #$target_db->db_disconnect();
             return 1;
         } else {
-            tabletransferfailed($db,$tablename,$target_db,$targettablename,$rowcount,$logger);
+            tabletransferfailed($db,$tablename,$target_db,$targettablename,$rowcount,getlogger(__PACKAGE__));
             #$db->db_disconnect();
             #$target_db->db_disconnect();
         }
@@ -990,9 +990,9 @@ sub process_table {
         my $rowcount = $db->db_get_value($countstatement,@values);
 
         if ($rowcount > 0) {
-            tableprocessingstarted($db,$tablename,$rowcount,$logger);
+            tableprocessingstarted($db,$tablename,$rowcount,getlogger(__PACKAGE__));
         } else {
-            processzerorowcount($db,$tablename,$rowcount,$logger);
+            processzerorowcount($db,$tablename,$rowcount,getlogger(__PACKAGE__));
             return;
         }
 
@@ -1032,7 +1032,7 @@ sub process_table {
 
             my $queue = Thread::Queue->new();
 
-            tablethreadingdebug('shutting down db connections ...',$logger);
+            tablethreadingdebug('shutting down db connections ...',getlogger(__PACKAGE__));
 
             $db->db_disconnect();
             #undef $db;
@@ -1040,7 +1040,7 @@ sub process_table {
             my $default_connection_reconnect = $default_connection->is_connected();
             $default_connection->db_disconnect();
 
-            tablethreadingdebug('starting reader thread',$logger);
+            tablethreadingdebug('starting reader thread',getlogger(__PACKAGE__));
 
             $reader = threads->create(\&_reader,
                                           { queue                => $queue,
@@ -1058,7 +1058,7 @@ sub process_table {
                                           });
 
             for (my $i = 0; $i < $tableprocessing_threads; $i++) {
-                tablethreadingdebug('starting processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads,$logger);
+                tablethreadingdebug('starting processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads,getlogger(__PACKAGE__));
                 my $processor = threads->create(\&_process,
                                               { queue                => $queue,
                                                 errorstates          => \%errorstates,
@@ -1070,27 +1070,27 @@ sub process_table {
                                                 rowcount             => $rowcount,
                                                 #logger               => $logger,
                                               });
-                if (not defined $processor) {
-                    tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' NOT started',$logger);
+                if (!defined $processor) {
+                    tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' NOT started',getlogger(__PACKAGE__));
                 }
                 $processors{$processor->tid()} = $processor;
                 #push (@processors,$processor);
             }
 
             #$reader->join();
-            #tablethreadingdebug('reader thread joined',$logger);
+            #tablethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
             #for (my $i = 0; $i < $tableprocessing_threads; $i++) {
             #    my $processor = $processors[$i];
             #    if (defined $processor) {
             #        $processor->join();
-            #        tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' joinded',$logger);
+            #        tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' joinded',getlogger(__PACKAGE__));
             #    } else {
-            #        tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' NOT joinded',$logger);
+            #        tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' NOT joinded',getlogger(__PACKAGE__));
             #    }
             #}
 
             $reader->join();
-            tablethreadingdebug('reader thread joined',$logger);
+            tablethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
             #print 'threads running: ' . (scalar threads->list(threads::running));
             #while ((scalar threads->list(threads::running)) > 1 or (scalar threads->list(threads::joinable)) > 0) {
             while ((scalar keys %processors) > 0) {
@@ -1100,11 +1100,11 @@ sub process_table {
                     if (defined $processor and $processor->is_joinable()) {
                         $processor->join();
                         delete $processors{$processor->tid()};
-                        #tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' joinded',$logger);
-                        tablethreadingdebug('processor thread tid ' . $processor->tid() . ' joined',$logger);
+                        #tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' joinded',getlogger(__PACKAGE__));
+                        tablethreadingdebug('processor thread tid ' . $processor->tid() . ' joined',getlogger(__PACKAGE__));
                     }
                     #} else {
-                    #    tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' NOT joinded',$logger);
+                    #    tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' NOT joinded',getlogger(__PACKAGE__));
                     #}
                 }
                 sleep($thread_sleep_secs);
@@ -1113,7 +1113,7 @@ sub process_table {
             #$errorstate = $readererrorstate | $processorerrorstate;
             $errorstate = (_get_other_threads_state(\%errorstates,$tid) & ~1);
 
-            tablethreadingdebug('restoring db connections ...',$logger);
+            tablethreadingdebug('restoring db connections ...',getlogger(__PACKAGE__));
 
             #$db = &$get_db($reader_connection_name,1);
             if ($default_connection_reconnect) {
@@ -1133,11 +1133,11 @@ sub process_table {
 
                 my $i = 0;
                 while (1) {
-                    fetching_rows($db,$tablename,$i,$blocksize,$rowcount,$logger);
+                    fetching_rows($db,$tablename,$i,$blocksize,$rowcount,getlogger(__PACKAGE__));
                     my $rowblock = $db->db_get_rowblock($blocksize);
                     my $realblocksize = scalar @$rowblock;
                     if ($realblocksize > 0) {
-                        processing_rows($tid,$i,$realblocksize,$rowcount,$logger);
+                        processing_rows($tid,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
 
                         $rowblock_result = &$process_code($rowblock,$i);
 
@@ -1171,11 +1171,11 @@ sub process_table {
         #$db = &$get_db($controller_name,1);
 
         if ($errorstate == 2) {
-            tableprocessingdone($db,$tablename,$rowcount,$logger);
+            tableprocessingdone($db,$tablename,$rowcount,getlogger(__PACKAGE__));
             #$db->db_disconnect();
             return 1;
         } else {
-            tableprocessingfailed($db,$tablename,$rowcount,$logger);
+            tableprocessingfailed($db,$tablename,$rowcount,getlogger(__PACKAGE__));
             #$db->db_disconnect();
         }
 
@@ -1227,7 +1227,7 @@ sub _calc_blocksize {
 sub _get_other_threads_state {
     my ($errorstates,$tid) = @_;
     my $result = 0;
-    if (not defined $tid) {
+    if (!defined $tid) {
         $tid = threadid();
     }
     if (defined $errorstates and ref $errorstates eq 'HASH') {
@@ -1264,7 +1264,7 @@ sub _get_stop_consumer_thread {
                             (($other_threads_state & 4) == 0 ? 'no defunct thread(s)' : 'defunct thread(s)') . ', ' .
                             ($queuesize > 0 ? 'blocks pending' : 'no blocks pending') . ', ' .
                             ($reader_state == 1 ? 'reader thread running' : 'reader thread not running') . ') ...'
-        ,$logger);
+        ,getlogger(__PACKAGE__));
     }
 
     return $result;
@@ -1283,21 +1283,21 @@ sub _reader {
         $context->{errorstates}->{$tid} = 1;
     }
 
-    tablethreadingdebug('[' . $tid . '] reader thread tid ' . $tid . ' started',$logger);
+    tablethreadingdebug('[' . $tid . '] reader thread tid ' . $tid . ' started',getlogger(__PACKAGE__));
 
     my $blockcount = 0;
     eval {
         $reader_db = &{$context->{get_db}}(); #$reader_connection_name);
         $reader_db->db_get_begin($context->{selectstatement},$context->{tablename},@{$context->{values_ref}});
         my $i = 0;
-        tablethreadingdebug('[' . $tid . '] reader thread waiting for consumer threads',$logger);
+        tablethreadingdebug('[' . $tid . '] reader thread waiting for consumer threads',getlogger(__PACKAGE__));
         while ((_get_other_threads_state($context->{errorstates},$tid) & 1) == 0) { #wait on cosumers to come up
             #yield();
             sleep($thread_sleep_secs);
         }
         my $state = 1; #start at first
         while (($state & 1) == 1 and ($state & 4) == 0) { #as long there is one running consumer and no defunct consumer
-            fetching_rows($reader_db,$context->{tablename},$i,$context->{blocksize},$context->{rowcount},$logger);
+            fetching_rows($reader_db,$context->{tablename},$i,$context->{blocksize},$context->{rowcount},getlogger(__PACKAGE__));
             my $rowblock = $reader_db->db_get_rowblock($context->{blocksize});
             my $realblocksize = scalar @$rowblock;
             my $packet = {rows     => $rowblock,
@@ -1318,12 +1318,12 @@ sub _reader {
                 }
                 $i += $realblocksize;
                 if ($realblocksize < $context->{blocksize}) {
-                    tablethreadingdebug('[' . $tid . '] reader thread is shutting down (end of data) ...',$logger);
+                    tablethreadingdebug('[' . $tid . '] reader thread is shutting down (end of data) ...',getlogger(__PACKAGE__));
                     last;
                 }
             } else {
                 $context->{queue}->enqueue(\%packet); #$packet);
-                tablethreadingdebug('[' . $tid . '] reader thread is shutting down (end of data - empty block) ...',$logger);
+                tablethreadingdebug('[' . $tid . '] reader thread is shutting down (end of data - empty block) ...',getlogger(__PACKAGE__));
                 last;
             }
         }
@@ -1331,7 +1331,7 @@ sub _reader {
             tablethreadingdebug('[' . $tid . '] reader thread is shutting down (' .
                               (($state & 1) == 1 ? 'still running consumer threads' : 'no running consumer threads') . ', ' .
                               (($state & 4) == 0 ? 'no defunct thread(s)' : 'defunct thread(s)') . ') ...'
-            ,$logger);
+            ,getlogger(__PACKAGE__));
         }
         $reader_db->db_finish();
     };
@@ -1341,7 +1341,7 @@ sub _reader {
         # if thread cleanup has a problem...
         $reader_db->db_disconnect();
     }
-    tablethreadingdebug($@ ? '[' . $tid . '] reader thread error: ' . $@ : '[' . $tid . '] reader thread finished (' . $blockcount . ' blocks)',$logger);
+    tablethreadingdebug($@ ? '[' . $tid . '] reader thread error: ' . $@ : '[' . $tid . '] reader thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     lock $context->{errorstates};
     if ($@) {
         $context->{errorstates}->{$tid} = 4;
@@ -1362,7 +1362,7 @@ sub _writer {
         lock $context->{errorstates};
         $context->{errorstates}->{$tid} = 1;
     }
-    tablethreadingdebug('[' . $tid . '] writer thread tid ' . $tid . ' started',$logger);
+    tablethreadingdebug('[' . $tid . '] writer thread tid ' . $tid . ' started',getlogger(__PACKAGE__));
 
     my $blockcount = 0;
     eval {
@@ -1371,7 +1371,7 @@ sub _writer {
             my $packet = $context->{queue}->dequeue_nb();
             if (defined $packet) {
                 if ($packet->{size} > 0) {
-                    writing_rows($writer_db,$context->{targettablename},$packet->{row_offset},$packet->{size},$context->{rowcount},$logger);
+                    writing_rows($writer_db,$context->{targettablename},$packet->{row_offset},$packet->{size},$context->{rowcount},getlogger(__PACKAGE__));
 
                     $writer_db->db_do_begin($context->{insertstatement},$context->{targettablename});
                     $writer_db->db_do_rowblock($packet->{rows});
@@ -1379,7 +1379,7 @@ sub _writer {
                     $blockcount++;
 
                 } else { #empty packet received
-                    tablethreadingdebug('[' . $tid . '] shutting down writer thread (end of data - empty block) ...',$logger);
+                    tablethreadingdebug('[' . $tid . '] shutting down writer thread (end of data - empty block) ...',getlogger(__PACKAGE__));
                     last;
                 }
             } else {
@@ -1392,7 +1392,7 @@ sub _writer {
         # if thread cleanup has a problem...
         $writer_db->db_disconnect();
     }
-    tablethreadingdebug($@ ? '[' . $tid . '] writer thread error: ' . $@ : '[' . $tid . '] writer thread finished (' . $blockcount . ' blocks)',$logger);
+    tablethreadingdebug($@ ? '[' . $tid . '] writer thread error: ' . $@ : '[' . $tid . '] writer thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     lock $context->{errorstates};
     if ($@) {
         $context->{errorstates}->{$tid} = 4;
@@ -1414,7 +1414,7 @@ sub _process {
         $context->{errorstates}->{$tid} = 1;
     }
 
-    tablethreadingdebug('[' . $tid . '] processor thread tid ' . $tid . ' started',$logger);
+    tablethreadingdebug('[' . $tid . '] processor thread tid ' . $tid . ' started',getlogger(__PACKAGE__));
 
     my $blockcount = 0;
     eval {
@@ -1424,7 +1424,7 @@ sub _process {
             if (defined $packet) {
                 if ($packet->{size} > 0) {
 
-                    #writing_rows($writer_db,$context->{targettablename},$i,$realblocksize,$context->{rowcount},$logger);
+                    #writing_rows($writer_db,$context->{targettablename},$i,$realblocksize,$context->{rowcount},getlogger(__PACKAGE__));
 
                     #$writer_db->db_do_begin($context->{insertstatement},$context->{targettablename});
                     #$writer_db->db_do_rowblock($rowblock);
@@ -1432,7 +1432,7 @@ sub _process {
 
                     #$i += $realblocksize;
 
-                    processing_rows($tid,$packet->{row_offset},$packet->{size},$context->{rowcount},$logger);
+                    processing_rows($tid,$packet->{row_offset},$packet->{size},$context->{rowcount},getlogger(__PACKAGE__));
 
                     $rowblock_result = &{$context->{process_code}}($packet->{rows},$packet->{row_offset});
 
@@ -1441,12 +1441,12 @@ sub _process {
                     #$i += $realblocksize;
 
                     if (not $rowblock_result) {
-                        tablethreadingdebug('[' . $tid . '] shutting down processor thread (processing block NOK) ...',$logger);
+                        tablethreadingdebug('[' . $tid . '] shutting down processor thread (processing block NOK) ...',getlogger(__PACKAGE__));
                         last;
                     }
 
                 } else {
-                    tablethreadingdebug('[' . $tid . '] shutting down processor thread (end of data - empty block) ...',$logger);
+                    tablethreadingdebug('[' . $tid . '] shutting down processor thread (end of data - empty block) ...',getlogger(__PACKAGE__));
                     last;
                 }
             } else {
@@ -1458,7 +1458,7 @@ sub _process {
     #if (defined $writer_db) {
     #    $writer_db->db_disconnect();
     #}
-    tablethreadingdebug($@ ? '[' . $tid . '] processor thread error: ' . $@ : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',$logger);
+    tablethreadingdebug($@ ? '[' . $tid . '] processor thread error: ' . $@ : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     lock $context->{errorstates};
     if ($@) {
         $context->{errorstates}->{$tid} = 4;

@@ -48,7 +48,7 @@ my $client_encoding = 'LATIN1';
 #my $LongReadLen = $LongReadLen_limit; #bytes
 #my $LongTruncOk = 0;
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 my $lock_do_chunk = 0;
 my $lock_get_chunk = 0;
@@ -75,7 +75,7 @@ sub new {
 
     bless($self,$class);
 
-    dbdebug($self,__PACKAGE__ . ' connector created',$logger);
+    dbdebug($self,__PACKAGE__ . ' connector created',getlogger(__PACKAGE__));
 
     return $self;
 
@@ -176,7 +176,7 @@ sub getdatabases {
     $DBI_PASS = $ENV{DBI_PASS};
 
     if (scalar @dbs == 0) {
-        dberror($self,'error listing databases: ' . $self->{drh}->errstr(),$logger);
+        dberror($self,'error listing databases: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
     } else {
         @dbs = map { local $_ = $_; $_ =~ s/^dbi:Pg:dbname=[\"\']?([a-zA-Z0-9_-]+)[\"\']?;.+$/$1/gi; $_; } @dbs;
     }
@@ -198,11 +198,11 @@ sub _createdatabase {
                 AutoCommit      => 1,
                 #AutoCommit      => 0,
             }
-        ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),$logger);
+        ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
         $self->{dbh} = $dbh;
         $self->db_do('CREATE DATABASE ' . $schemaname . ' TEMPLATE template0 ENCODING = ? LC_COLLATE = ? LC_CTYPE = ?', $encoding, $lc_collate, $lc_ctype);
-        dbinfo($self,'database \'' . $schemaname . '\' created',$logger);
-        $self->{dbh}->disconnect() or dberror($self,'error disconnecting: ' . $self->{dbh}->errstr(),$logger);
+        dbinfo($self,'database \'' . $schemaname . '\' created',getlogger(__PACKAGE__));
+        $self->{dbh}->disconnect() or dberror($self,'error disconnecting: ' . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
         $self->{dbh} = undef;
 }
 
@@ -230,7 +230,7 @@ sub db_connect {
         $self->_createdatabase($schemaname);
     }
 
-    dbdebug($self,'connecting',$logger);
+    dbdebug($self,'connecting',getlogger(__PACKAGE__));
 
     my $dbh = DBI->connect(
         'dbi:Pg:database=' . $schemaname . ';host=' . $host . ';port=' . $port,$username,$password,
@@ -240,7 +240,7 @@ sub db_connect {
             AutoCommit      => 1,
             #AutoCommit      => 0,
         }
-    ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),$logger);
+    ) or dberror($self,'error connecting: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
 
     $dbh->{InactiveDestroy} = 1;
 
@@ -275,13 +275,13 @@ sub db_connect {
             "LANGUAGE 'plpgsql';\n");
         };
         if ($@) {
-            dbwarn($self,'numeric sorting not supported',$logger);
+            dbwarn($self,'numeric sorting not supported',getlogger(__PACKAGE__));
         }
     } else {
-        dbdebug($self,'numeric sorting not enabled',$logger);
+        dbdebug($self,'numeric sorting not enabled',getlogger(__PACKAGE__));
     }
 
-    dbinfo($self,'connected',$logger);
+    dbinfo($self,'connected',getlogger(__PACKAGE__));
 
 }
 
@@ -302,11 +302,11 @@ sub _db_disconnect {
     #
     #if (defined $self->{dbh}) {
     #    cleartableinfo($self);
-    #    mysqldbinfo($self,'mysql db disconnecting',$logger);
-    #    $self->{dbh}->disconnect() or mysqldberror($self,'error disconnecting from mysql db',$logger);
+    #    mysqldbinfo($self,'mysql db disconnecting',getlogger(__PACKAGE__));
+    #    $self->{dbh}->disconnect() or mysqldberror($self,'error disconnecting from mysql db',getlogger(__PACKAGE__));
     #    $self->{dbh} = undef;
     #
-    #    mysqldbinfo($self,'mysql db disconnected',$logger);
+    #    mysqldbinfo($self,'mysql db disconnected',getlogger(__PACKAGE__));
     #
     #}
 
@@ -342,7 +342,7 @@ sub create_temptable {
     my $temp_tablename = $self->tableidentifier($index_tablename);
 
     $self->db_do('CREATE TEMPORARY TABLE ' . $temp_tablename . ' AS ' . $select_stmt);
-    temptablecreated($self,$index_tablename,$logger);
+    temptablecreated($self,$index_tablename,getlogger(__PACKAGE__));
 
     if (defined $indexes and ref $indexes eq 'HASH' and scalar keys %$indexes > 0) {
         foreach my $indexname (keys %$indexes) {
@@ -351,7 +351,7 @@ sub create_temptable {
                 #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                 $indexname = lc($index_tablename) . '_' . $indexname;
                 $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $temp_tablename . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                indexcreated($self,$index_tablename,$indexname,$logger);
+                indexcreated($self,$index_tablename,$indexname,getlogger(__PACKAGE__));
             #}
         }
     }
@@ -370,7 +370,7 @@ sub create_primarykey {
         if (defined $keycols and ref $keycols eq 'ARRAY' and scalar @$keycols > 0 and setcontains($keycols,$fieldnames,1)) {
             my $statement = 'ALTER TABLE ' . $self->tableidentifier($tablename) . ' ADD PRIMARY KEY (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$keycols) . ')';
             $self->db_do($statement);
-            primarykeycreated($self,$tablename,$keycols,$logger);
+            primarykeycreated($self,$tablename,$keycols,getlogger(__PACKAGE__));
             return 1;
         }
 
@@ -393,7 +393,7 @@ sub create_indexes {
                     if (not arrayeq($indexcols,$keycols,1)) {
                         #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                         $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                        indexcreated($self,$tablename,$indexname,$logger);
+                        indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                     }
                 }
             }
@@ -430,7 +430,7 @@ sub create_texttable {
             }
             $statement .= join(', ',@fieldspecs) . ')';
             $self->db_do($statement);
-            texttablecreated($self,$tablename,$logger);
+            texttablecreated($self,$tablename,getlogger(__PACKAGE__));
 
             if (not $defer_indexes and defined $indexes and ref $indexes eq 'HASH' and scalar keys %$indexes > 0) {
                 foreach my $indexname (keys %$indexes) {
@@ -438,7 +438,7 @@ sub create_texttable {
                     if (not arrayeq($indexcols,$keycols,1)) {
                         #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                         $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                        indexcreated($self,$tablename,$indexname,$logger);
+                        indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                     }
                 }
             }
@@ -447,7 +447,7 @@ sub create_texttable {
         } else {
             my $fieldnamesfound = $self->getfieldnames($tablename);
             if (not setcontains($fieldnames,$fieldnamesfound,1)) {
-                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,$logger);
+                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,getlogger(__PACKAGE__));
                 return 0;
             }
         }
@@ -477,7 +477,7 @@ sub truncate_table {
     my $tablename = shift;
 
     $self->db_do('TRUNCATE ' . $self->tableidentifier($tablename));
-    tabletruncated($self,$tablename,$logger);
+    tabletruncated($self,$tablename,getlogger(__PACKAGE__));
 
 }
 
@@ -496,7 +496,7 @@ sub drop_table {
 
     if ($self->table_exists($tablename) > 0) {
         $self->db_do('DROP TABLE ' . $self->tableidentifier($tablename));
-        tabledropped($self,$tablename,$logger);
+        tabledropped($self,$tablename,getlogger(__PACKAGE__));
         return 1;
     }
     return 0;

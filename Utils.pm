@@ -452,10 +452,10 @@ sub chopstring {
 
     $result =~ s/[\n\r\t]/ /g;
 
-    if (not defined $trimlength) {
+    if (!defined $trimlength) {
       $trimlength = 30;
     }
-    if (not defined $ending) {
+    if (!defined $ending) {
       $ending = '...'
     }
 

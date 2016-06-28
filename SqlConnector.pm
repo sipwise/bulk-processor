@@ -3,8 +3,8 @@ use strict;
 
 ## no critic
 
-use threads;
-use threads::shared;
+#use threads;
+#use threads::shared;
 
 use Globals qw($enablemultithreading);
 
@@ -28,7 +28,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(get_tableidentifier);
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 my $temptable_randomstringlength = 4;
 
@@ -84,7 +84,7 @@ sub cluster {
 sub _connectidentifier {
 
     my $self = shift;
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return undef;
 
 }
@@ -105,7 +105,7 @@ sub tableidentifier {
     my $tablename = shift;
     my (@params) = @_;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return undef;
 
 }
@@ -116,7 +116,7 @@ sub columnidentifier {
     my $columnname = shift;
     my (@params) = @_;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return undef;
 
 }
@@ -125,7 +125,7 @@ sub get_tableidentifier {
 
     my ($tablename,@params) = @_;
 
-    notimplementederror(__PACKAGE__ . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror(__PACKAGE__ . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return undef;
 
 }
@@ -158,7 +158,7 @@ sub vacuum {
 
     my $self = shift;
     my $tablename = shift;
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 
 }
 
@@ -183,7 +183,7 @@ sub paginate_sort_query {
 sub _force_numeric_column {
     my $self = shift;
     my $column = shift;
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
 sub _orderby_columns {
@@ -214,10 +214,10 @@ sub _orderby_columns {
                     }
                     push(@orderby,$orderby_column);
                 } else {
-                    sortconfigerror(undef,'sort column required',$logger);
+                    sortconfigerror(undef,'sort column required',getlogger(__PACKAGE__));
                 }
             } else {
-                sortconfigerror(undef,'invalid sorting configuration',$logger);
+                sortconfigerror(undef,'invalid sorting configuration',getlogger(__PACKAGE__));
             }
         }
     }
@@ -229,7 +229,7 @@ sub getdatabases {
 
     my $self = shift;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return [];
 
 }
@@ -239,7 +239,7 @@ sub _createdatabase {
     my $self = shift;
     my ($databasename) = @_;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return [];
 
 }
@@ -263,7 +263,7 @@ sub db_disconnect {
     #my $tid = threadid();
     my $cluster = $self->{cluster};
     if (defined $cluster) {
-        dbdebug($self,'disconnecting database cluster ' . $cluster->{name},$logger);
+        dbdebug($self,'disconnecting database cluster ' . $cluster->{name},getlogger(__PACKAGE__));
         foreach my $node (@{$cluster->{nodes}}) {
             if ($node->{active}) {
                 my $node_db = &{$node->{get_db}}($self->{instanceid},0);
@@ -287,8 +287,8 @@ sub _db_disconnect {
     if (defined $self->{dbh}) {
 
         #cleartableinfo($self);
-        #dbdebug($self,'disconnecting' . ((defined $self->{cluster}) ? ' ' . $self->_connectidentifier() : ''),$logger);
-        dbdebug($self,'disconnecting',$logger);
+        #dbdebug($self,'disconnecting' . ((defined $self->{cluster}) ? ' ' . $self->_connectidentifier() : ''),getlogger(__PACKAGE__));
+        dbdebug($self,'disconnecting',getlogger(__PACKAGE__));
 
             foreach my $temp_tablename (@{$self->{temp_tables}}) {
                 #if ($self->table_exists($temp_tablename)) {
@@ -297,11 +297,11 @@ sub _db_disconnect {
             }
             $self->{temp_tables} = [];
 
-        $self->{dbh}->disconnect() or dbwarn($self,'error disconnecting: ' . $self->{dbh}->errstr(),$logger);
+        $self->{dbh}->disconnect() or dbwarn($self,'error disconnecting: ' . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
         $self->{dbh} = undef;
 
-        dbinfo($self,'disconnected',$logger);
-        #dbinfo($self,((defined $self->{cluster}) ? $self->_connectidentifier() . ' ' : '') . 'disconnected',$logger);
+        dbinfo($self,'disconnected',getlogger(__PACKAGE__));
+        #dbinfo($self,((defined $self->{cluster}) ? $self->_connectidentifier() . ' ' : '') . 'disconnected',getlogger(__PACKAGE__));
 
     }
 
@@ -321,7 +321,7 @@ sub getfieldnames {
     my $self = shift;
     my $tablename = shift;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return [];
 
 }
@@ -331,7 +331,7 @@ sub getprimarykeycols {
     my $self = shift;
     my $tablename = shift;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return [];
 
 }
@@ -342,7 +342,7 @@ sub create_temptable {
     my $select_stmt = shift;
     my $indexes = shift;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return '';
 
 }
@@ -352,7 +352,7 @@ sub create_primarykey {
     my $self = shift;
     my ($tablename,$keycols,$fieldnames) = @_;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return 0;
 
 }
@@ -361,7 +361,7 @@ sub create_indexes {
     my $self = shift;
     my ($tablename,$indexes,$keycols) = @_;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return 0;
 
 }
@@ -371,7 +371,7 @@ sub create_texttable {
     my $self = shift;
     my ($tablename,$fieldnames,$keycols,$indexes,$truncate,$defer_indexes) = @_;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return 0;
 
 }
@@ -381,7 +381,7 @@ sub truncate_table {
     my $self = shift;
     my $tablename = shift;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 
 }
 
@@ -390,7 +390,7 @@ sub table_exists {
     my $self = shift;
     my $tablename = shift;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
     return 0;
 
 }
@@ -400,7 +400,7 @@ sub drop_table {
     my $self = shift;
     my $tablename = shift;
 
-    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',$logger);
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 
 }
 
@@ -408,7 +408,7 @@ sub _prepare_error {
 
     my $self = shift;
     my $query = shift;
-    dberror($self,"failed to prepare:\n" . $query . "\nDBI error:\n" . $self->{dbh}->errstr(),$logger);
+    dberror($self,"failed to prepare:\n" . $query . "\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
 
 }
 
@@ -423,7 +423,7 @@ sub _execute_error {
     } else {
         $errstr = $self->{dbh}->errstr();
     }
-    dberror($self,"failed to execute:\n" . $query . "\nparameters:\n". join(', ', @_) . "\nDBI error:\n" . $errstr,$logger);
+    dberror($self,"failed to execute:\n" . $query . "\nparameters:\n". join(', ', @_) . "\nDBI error:\n" . $errstr,getlogger(__PACKAGE__));
 
 }
 sub _fetch_error {
@@ -439,7 +439,7 @@ sub _fetch_error {
     } else {
         $errstr = $self->{dbh}->errstr();
     }
-    dberror($self,'failed with ' . $operation . ":\n" . $query . "\n" . ((defined $index) ? 'column index: ' . $index . "\n" : '') . "parameters:\n". join(', ', @_) . "\nDBI error:\n" . $errstr,$logger);
+    dberror($self,'failed with ' . $operation . ":\n" . $query . "\n" . ((defined $index) ? 'column index: ' . $index . "\n" : '') . "parameters:\n". join(', ', @_) . "\nDBI error:\n" . $errstr,getlogger(__PACKAGE__));
 
 }
 
@@ -455,7 +455,7 @@ sub db_do {
     my $result = 0;
 
     if (defined $self->{dbh}) {
-        dbdebug($self,'db_do: ' . $query . "\nparameters:\n" . join(', ', @_),$logger);
+        dbdebug($self,'db_do: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $result = $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
     }
@@ -475,7 +475,7 @@ sub db_get_value {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_value: ' . $query . "\nparameters:\n" . join(', ', @_),$logger);
+        dbdebug($self,'db_get_value: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
 
@@ -500,7 +500,7 @@ sub db_get_row {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_row: ' . $query . "\nparameters:\n" . join(', ', @_),$logger);
+        dbdebug($self,'db_get_row: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
 
@@ -525,7 +525,7 @@ sub db_get_col {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_col: ' . $query . "\nparameters:\n" . join(', ', @_),$logger);
+        dbdebug($self,'db_get_col: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
 
         $col = $self->{dbh}->selectcol_arrayref($sth, undef, @_);
@@ -550,7 +550,7 @@ sub db_get_all_arrayref {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_all_arrayref: ' . $query . "\nparameters:\n" . join(', ', @_),$logger);
+        dbdebug($self,'db_get_all_arrayref: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
 
@@ -578,7 +578,7 @@ sub db_get_all_hashref {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_all_hashref: ' . $query . "\nparameters:\n" . join(', ', @_),$logger);
+        dbdebug($self,'db_get_all_hashref: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
 
@@ -605,7 +605,7 @@ sub db_get_mapref {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_mapref: ' . $query . "\nparameters:\n" . join(', ', @_),$logger);
+        dbdebug($self,'db_get_mapref: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
 
@@ -630,11 +630,11 @@ sub db_begin {
 
     my $self = shift;
     if (defined $self->{dbh}) {
-        dbdebug($self,'db_begin',$logger);
-        $self->{dbh}->begin_work() or dberror($self, "failed with begin_transaction \nDBI error:\n" . $self->{dbh}->errstr(),$logger);
+        dbdebug($self,'db_begin',getlogger(__PACKAGE__));
+        $self->{dbh}->begin_work() or dberror($self, "failed with begin_transaction \nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
 
         if ($self->{dbh}->{AutoCommit}) {
-            dbwarn($self,'autocommit was not disabled',$logger);
+            dbwarn($self,'autocommit was not disabled',getlogger(__PACKAGE__));
         }
 
     }
@@ -645,9 +645,9 @@ sub db_commit {
 
     my $self = shift;
     if (defined $self->{dbh}) {
-        dbdebug($self,'db_commit',$logger);
+        dbdebug($self,'db_commit',getlogger(__PACKAGE__));
         #komodo workaround:
-        my @wa = $self->{dbh}->commit() or dberror($self, "failed to commit changes\nDBI error:\n" . $self->{dbh}->errstr(),$logger); #remove dberror for debugging
+        my @wa = $self->{dbh}->commit() or dberror($self, "failed to commit changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__)); #remove dberror for debugging
     }
 
 }
@@ -656,8 +656,8 @@ sub db_rollback {
 
     my $self = shift;
     if (defined $self->{dbh}) {
-        dbdebug($self,'db_rollback',$logger);
-        $self->{dbh}->rollback() or dberror($self, "failed to rollback changes\nDBI error:\n" . $self->{dbh}->errstr(),$logger);
+        dbdebug($self,'db_rollback',getlogger(__PACKAGE__));
+        $self->{dbh}->rollback() or dberror($self, "failed to rollback changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
     }
 
 }
@@ -670,7 +670,7 @@ sub db_quote {
     my $result = $value;
 
     if (defined $self->{dbh}) {
-        $result = $self->{dbh}->quote($value) or dberror($self, "failed to quote value\nDBI error:\n" . $self->{dbh}->errstr(),$logger);
+        $result = $self->{dbh}->quote($value) or dberror($self, "failed to quote value\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
     }
     return $result;
 
@@ -693,7 +693,7 @@ sub DESTROY {
     if ($self->{tid} == threadid()) {
         $self->_db_disconnect();
         delete $self->{drh};
-        dbdebug($self,(ref $self) . ' connector destroyed',$logger);
+        dbdebug($self,(ref $self) . ' connector destroyed',getlogger(__PACKAGE__));
     #} else {
     #    print "NOT destroyed\n";
     }
@@ -724,15 +724,15 @@ sub db_do_begin {
     my $tablename = shift;
     my $lock = shift;
 
-    #notimplementederror('db_do_begin',$logger);
+    #notimplementederror('db_do_begin',getlogger(__PACKAGE__));
 
-    if (defined $self->{dbh} and not defined $self->{sth} and length($tablename) > 0) {
+    if (defined $self->{dbh} and !defined $self->{sth} and length($tablename) > 0) {
 
         if ($lock) {
             $self->lock_tables({ $tablename => 'WRITE' });
         }
 
-        dbdebug($self,'db_do_begin: ' . $query,$logger);
+        dbdebug($self,'db_do_begin: ' . $query,getlogger(__PACKAGE__));
         $self->{sth} = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $self->{query} = $query;
         $self->{params} = [];
@@ -747,15 +747,15 @@ sub db_do_rowblock {
     my $self = shift;
     my $rows = shift;
 
-    #notimplementederror('db_do_rowblock',$logger);
+    #notimplementederror('db_do_rowblock',getlogger(__PACKAGE__));
 
     if (defined $self->{dbh} and defined $self->{sth} and defined $rows and ref $rows eq 'ARRAY') {
 
-        #dberror($self,'test error',$logger);
-        #mysqldbdebug($self,"db_do_rowblock\nrows:\n" . (scalar @$rows),$logger);
-        #mysqldbdebug($self,'db_do_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @_),$logger);
+        #dberror($self,'test error',getlogger(__PACKAGE__));
+        #mysqldbdebug($self,"db_do_rowblock\nrows:\n" . (scalar @$rows),getlogger(__PACKAGE__));
+        #mysqldbdebug($self,'db_do_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         foreach my $row (@$rows) {
-            dbdebug($self,'db_do_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @$row),$logger);
+            dbdebug($self,'db_do_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @$row),getlogger(__PACKAGE__));
             $self->{sth}->execute(@$row) or $self->_execute_error($self->{query},$self->{sth},@$row);
             $self->{params} = $row;
         }
@@ -771,14 +771,14 @@ sub db_get_begin {
     my $tablename = shift;
     my $lock = shift;
 
-    if (defined $self->{dbh} and not defined $self->{sth} and length($tablename) > 0) {
+    if (defined $self->{dbh} and !defined $self->{sth} and length($tablename) > 0) {
 
         #eval { $self->lock_tables({ $tablename => 'WRITE' }); };
         if ($lock) {
             $self->lock_tables({ $tablename => 'WRITE' });
         }
 
-        dbdebug($self,'db_get_begin: ' . $query . "\nparameters:\n" . join(', ', @_),$logger);
+        dbdebug($self,'db_get_begin: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         $self->{sth} = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $self->{sth}->execute(@_) or $self->_execute_error($query,$self->{sth},@_);
         $self->{query} = $query;
@@ -809,7 +809,7 @@ sub db_get_rowblock {
 
         if (defined $self->{dbh} and defined $self->{sth}) {
 
-            dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),$logger);
+            dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),getlogger(__PACKAGE__));
 
             foreach (@{$self->{sth}->fetchall_arrayref(undef, $max_rows)}) {
                 my @row : shared = @{$_};
@@ -832,7 +832,7 @@ sub db_get_rowblock {
 
         if (defined $self->{dbh} and defined $self->{sth}) {
 
-            dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),$logger);
+            dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),getlogger(__PACKAGE__));
             $rows = $self->{sth}->fetchall_arrayref(undef, $max_rows);
             $self->_fetch_error($self->{query},$self->{sth},'db_get_rowblock',undef,@{$self->{params}}) if $self->{sth}->err();
 
@@ -853,7 +853,7 @@ sub db_finish {
 
     if (defined $self->{dbh} and defined $self->{sth}) {
 
-        dbdebug($self,'db_finish',$logger);
+        dbdebug($self,'db_finish',getlogger(__PACKAGE__));
 
         $self->{sth}->finish();
         $self->{sth} = undef;

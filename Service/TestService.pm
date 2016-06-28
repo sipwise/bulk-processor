@@ -29,7 +29,7 @@ our @EXPORT_OK = qw(
     exception
 );
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 my $functions = {
     create_uuid => \&Utils::create_guid,
@@ -54,7 +54,7 @@ sub new {
     #return $self;
 
     my $self = Service->new($functions,@_);
-    servicedebug($self,__PACKAGE__ . ' service created',$logger);
+    servicedebug($self,__PACKAGE__ . ' service created',getlogger(__PACKAGE__));
     return $self;
 
 }

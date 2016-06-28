@@ -271,7 +271,7 @@ sub getroundrobinitem {
     if ($size == 1) {
       return (@{$array_ptr}[0],0);
     } elsif ($size > 1) {
-      if (not defined $recentindex or $recentindex < 0) {
+      if (!defined $recentindex or $recentindex < 0) {
         $recentindex = -1;
       }
       my $newindex = ($recentindex + 1) % $size;
