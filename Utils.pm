@@ -31,7 +31,7 @@ use Text::Wrap;
 #use FindBin qw($Bin);
 use Digest::MD5; #qw(md5 md5_hex md5_base64);
 use File::Temp qw(tempfile tempdir);
-use File::Path qw(remove_tree);
+use File::Path qw(remove_tree make_path);
 
 #use Sys::Info;
 #use Sys::Info::Constants qw( :device_cpu );
@@ -80,6 +80,7 @@ our @EXPORT_OK = qw(
 
     kbytes2gigs
     cleanupdir
+    fixdirpath
     threadid
     format_number
 
@@ -90,7 +91,7 @@ our @EXPORT_OK = qw(
     min_timestamp
     max_timestamp
     add_months
-    makedir
+    makepath
     changemod
 
     get_cpucount
@@ -452,10 +453,10 @@ sub chopstring {
 
     $result =~ s/[\n\r\t]/ /g;
 
-    if (not defined $trimlength) {
+    if (!defined $trimlength) {
       $trimlength = 30;
     }
-    if (not defined $ending) {
+    if (!defined $ending) {
       $ending = '...'
     }
 
@@ -541,29 +542,73 @@ sub kbytes2gigs {
 
 sub cleanupdir {
 
-    my ($dirpath,$restoredir,$cleanupinfocode,$filewarncode,$logger) = @_;
-    if (-e $dirpath) {
-        if (remove_tree($dirpath) == 0) {
+    my ($dirpath,$keeproot,$cleanupinfocode,$filewarncode,$logger) = @_;
+    if (-d $dirpath) {
+        remove_tree($dirpath, { 
+                keep_root => $keeproot,
+                error => \my $err });
+        if (@$err) {
             if (defined $filewarncode and ref $filewarncode eq 'CODE') {
-                &$filewarncode('cannot remove ' . $dirpath . ': ' . $!,$logger);
+                for my $diag (@$err) {
+                    my ($file, $message) = %$diag;
+                    if ($file eq '') {
+                        &$filewarncode("general error: $message",$logger);
+                    } else {
+                        &$filewarncode("problem unlinking $file: $message",$logger);
+                    }
+                }                
             }
         } else {
             if (defined $cleanupinfocode and ref $cleanupinfocode eq 'CODE') {
                 &$cleanupinfocode($dirpath . ' removed',$logger);
             }
         }
-        if ($restoredir) {
-              makedir($dirpath);
-        }
+        #if ($restoredir) {
+        #      makedir($dirpath);
+        #}
     }
 
 }
 
-sub makedir {
+sub fixdirpath {
     my ($dirpath) = @_;
-    mkdir $dirpath;
-    chmod oct($chmod_umask),$dirpath;
+    $dirpath .= '/' if $dirpath !~ m!/$!;
+    return $dirpath;
 }
+
+sub makepath {
+    my ($dirpath,$fileerrorcode,$logger) = @_;
+    make_path($dirpath,{ 
+        'chmod' => $chmod_umask,
+        'error' => \my $err });
+    if (@$err) {
+        if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+            for my $diag (@$err) {
+                my ($file, $message) = %$diag;
+                if ($file eq '') {
+                    &$fileerrorcode("general error: $message",$logger);
+                } else {
+                    &$fileerrorcode("problem unlinking $file: $message",$logger);
+                }
+            }                
+        }
+        return 0;
+    }
+    return 1;
+}
+
+#sub makedir {
+#    my ($dirpath,$fileerrorcode,$logger) = @_;
+#    eval {
+#        mkdir $dirpath;
+#        chmod oct($chmod_umask),$dirpath;
+#    };
+#    if ($@) {
+#        if (not -d $f_dir) {
+#        fileerror('cannot opendir ' . $f_dir . ': ' . $!,getlogger(__PACKAGE__));
+#        return;
+#    }
+#}
 
 sub changemod {
     my ($filepath) = @_;

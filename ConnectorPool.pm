@@ -18,6 +18,10 @@ use Globals qw(
     $billing_password
     $billing_host
     $billing_port
+    
+    $ngcprestapi_uri
+    $ngcprestapi_username
+    $ngcprestapi_password
 
 );
 
@@ -30,7 +34,7 @@ use SqlConnectors::MySQLDB;
 #use SqlConnectors::PostgreSQLDB;
 #use SqlConnectors::SQLiteDB qw($staticdbfilemode
 #                              cleanupdbfiles);
-#use SqlConnectors::CSVDB;
+use SqlConnectors::CSVDB;
 #use SqlConnectors::SQLServerDB;
 
 use SqlRecord qw(cleartableinfo);
@@ -58,39 +62,21 @@ our @EXPORT_OK = qw(
 
 my $connectorinstancenameseparator = '_';
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 # thread connector pools:
-my $sql_dbs = {};
-
-sub register_sql_db {
-    my ($class,$name) = @_;
-    my $registered = 0;
-    if (!exists $sql_connectors->{$class}) {
-        $sql_connectors->{$class} = {};
-    }
-    if (!exists $sql_connectors->{$class}->{$name}) {
-        $sql_connectors->{$class}->{$name} = {};
-        $registered = 1;
-    }
-    return $registered;
-}
-
-sub get_sql_db {
-    my ($instance_name,$reconnect) = @_;
-}
-
 my $accounting_dbs = {};
 my $billing_dbs = {};
 
+my $ngcp_restapis = {};
 
 sub get_accounting_db {
 
     my ($instance_name,$reconnect) = @_;
-    my $name = _get_connectorinstancename($instance_name); #threadid(); #shift;
-    if (not defined $accounting_dbs->{$name}) {
-        $accounting_dbs->{$name} = SqlConnectors::MySQLDB->new($instance_name); #$name);
-        if (not defined $reconnect) {
+    my $name = _get_connectorinstancename($instance_name);
+    if (!defined $accounting_dbs->{$name}) {
+        $accounting_dbs->{$name} = SqlConnectors::MySQLDB->new($instance_name);
+        if (!defined $reconnect) {
             $reconnect = 1;
         }
     }
@@ -113,10 +99,10 @@ sub accounting_db_tableidentifier {
 sub get_billing_db {
 
     my ($instance_name,$reconnect) = @_;
-    my $name = _get_connectorinstancename($instance_name); #threadid(); #shift;
-    if (not defined $billing_dbs->{$name}) {
-        $billing_dbs->{$name} = SqlConnectors::MySQLDB->new($instance_name); #$name);
-        if (not defined $reconnect) {
+    my $name = _get_connectorinstancename($instance_name);
+    if (!defined $billing_dbs->{$name}) {
+        $billing_dbs->{$name} = SqlConnectors::MySQLDB->new($instance_name);
+        if (!defined $reconnect) {
             $reconnect = 1;
         }
     }
@@ -135,6 +121,17 @@ sub billing_db_tableidentifier {
 
 }
 
+sub get_ngcp_restapi {
+
+    my ($instance_name) = @_;
+    my $name = _get_connectorinstancename($instance_name);
+    if (!defined $ngcp_restapis->{$name}) {
+        $ngcp_restapis->{$name} = RestConnectors::NGCPRestApi->new($instance_name,$ngcprestapi_uri,$ngcprestapi_username,$ngcprestapi_password);
+    }
+    return $ngcp_restapis->{$name};
+
+}
+
 
 sub _get_connectorinstancename {
     my ($name) = @_;
@@ -147,16 +144,14 @@ sub _get_connectorinstancename {
 
 sub destroy_dbs {
 
-    my $name;
 
-
-    foreach $name (keys %$accounting_dbs) {
+    foreach my $name (keys %$accounting_dbs) {
         cleartableinfo($accounting_dbs->{$name});
         undef $accounting_dbs->{$name};
         delete $accounting_dbs->{$name};
     }
 
-    foreach $name (keys %$billing_dbs) {
+    foreach my $name (keys %$billing_dbs) {
         cleartableinfo($billing_dbs->{$name});
         undef $billing_dbs->{$name};
         delete $billing_dbs->{$name};
@@ -171,16 +166,16 @@ sub _get_cluster_db { # oracle RAC and the like ...
     #if ((defined $cluster) and ref $cluster ne 'HASH') {
         my $node = undef;
         my $tid = threadid();
-        if ((not defined $cluster->{scheduling_vars}) or ref $cluster->{scheduling_vars} ne 'HASH') {
+        if ((!defined $cluster->{scheduling_vars}) or ref $cluster->{scheduling_vars} ne 'HASH') {
             $cluster->{scheduling_vars} = {};
         }
         my $scheduling_vars = $cluster->{scheduling_vars};
-        if ((not defined $scheduling_vars->{$tid}) or ref $scheduling_vars->{$tid} ne 'HASH') {
+        if ((!defined $scheduling_vars->{$tid}) or ref $scheduling_vars->{$tid} ne 'HASH') {
             $scheduling_vars->{$tid} = {};
         }
         $scheduling_vars = $scheduling_vars->{$tid};
         my $nodes;
-        if (not defined $scheduling_vars->{nodes}) {
+        if (!defined $scheduling_vars->{nodes}) {
             $nodes = {};
             foreach my $node (@{$cluster->{nodes}}) {
                 if (defined $node and ref $node eq 'HASH') {
@@ -188,7 +183,7 @@ sub _get_cluster_db { # oracle RAC and the like ...
                         $nodes->{$node->{label}} = $node;
                     }
                 } else {
-                    dbclustererror($cluster->{name},'node configuration error',$logger);
+                    dbclustererror($cluster->{name},'node configuration error',getlogger(__PACKAGE__));
                 }
             }
             $scheduling_vars->{nodes} = $nodes;
@@ -212,7 +207,7 @@ sub _get_cluster_db { # oracle RAC and the like ...
                         $db = &{$get_db}($cluster_instance_name,$reconnect,$cluster);
                     };
                     if ($@) {
-                        dbclusterwarn($cluster->{name},'node ' . $node->{label} . ' inactive',$logger);
+                        dbclusterwarn($cluster->{name},'node ' . $node->{label} . ' inactive',getlogger(__PACKAGE__));
                         delete $nodes->{$node->{label}};
                         return _get_cluster_db($cluster,$instance_name,$reconnect);
                     } else {
@@ -220,18 +215,18 @@ sub _get_cluster_db { # oracle RAC and the like ...
                         return $db;
                     }
                 } else {
-                    dbclustererror($cluster->{name},'node ' . $node->{label} . ' configuration error',$logger);
+                    dbclustererror($cluster->{name},'node ' . $node->{label} . ' configuration error',getlogger(__PACKAGE__));
                     delete $nodes->{$node->{label}};
                     return _get_cluster_db($cluster,$instance_name,$reconnect);
                 }
             }
         } else {
-            dbclustererror($cluster->{name},'scheduling configuration error',$logger);
+            dbclustererror($cluster->{name},'scheduling configuration error',getlogger(__PACKAGE__));
             return undef;
         }
 
     #}
-    dbclustererror($cluster->{name},'cannot switch to next active node',$logger);
+    dbclustererror($cluster->{name},'cannot switch to next active node',getlogger(__PACKAGE__));
     return undef;
 
 }

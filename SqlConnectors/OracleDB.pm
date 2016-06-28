@@ -46,7 +46,7 @@ my $max_identifier_length = 30;
 my $LongReadLen = $LongReadLen_limit; #bytes
 my $LongTruncOk = 0;
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 my $lock_do_chunk = 0;
 my $lock_get_chunk = 0;
@@ -73,7 +73,7 @@ sub new {
 
     bless($self,$class);
 
-    dbdebug($self,__PACKAGE__ . ' connector created',$logger);
+    dbdebug($self,__PACKAGE__ . ' connector created',getlogger(__PACKAGE__));
 
     return $self;
 
@@ -192,7 +192,7 @@ sub getdatabases {
 #    #alter user test quota unlimited on test
 #
 #    $self->db_do('CREATE SCHEMA AUTHORIZATION ' . $schema);
-#    dbinfo($self,'schema \'' . $schema . '\' created',$logger);
+#    dbinfo($self,'schema \'' . $schema . '\' created',getlogger(__PACKAGE__));
 #
 #}
 
@@ -214,7 +214,7 @@ sub db_connect {
     $self->{password} = $password;
     $self->{schema} = $schema;
 
-    dbdebug($self,'connecting',$logger);
+    dbdebug($self,'connecting',getlogger(__PACKAGE__));
 
     my $dbh;
     if ($servicename) {
@@ -226,7 +226,7 @@ sub db_connect {
                 AutoCommit      => 1,
                 #AutoCommit      => 0,
             }
-        ) or dberror($self,'error connecting - service name: ' . $self->{drh}->errstr(),$logger);
+        ) or dberror($self,'error connecting - service name: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
     } elsif ($sid) {
         $dbh = DBI->connect(
             'dbi:Oracle:host=' . $host . ';sid=' . $sid . ';port=' . $port,$username,$password,
@@ -235,9 +235,9 @@ sub db_connect {
                 RaiseError      => 0,
                 AutoCommit      => 1,
             }
-        ) or dberror($self,'error connecting - sid: ' . $self->{drh}->errstr(),$logger);
+        ) or dberror($self,'error connecting - sid: ' . $self->{drh}->errstr(),getlogger(__PACKAGE__));
     } else {
-        dberror($self,'neither service name nor sid specified',$logger);
+        dberror($self,'neither service name nor sid specified',getlogger(__PACKAGE__));
     }
 
     $self->{dbh} = $dbh;
@@ -279,13 +279,13 @@ sub db_connect {
             "END;");
         };
         if ($@) {
-            dbwarn($self,'numeric sorting not supported',$logger);
+            dbwarn($self,'numeric sorting not supported',getlogger(__PACKAGE__));
         }
     } else {
-        dbdebug($self,'numeric sorting not enabled',$logger);
+        dbdebug($self,'numeric sorting not enabled',getlogger(__PACKAGE__));
     }
 
-    dbinfo($self,'connected',$logger);
+    dbinfo($self,'connected',getlogger(__PACKAGE__));
 
 }
 
@@ -338,7 +338,7 @@ sub create_temptable {
     $self->db_do('CREATE TABLE ' . $temp_tablename . ' AS ' . $select_stmt);
     push(@{$self->{temp_tables}},$index_tablename);
 
-    temptablecreated($self,$index_tablename,$logger);
+    temptablecreated($self,$index_tablename,getlogger(__PACKAGE__));
 
     #$self->{temp_table_count} += 1;
 
@@ -349,7 +349,7 @@ sub create_temptable {
                 #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                 $indexname = _chopidentifier(lc($index_tablename) . '_' . $indexname);
                 $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $temp_tablename . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                indexcreated($self,$index_tablename,$indexname,$logger);
+                indexcreated($self,$index_tablename,$indexname,getlogger(__PACKAGE__));
             #}
         }
     }
@@ -368,7 +368,7 @@ sub create_primarykey {
         if (defined $keycols and ref $keycols eq 'ARRAY' and scalar @$keycols > 0 and setcontains($keycols,$fieldnames,1)) {
             my $statement = 'ALTER TABLE ' . $self->tableidentifier($tablename) . ' ADD PRIMARY KEY (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$keycols) . ')';
             $self->db_do($statement);
-            primarykeycreated($self,$tablename,$keycols,$logger);
+            primarykeycreated($self,$tablename,$keycols,getlogger(__PACKAGE__));
             return 1;
         }
 
@@ -392,7 +392,7 @@ sub create_indexes {
                         #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                         $indexname = _chopidentifier($indexname);
                         $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                        indexcreated($self,$tablename,$indexname,$logger);
+                        indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                     }
                 }
             }
@@ -428,7 +428,7 @@ sub create_texttable {
             $statement .= ')';
 
             $self->db_do($statement);
-            texttablecreated($self,$tablename,$logger);
+            texttablecreated($self,$tablename,getlogger(__PACKAGE__));
 
             if (not $defer_indexes and defined $indexes and ref $indexes eq 'HASH' and scalar keys %$indexes > 0) {
                 foreach my $indexname (keys %$indexes) {
@@ -437,7 +437,7 @@ sub create_texttable {
                         #$statement .= ', INDEX ' . $indexname . ' (' . join(', ',@{$indexes->{$indexname}}) . ')';
                         $indexname = _chopidentifier($indexname);
                         $self->db_do('CREATE INDEX ' . $indexname . ' ON ' . $self->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $self->columnidentifier($_); $_; } @$indexcols) . ')');
-                        indexcreated($self,$tablename,$indexname,$logger);
+                        indexcreated($self,$tablename,$indexname,getlogger(__PACKAGE__));
                     }
                 }
             }
@@ -445,7 +445,7 @@ sub create_texttable {
         } else {
             my $fieldnamesfound = $self->getfieldnames($tablename);
             if (not setcontains($fieldnames,$fieldnamesfound,1)) {
-                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,$logger);
+                fieldnamesdiffer($self,$tablename,$fieldnames,$fieldnamesfound,getlogger(__PACKAGE__));
                 return 0;
             }
         }
@@ -473,7 +473,7 @@ sub truncate_table {
     my $tablename = shift;
 
     $self->db_do('TRUNCATE ' . $self->tableidentifier($tablename));
-    tabletruncated($self,$tablename,$logger);
+    tabletruncated($self,$tablename,getlogger(__PACKAGE__));
 
 }
 
@@ -493,7 +493,7 @@ sub drop_table {
 
     if ($self->table_exists($tablename) > 0) {
         $self->db_do('DROP TABLE ' . $self->tableidentifier($tablename) . ' PURGE'); #CASCADE CONSTRAINTS PURGE');
-        tabledropped($self,$tablename,$logger);
+        tabledropped($self,$tablename,getlogger(__PACKAGE__));
         return 1;
     }
     return 0;

@@ -33,8 +33,8 @@ use Utils qw(
     secs_to_years
 );
 
-use POSIX qw(ceil locale_h);
-setlocale(LC_NUMERIC, 'C');
+use POSIX qw(ceil); # locale_h);
+#setlocale(LC_NUMERIC, 'C'); ->utils
 
 use Time::HiRes qw(time);
 

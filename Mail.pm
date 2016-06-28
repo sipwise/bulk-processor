@@ -20,7 +20,7 @@ use Globals qw(
     $system_instance_label
     $system_version
     $local_fqdn
-    $mailfilepath
+    $mailfile_path
     $emailenable
     $mailprog
     $mailtype
@@ -149,7 +149,7 @@ my $mailerr_messages = {
 
 };
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 # email body wordwrapping:
 sub wrap_mailbody {
@@ -222,7 +222,7 @@ sub send_mail_with_attachments {
               #push @filestocleanup,$attachmentfilepath;
               if ($filesize > 0) {
                   $mime_mail->attach(
-                      Id          => file_md5($attachmentfilepath,$fileerrorcode,$logger),
+                      Id          => file_md5($attachmentfilepath,$fileerrorcode,getlogger(__PACKAGE__)),
                       Type        => 'AUTO',
                       Filename    => basename($attachmentfilepath),
                       Length      => $filesize,
@@ -367,7 +367,7 @@ sub send_smtp {
 
         print MAIL encode_base64($smtppasswd,'') . "\r\n";
         $_ = <MAIL>;
-        #emaildebug($_,$logger);
+        #emaildebug($_,getlogger(__PACKAGE__));
         if (/^[45]/) {
         close(MAIL);
         return $smtpprotocolerrorpass; #auth unsuccessful
@@ -412,7 +412,7 @@ sub send_smtp {
 
     } elsif ($mailtype == 0) {
     if (not open(MAIL,"| $mailprog -t")) {
-        emailwarn('problem with pipe to ' . $mailprog . ': ' . $!,$logger);
+        emailwarn('problem with pipe to ' . $mailprog . ': ' . $!,getlogger(__PACKAGE__));
         return $mailprogpipeerror;
     }
     }
@@ -455,7 +455,7 @@ sub send_smtp {
 
     if ($mailtype == 1) {
         $_ = <MAIL>;
-        emaildebug($_,$logger);
+        emaildebug($_,getlogger(__PACKAGE__));
         if (/^[45]/) {
         close(MAIL);
         return $smtpprotocolerrordataaccepted;
@@ -472,19 +472,19 @@ sub send_smtp {
 
     }
 
-    if ($writefiles) {
+    if ($writefiles && -d $mailfile_path) {
     foreach my $rcpt (splitrcpts($to)) {
         my $fileindex = 0;
-        my $emailfile = $mailfilepath . $rcpt . '.' . $fileindex . $msgextension;
+        my $emailfile = $mailfile_path . $rcpt . '.' . $fileindex . $msgextension;
         while (-e $emailfile) {
         $fileindex += 1;
-        $emailfile = $mailfilepath . $rcpt . '.' . $fileindex . $msgextension;
+        $emailfile = $mailfile_path . $rcpt . '.' . $fileindex . $msgextension;
         }
             local *MAILFILE;
         if (not open (MAILFILE,'>' . $emailfile)) {
-        #fileerror('cannot open file ' . $emailfile . ': ' . $!,$logger);
+        #fileerror('cannot open file ' . $emailfile . ': ' . $!,getlogger(__PACKAGE__));
         if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-          &$fileerrorcode('cannot open file ' . $emailfile . ': ' . $!,$logger);
+          &$fileerrorcode('cannot open file ' . $emailfile . ': ' . $!,getlogger(__PACKAGE__));
         }
         return $writemailfileerror;
         }
@@ -501,24 +501,26 @@ sub send_smtp {
 sub cleanupmsgfiles {
 
     my ($fileerrorcode,$filewarncode) = @_;
-    my $rmsgextension = quotemeta($msgextension);
-    local *MAILDIR;
-    if (not opendir(MAILDIR, $mailfilepath)) {
-    #fileerror('cannot opendir ' . $mailfilepath . ': ' . $!,$logger);
-    if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-        &$fileerrorcode('cannot opendir ' . $mailfilepath . ': ' . $!,$logger);
-    }
-    return;
-    }
-    my @files = grep { /$rmsgextension$/ && -f $mailfilepath . $_ } readdir(MAILDIR);
-    closedir MAILDIR;
-    foreach my $file (@files) {
-        my $filepath = $mailfilepath . $file;
-    if ((unlink $filepath) == 0) {
-            #filewarn('cannot remove ' . $filepath . ': ' . $!,$logger);
-        if (defined $filewarncode and ref $filewarncode eq 'CODE') {
-        &$filewarncode('cannot remove ' . $filepath . ': ' . $!,$logger);
+    if (-d $mailfile_path) {
+        my $rmsgextension = quotemeta($msgextension);
+        local *MAILDIR;
+        if (not opendir(MAILDIR, $mailfile_path)) {
+        #fileerror('cannot opendir ' . $mailfile_path . ': ' . $!,getlogger(__PACKAGE__));
+        if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+            &$fileerrorcode('cannot opendir ' . $mailfile_path . ': ' . $!,getlogger(__PACKAGE__));
         }
+        return;
+        }
+        my @files = grep { /$rmsgextension$/ && -f $mailfile_path . $_ } readdir(MAILDIR);
+        closedir MAILDIR;
+        foreach my $file (@files) {
+            my $filepath = $mailfile_path . $file;
+        if ((unlink $filepath) == 0) {
+                #filewarn('cannot remove ' . $filepath . ': ' . $!,getlogger(__PACKAGE__));
+            if (defined $filewarncode and ref $filewarncode eq 'CODE') {
+            &$filewarncode('cannot remove ' . $filepath . ': ' . $!,getlogger(__PACKAGE__));
+            }
+            }
         }
     }
 
@@ -571,12 +573,12 @@ sub send_message {
     if ($emailenable) {
     $errormsg = send_simple_mail($to,$subject,$message,$sender_address,$system_name, $sender_address,$fileerrorcode, $emailwarncode);
     if ($errormsg != $mailsentsuccessfully ) {
-        #emailwarn('error sending email to ' . $to . ' via ' . $smtp_server . ' (' . $errorcode . ')',$_,$logger);
+        #emailwarn('error sending email to ' . $to . ' via ' . $smtp_server . ' (' . $errorcode . ')',$_,getlogger(__PACKAGE__));
         if (defined $emailwarncode and ref $emailwarncode eq 'CODE') {
-          &$emailwarncode('error sending email to ' . $to . ' via ' . $smtp_server,$mailerr_messages->{$errormsg},$_,$logger);
+          &$emailwarncode('error sending email to ' . $to . ' via ' . $smtp_server,$mailerr_messages->{$errormsg},$_,getlogger(__PACKAGE__));
         }
     } else {
-            emailinfo('email sent to ' . $to . ' via ' . $smtp_server,$logger);
+            emailinfo('email sent to ' . $to . ' via ' . $smtp_server,getlogger(__PACKAGE__));
         }
     }
     return $errormsg;
@@ -588,34 +590,34 @@ sub send_email {
     my ($email,$attachments,$fileerrorcode, $emailwarncode) = @_;
     my $errormsg = $mailingdisabled;
     if ($emailenable and defined $email) {
-    if (not exists $email->{return_path} or not defined $email->{return_path}) {
+    if (!exists $email->{return_path} or !defined $email->{return_path}) {
         $email->{return_path} = $sender_address;
     }
 
-    if (not exists $email->{priority} or not defined $email->{priority}) {
+    if (!exists $email->{priority} or !defined $email->{priority}) {
         $email->{priority} = $normalpriority;
     }
 
-    if (not exists $email->{sender_name} or not defined $email->{sender_name}) {
+    if (!exists $email->{sender_name} or !defined $email->{sender_name}) {
         $email->{sender_name} = $system_name;
     }
 
-    if (not exists $email->{from} or not defined $email->{from}) {
+    if (!exists $email->{from} or !defined $email->{from}) {
         $email->{from} = $sender_address;
     }
 
-    if (not exists $email->{guid} or not defined $email->{guid}) {
+    if (!exists $email->{guid} or !defined $email->{guid}) {
         $email->{guid} = create_guid();
     }
 
     $errormsg = send_mail_with_attachments($email,$attachments,$fileerrorcode, $emailwarncode);
     if ($errormsg != $mailsentsuccessfully ) {
-        #emailwarn('error sending email to ' . mergercpts(($email->{to},$email->{cc},$email->{bcc})) . ' via ' . $smtp_server . ' (' . $errorcode . ')',$_,$logger);
+        #emailwarn('error sending email to ' . mergercpts(($email->{to},$email->{cc},$email->{bcc})) . ' via ' . $smtp_server . ' (' . $errorcode . ')',$_,getlogger(__PACKAGE__));
             if (defined $emailwarncode and ref $emailwarncode eq 'CODE') {
-          &$emailwarncode('error sending email to ' . mergercpts(($email->{to},$email->{cc},$email->{bcc})) . ' via ' . $smtp_server,$mailerr_messages->{$errormsg},$_,$logger);
+          &$emailwarncode('error sending email to ' . mergercpts(($email->{to},$email->{cc},$email->{bcc})) . ' via ' . $smtp_server,$mailerr_messages->{$errormsg},$_,getlogger(__PACKAGE__));
         }
     } else {
-            emailinfo('email sent to ' . mergercpts(($email->{to},$email->{cc},$email->{bcc})) . ' via ' . $smtp_server,$logger);
+            emailinfo('email sent to ' . mergercpts(($email->{to},$email->{cc},$email->{bcc})) . ' via ' . $smtp_server,getlogger(__PACKAGE__));
         }
     }
     return $errormsg;

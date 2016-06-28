@@ -18,7 +18,7 @@ use LogError qw(
     attachmentdownloaderwarn
 );
 
-use Utils qw(kbytes2gigs changemod);
+use Utils qw(kbytes2gigs); # changemod);
 
 use IO::Socket::SSL;
 use Mail::IMAPClient;
@@ -32,14 +32,14 @@ require Exporter;
 our @ISA = qw(Exporter AttachmentDownloader);
 our @EXPORT_OK = qw();
 
-my $logger = getlogger(__PACKAGE__);
+#my $logger = getlogger(__PACKAGE__);
 
 sub new {
 
     my $class = shift;
     my ($server,$ssl,$user,$pass,$foldername,$checkfilenamecode,$download_urls) = @_;
     my $self = AttachmentDownloader->new($class,$server,$ssl,$user,$pass,$foldername,$checkfilenamecode,$download_urls);
-    attachmentdownloaderdebug('IMAP attachment downloader object created',$logger);
+    attachmentdownloaderdebug('IMAP attachment downloader object created',getlogger(__PACKAGE__));
     return $self;
 
 }
@@ -48,9 +48,9 @@ sub logout {
   my $self = shift;
   if (defined $self->{imap}) {
     if ($self->{imap}->logout()) {
-        attachmentdownloaderinfo('IMAP logout successful',$logger);
+        attachmentdownloaderinfo('IMAP logout successful',getlogger(__PACKAGE__));
     } else {
-        attachmentdownloaderwarn($@,$logger);
+        attachmentdownloaderwarn($@,getlogger(__PACKAGE__));
     }
     $self->{imap} = undef;
   }
@@ -63,7 +63,7 @@ sub setup {
 
     $self->logout();
 
-    attachmentdownloaderdebug('IMAP attachment downloader setup - ' . $server . ($ssl ? ' (SSL)' : ''),$logger);
+    attachmentdownloaderdebug('IMAP attachment downloader setup - ' . $server . ($ssl ? ' (SSL)' : ''),getlogger(__PACKAGE__));
 
     $self->{server} = $server;
     $self->{ssl} = $ssl;
@@ -93,12 +93,12 @@ sub setup {
                 Proto    => 'tcp',
                 PeerAddr => $server,
                 PeerPort => 993,
-              ) or attachmentdownloadererror($@,$logger);
+              ) or attachmentdownloadererror($@,getlogger(__PACKAGE__));
     } else {
         $opts{Server} = $server;
     }
 
-    my $imap = Mail::IMAPClient->new(%opts) or attachmentdownloadererror($@,$logger);
+    my $imap = Mail::IMAPClient->new(%opts) or attachmentdownloadererror($@,getlogger(__PACKAGE__));
 
     #eval {
     #my ($gss_api_step, $sasl, $conn, $cred) = (0, undef, undef, GSSAPI::Cred);
@@ -113,7 +113,7 @@ sub setup {
     #                                  }
     #                );
     #            $conn = $sasl->client_new('imap', $server);
-    #            my $mesg = $conn->client_start() or attachmentdownloadererror($@,$logger);
+    #            my $mesg = $conn->client_start() or attachmentdownloadererror($@,getlogger(__PACKAGE__));
     #            print "mesg $gss_api_step: " . $mesg;
     #            return encode_base64($mesg, '');
     #        } else {
@@ -124,13 +124,13 @@ sub setup {
     #    });
     #};
     if ($@) {
-        attachmentdownloadererror($@,$logger);
+        attachmentdownloadererror($@,getlogger(__PACKAGE__));
     } else {
-        attachmentdownloaderinfo('IMAP login successful',$logger);
+        attachmentdownloaderinfo('IMAP login successful',getlogger(__PACKAGE__));
     }
 
-    $imap->select($foldername) or attachmentdownloadererror('cannot select ' . $foldername . ': ' . $imap->LastError,$logger); #'folder ' . $foldername . ' not found: '
-    attachmentdownloaderdebug('folder ' . $foldername . ' selected',$logger);
+    $imap->select($foldername) or attachmentdownloadererror('cannot select ' . $foldername . ': ' . $imap->LastError,getlogger(__PACKAGE__)); #'folder ' . $foldername . ' not found: '
+    attachmentdownloaderdebug('folder ' . $foldername . ' selected',getlogger(__PACKAGE__));
 
     $self->{imap} = $imap;
 
@@ -146,15 +146,15 @@ sub download {
 
     if (defined $self->{imap}) {
 
-        attachmentdownloaderinfo('searching messages from folder ' . $self->{foldername},$logger);
+        attachmentdownloaderinfo('searching messages from folder ' . $self->{foldername},getlogger(__PACKAGE__));
 
         my $found = 0;
 
         my $message_ids = $self->{imap}->search('ALL');
         if (defined $message_ids and ref $message_ids eq 'ARRAY') {
             foreach my $id (@$message_ids) {
-                attachmentdownloadererror('invalid message id ' . $id,$logger) unless $id =~ /\A\d+\z/;
-                my $message_string = $self->{imap}->message_string($id) or attachmentdownloadererror($@,$logger);
+                attachmentdownloadererror('invalid message id ' . $id,getlogger(__PACKAGE__)) unless $id =~ /\A\d+\z/;
+                my $message_string = $self->{imap}->message_string($id) or attachmentdownloadererror($@,getlogger(__PACKAGE__));
 
                 $found |= $self->_process_message($self->{imap}->subject($id),$message_string,$filedir,\@files_saved);
                 $message_count++;
@@ -165,14 +165,14 @@ sub download {
             }
         } else {
             if ($@) {
-                attachmentdownloadererror($@,$logger);
+                attachmentdownloadererror($@,getlogger(__PACKAGE__));
             }
         }
 
         if (scalar @files_saved == 0) {
-          attachmentdownloaderwarn('IMAP download complete - ' . $message_count . ' messages found, but no matching attachments saved',$logger);
+          attachmentdownloaderwarn('IMAP download complete - ' . $message_count . ' messages found, but no matching attachments saved',getlogger(__PACKAGE__));
         } else {
-          attachmentdownloaderinfo('IMAP attachment download complete - ' . scalar @files_saved . ' files saved',$logger);
+          attachmentdownloaderinfo('IMAP attachment download complete - ' . scalar @files_saved . ' files saved',getlogger(__PACKAGE__));
         }
     }
 

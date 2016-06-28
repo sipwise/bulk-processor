@@ -14,11 +14,14 @@ use Tie::IxHash;
 
 use Cwd 'abs_path'; 
 use File::Basename qw(dirname);
+use File::Temp qw(tempdir);
 
 use Utils qw(
 	get_ipaddress
   get_hostfqdn
   get_cpucount
+  makepath
+  fixdirpath
   $chmod_umask);
 
 require Exporter;
@@ -32,6 +35,8 @@ our @EXPORT_OK = qw(
 	$local_ip
 	$local_fqdn
 	$application_path
+	$working_path
+	update_working_path
 	$appstartsecs
 	$enablemultithreading
 	$root_threadid
@@ -53,6 +58,10 @@ our @EXPORT_OK = qw(
 	$billing_host
 	$billing_port	
 
+$ngcprestapi_uri
+$ngcprestapi_username
+$ngcprestapi_password
+
 	$csv_path
                     
 
@@ -62,7 +71,7 @@ our @EXPORT_OK = qw(
                     $warnemailrecipient
                     $completionemailrecipient
                     $successemailrecipient               
-                    $mailfilepath
+                    $mailfile_path
 
                     $ismsexchangeserver
                     $sender_address
@@ -70,7 +79,6 @@ our @EXPORT_OK = qw(
                     $smtpuser
                     $smtppasswd
                     $writefiles
-                    $tpath
 
                     $logfile_path
                     $fileloglevel
@@ -100,9 +108,9 @@ $mailtype
 umask oct($chmod_umask);
 
 # general constants
-our $system_name = 'Sipwise Bulk Processor Framework';
+our $system_name = 'Sipwise Bulk Processing Framework';
 our $system_version = '0.0.1'; #keep this filename-save
-our $system_abbreviation = 'bpf'; #keep this filename-, dbname-save
+our $system_abbreviation = 'sbpf'; #keep this filename-, dbname-save
 our $system_instance = 'initial'; #'test'; #'2014'; #dbname-save 0-9a-z_
 our $system_instance_label = 'test'; 
 
@@ -111,7 +119,6 @@ our $local_fqdn = get_hostfqdn();
 our $application_path = get_applicationpath();
 #my $remotefilesystem = "MSWin32";
 our $system_username = 'system';
-
 
 our $enablemultithreading;
 if ($^O eq 'MSWin32') {
@@ -139,19 +146,24 @@ our	$accounting_password = '';
 our $accounting_host = '127.0.0.1';
 our $accounting_port = '3306';
 
-our	$billing_databasename = 'accounting';
+our	$billing_databasename = 'billing';
 our $billing_username = 'root';
 our	$billing_password = '';
 our $billing_host = '127.0.0.1';
 our $billing_port = '3306';
 
+our $ngcprestapi_uri = 'https://127.0.0.1:443';
+our $ngcprestapi_username = 'administrator';
+our $ngcprestapi_password = 'administrator';
+
+our $working_path = fixdirpath(tempdir(CLEANUP => 0)); #'/var/sipwise/';
 
 # csv
-our $csv_path = $application_path . 'csv/';
+our $csv_path = $working_path . 'csv/';
 #mkdir $csv_path;
 
 # logging
-our $logfile_path = $application_path . 'log/';
+our $logfile_path = $working_path . 'log/';
 #mkdir $logfile_path;
 
 our $fileloglevel = 'OFF'; #'DEBUG';
@@ -165,7 +177,7 @@ our $emailloglevel = 'OFF'; #'INFO';
 
 
 # local db setup
-our $local_db_path = $application_path . 'db/';
+our $local_db_path = $working_path . 'db/';
 #mkdir $local_db_path;
 
 
@@ -176,7 +188,7 @@ our $local_db_path = $application_path . 'db/';
 #set emailenable and writefiles to 0 during development with IDE that perform
 #on-the-fly compilation during typing
 our $emailenable = 0;                                # globally enable email sending
-our $mailfilepath = $application_path . 'mails/';   # emails can be saved (logged) as message files to this folder
+our $mailfile_path = $working_path . 'mails/';   # emails can be saved (logged) as message files to this folder
 #mkdir $mailfilepath;
 our $writefiles = 0;                                 # save emails
 
@@ -190,7 +202,7 @@ our $mailtype = 1; #0 .. mailprog, 1 .. socket, 2 .. Net::SMTP
 
 
 our $ismsexchangeserver = 0;                         # smtp server is a ms exchange server
-our $smtp_server = '10.146.1.17';                    # smtp sever ip/hostname
+our $smtp_server = '192.168.0.99';                   # smtp sever ip/hostname
 our $smtpuser = 'WORKGROUP\rkrenn';
 our $smtppasswd = 'xyz';
 our $sender_address = 'donotreply@sipwise.com';
@@ -205,7 +217,7 @@ our $jobnamespace = $system_abbreviation . '-' . $system_version . '-' . $system
 
 
 # test directory
-our $tpath = $application_path . 't/';
+#our $tpath = $application_path . 't/';
 #mkdir $tpath;
 
 
@@ -223,8 +235,7 @@ sub update_mainconfig {
         $configlogger) = @_;
     
     if (defined $config) {
-        
-        
+
         # databases - dsp
         $accounting_host = $config->{accounting_host} if exists $config->{accounting_host};
         $accounting_port = $config->{accounting_port} if exists $config->{accounting_port};
@@ -237,7 +248,10 @@ sub update_mainconfig {
         $billing_databasename = $config->{billing_databasename} if exists $config->{billing_databasename};
         $billing_username = $config->{billing_username} if exists $config->{billing_username};
         $billing_password = $config->{billing_password} if exists $config->{billing_password};
-        
+
+        $ngcprestapi_uri = $config->{ngcprestapi_uri} if exists $config->{ngcprestapi_uri};
+        $ngcprestapi_username = $config->{ngcprestapi_username} if exists $config->{ngcprestapi_username};
+        $ngcprestapi_password = $config->{ngcprestapi_password} if exists $config->{ngcprestapi_password};        
         
         $enablemultithreading = $config->{enablemultithreading} if exists $config->{enablemultithreading};
         $cells_transfer_memory_limit = $config->{cells_transfer_memory_limit} if exists $config->{cells_transfer_memory_limit};
@@ -270,11 +284,118 @@ sub update_mainconfig {
         $screenloglevel = $config->{screenloglevel} if exists $config->{screenloglevel};
         $emailloglevel = $config->{emailloglevel} if exists $config->{emailloglevel};
         
-        return 1;
+        my $new_working_path = (exists $config->{working_path} ? $config->{working_path} : $working_path);
+
+        return update_working_path($new_working_path,1,$configurationerrorcode,$configlogger);
         
     }
     return 0;
     
+}
+
+sub update_working_path {
+    
+    my ($new_working_path,$create,$fileerrorcode,$logger) = @_;
+    my $result = 1;
+    if (defined $new_working_path and length($new_working_path) > 0) {
+        $new_working_path = fixdirpath($new_working_path);
+        if (-d $new_working_path) {
+            $working_path = $new_working_path;
+        } else {
+            if ($create) {
+                if (makepath($new_working_path,$fileerrorcode,$logger)) {
+                    $working_path = $new_working_path;
+                } else {
+                    $result = 0;
+                }
+            } else {
+                $result = 0;
+                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+                    &$fileerrorcode("working path '$new_working_path' does not exist",$logger);
+                }
+            }
+        }
+        
+        my $new_csv_path = $working_path . 'csv/';
+        if (-d $new_csv_path) {
+            $csv_path = $new_csv_path;
+        } else {
+            if ($create) {
+                if (makepath($new_csv_path,$fileerrorcode,$logger)) {
+                    $csv_path = $new_csv_path;
+                } else {
+                    $result = 0;
+                }
+            } else {
+                $result = 0;
+                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+                    &$fileerrorcode("csv path '$new_csv_path' does not exist",$logger);
+                }
+            }
+        }
+        
+        my $new_logfile_path = $working_path . 'log/';
+        if (-d $new_logfile_path) {
+            $logfile_path = $new_logfile_path;
+        } else {
+            if ($create) {
+                if (makepath($new_logfile_path,$fileerrorcode,$logger)) {
+                    $logfile_path = $new_logfile_path;
+                } else {
+                    $result = 0;
+                }
+            } else {
+                $result = 0;
+                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+                    &$fileerrorcode("logfile path '$new_logfile_path' does not exist",$logger);
+                }
+            }
+        }        
+        
+        my $new_local_db_path = $working_path . 'db/';
+        if (-d $new_local_db_path) {
+            $local_db_path = $new_local_db_path;
+        } else {
+            if ($create) {
+                if (makepath($new_local_db_path,$fileerrorcode,$logger)) {
+                    $local_db_path = $new_local_db_path;
+                } else {
+                    $result = 0;
+                }
+            } else {
+                $result = 0;
+                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+                    &$fileerrorcode("local db path '$new_local_db_path' does not exist",$logger);
+                }
+            }
+        }  
+
+        my $new_mailfile_path = $working_path . 'mails/';
+        if (-d $new_mailfile_path) {
+            $mailfile_path = $new_mailfile_path;
+        } else {
+            if ($create) {
+                if (makepath($new_mailfile_path,$fileerrorcode,$logger)) {
+                    $mailfile_path = $new_mailfile_path;
+                } else {
+                    $result = 0;
+                }
+            } else {
+                $result = 0;
+                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+                    &$fileerrorcode("mailfile path '$new_mailfile_path' does not exist",$logger);
+                }
+            }
+        }
+        
+    } else {
+        $result = 0;
+        if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+            &$fileerrorcode("empty working path",$logger);
+        }  
+    }
+    return $result;
+
 }
 
 sub log_mainconfig {
@@ -283,6 +404,7 @@ sub log_mainconfig {
     if (defined $logconfigcode and ref $logconfigcode eq 'CODE') {
         &$logconfigcode($system_name . ' ' . $system_version . ' (' . $system_instance_label . ') [' . $local_fqdn . ']',$configlogger);
         &$logconfigcode('application path ' . $application_path,$configlogger);
+        &$logconfigcode('working path ' . $working_path,$configlogger);
         &$logconfigcode($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),$configlogger);
     }
     
