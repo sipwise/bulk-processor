@@ -1,12 +1,12 @@
 
-package billing::contract_balances;
+package Dao::Trunk::billing::contract_balances;
 use strict;
 
 ## no critic
 
 use File::Basename;
 use Cwd;
-use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../');
+use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../');
 
 use Logging qw(getlogger);
 
