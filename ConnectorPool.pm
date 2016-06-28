@@ -147,16 +147,14 @@ sub _get_connectorinstancename {
 
 sub destroy_dbs {
 
-    my $name;
 
-
-    foreach $name (keys %$accounting_dbs) {
+    foreach my $name (keys %$accounting_dbs) {
         cleartableinfo($accounting_dbs->{$name});
         undef $accounting_dbs->{$name};
         delete $accounting_dbs->{$name};
     }
 
-    foreach $name (keys %$billing_dbs) {
+    foreach my $name (keys %$billing_dbs) {
         cleartableinfo($billing_dbs->{$name});
         undef $billing_dbs->{$name};
         delete $billing_dbs->{$name};
