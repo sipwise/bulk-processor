@@ -70,7 +70,6 @@ our @EXPORT_OK = qw(
                     $smtpuser
                     $smtppasswd
                     $writefiles
-                    $tpath
 
                     $logfile_path
                     $fileloglevel
@@ -139,7 +138,7 @@ our	$accounting_password = '';
 our $accounting_host = '127.0.0.1';
 our $accounting_port = '3306';
 
-our	$billing_databasename = 'accounting';
+our	$billing_databasename = 'billing';
 our $billing_username = 'root';
 our	$billing_password = '';
 our $billing_host = '127.0.0.1';
@@ -205,7 +204,7 @@ our $jobnamespace = $system_abbreviation . '-' . $system_version . '-' . $system
 
 
 # test directory
-our $tpath = $application_path . 't/';
+#our $tpath = $application_path . 't/';
 #mkdir $tpath;
 
 
