@@ -4,7 +4,7 @@ use strict;
 
 use File::Basename;
 use Cwd;
-use lib Cwd::abs_path(File::Basename::dirname(__FILE__));
+use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../');
 
 use Getopt::Long;
 

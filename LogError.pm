@@ -39,6 +39,7 @@ use POSIX qw(ceil); # locale_h);
 use Time::HiRes qw(time);
 
 use Carp qw(carp cluck croak confess);
+$Carp::Verbose = 1;
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -57,9 +58,7 @@ our @EXPORT_OK = qw(
     fileerror
     filewarn
     
-    yamlerror
-
-    parameterdefinedtwice
+ 
     emailwarn
     configurationwarn
     configurationerror
@@ -401,18 +400,18 @@ sub fileerror {
 
 }
 
-sub yamlerror {
-    
-    my ($message, $logger) = @_;
-    if (defined $logger) {
-        $logger->error($message);
-    }
-
-    terminate($message, $logger);
-    #terminatethreads();
-    #die();
-
-}
+#sub yamlerror {
+#    
+#    my ($message, $logger) = @_;
+#    if (defined $logger) {
+#        $logger->error($message);
+#    }
+#
+#    terminate($message, $logger);
+#    #terminatethreads();
+#    #die();
+#
+#}
 
 sub xls2csverror {
 
@@ -472,14 +471,14 @@ sub webarchivexls2csvwarn {
     warning($message, $logger, 1);
 }
 
-sub parameterdefinedtwice {
-
-    my ($message,$logger) = @_;
-    if (defined $logger) {
-        $logger->warn($message);
-    }
-    warning($message, $logger, 1);
-}
+#sub parameterdefinedtwice {
+#
+#    my ($message,$logger) = @_;
+#    if (defined $logger) {
+#        $logger->warn($message);
+#    }
+#    warning($message, $logger, 1);
+#}
 
 sub emailwarn {
 

@@ -15,6 +15,7 @@ use Tie::IxHash;
 use Cwd 'abs_path'; 
 use File::Basename qw(dirname);
 use File::Temp qw(tempdir);
+use FindBin qw();
 
 use Utils qw(
 	get_ipaddress
@@ -35,6 +36,7 @@ our @EXPORT_OK = qw(
 	$local_ip
 	$local_fqdn
 	$application_path
+	$executable_path
 	$working_path
 	update_working_path
 	$appstartsecs
@@ -63,6 +65,7 @@ $ngcprestapi_username
 $ngcprestapi_password
 
 	$csv_path
+	$input_path
                     
 
                     $local_db_path
@@ -105,7 +108,7 @@ $mailtype
 
 
 #set process umask for open and mkdir calls:
-umask oct($chmod_umask);
+umask 0000;
 
 # general constants
 our $system_name = 'Sipwise Bulk Processing Framework';
@@ -117,6 +120,7 @@ our $system_instance_label = 'test';
 our $local_ip = get_ipaddress();
 our $local_fqdn = get_hostfqdn();
 our $application_path = get_applicationpath();
+our $executable_path = $FindBin::Bin . '/';
 #my $remotefilesystem = "MSWin32";
 our $system_username = 'system';
 
@@ -156,7 +160,9 @@ our $ngcprestapi_uri = 'https://127.0.0.1:443';
 our $ngcprestapi_username = 'administrator';
 our $ngcprestapi_password = 'administrator';
 
-our $working_path = fixdirpath(tempdir(CLEANUP => 0)); #'/var/sipwise/';
+our $working_path = tempdir(CLEANUP => 0) . '/'; #'/var/sipwise/';
+
+our $input_path = $working_path . 'input/';
 
 # csv
 our $csv_path = $working_path . 'csv/';
@@ -232,6 +238,7 @@ sub update_mainconfig {
         $parse_floatcode,
         $configurationwarncode,
         $configurationerrorcode,
+        $fileerrorcode,
         $configlogger) = @_;
     
     if (defined $config) {
@@ -286,7 +293,7 @@ sub update_mainconfig {
         
         my $new_working_path = (exists $config->{working_path} ? $config->{working_path} : $working_path);
 
-        return update_working_path($new_working_path,1,$configurationerrorcode,$configlogger);
+        return update_working_path($new_working_path,1,$fileerrorcode,$configlogger);
         
     }
     return 0;
@@ -330,6 +337,24 @@ sub update_working_path {
                 $result = 0;
                 if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
                     &$fileerrorcode("csv path '$new_csv_path' does not exist",$logger);
+                }
+            }
+        }
+        
+        my $new_input_path = $working_path . 'input/';
+        if (-d $new_input_path) {
+            $input_path = $new_input_path;
+        } else {
+            if ($create) {
+                if (makepath($new_input_path,$fileerrorcode,$logger)) {
+                    $input_path = $new_input_path;
+                } else {
+                    $result = 0;
+                }
+            } else {
+                $result = 0;
+                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+                    &$fileerrorcode("input path '$new_input_path' does not exist",$logger);
                 }
             }
         }
@@ -405,6 +430,7 @@ sub log_mainconfig {
         &$logconfigcode($system_name . ' ' . $system_version . ' (' . $system_instance_label . ') [' . $local_fqdn . ']',$configlogger);
         &$logconfigcode('application path ' . $application_path,$configlogger);
         &$logconfigcode('working path ' . $working_path,$configlogger);
+        #&$logconfigcode('executable path ' . $executable_path,$configlogger);
         &$logconfigcode($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),$configlogger);
     }
     

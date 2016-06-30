@@ -11,7 +11,6 @@ use Globals qw(
     $fileloglevel
     $emailloglevel
     $screenloglevel
-    log_mainconfig
     $enablemultithreading
 );
 
@@ -63,8 +62,8 @@ our @EXPORT_OK = qw(
     writing_rows
     processing_rows
 
-    mainconfigurationloaded
-    configinfo
+
+    configurationinfo
     init_log
     $currentlogfile
     $attachmentlogfile
@@ -553,17 +552,17 @@ sub processing_rows {
 
 }
 
-sub mainconfigurationloaded {
+#sub mainconfigurationloaded {
+#
+#    my ($configfile,$logger) = @_;
+#    if (defined $logger) {
+#        $logger->info('system configuration file ' . $configfile . ' loaded');
+#    }
+#    log_mainconfig(\&configinfo,$logger);
+#
+#}
 
-    my ($configfile,$logger) = @_;
-    if (defined $logger) {
-        $logger->info('system configuration file ' . $configfile . ' loaded');
-    }
-    log_mainconfig(\&configinfo,$logger);
-
-}
-
-sub configinfo {
+sub configurationinfo {
 
     my ($message,$logger) = @_;
     if (defined $logger) {
