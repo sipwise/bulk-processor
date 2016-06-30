@@ -11,13 +11,14 @@ use Globals qw(
     $fileloglevel
     $emailloglevel
     $screenloglevel
-    log_mainconfig
     $enablemultithreading
 );
 
 use Log::Log4perl qw(get_logger);
 
-use Utils qw(timestampdigits datestampdigits changemod chopstring trim);
+use File::Basename qw(basename);
+
+use Utils qw(timestampdigits datestampdigits changemod chopstring trim kbytes2gigs);
 use Array qw (contains);
 
 require Exporter;
@@ -25,16 +26,18 @@ our @ISA = qw(Exporter);
 
 our @EXPORT_OK = qw(
     getlogger
-    
+
     cleanuplogfiles
 
     emailinfo
     emaildebug
     dbdebug
     dbinfo
-    
+    restdebug
+    restinfo
+
 	attachmentdownloaderdebug
-    attachmentdownloaderinfo  
+    attachmentdownloaderinfo
 
     fieldnamesaquired
     primarykeycolsaquired
@@ -63,8 +66,8 @@ our @EXPORT_OK = qw(
     writing_rows
     processing_rows
 
-    mainconfigurationloaded
-    configinfo
+
+    configurationinfo
     init_log
     $currentlogfile
     $attachmentlogfile
@@ -72,6 +75,12 @@ our @EXPORT_OK = qw(
 
     xls2csvinfo
     tablethreadingdebug
+
+    filethreadingdebug
+    fileprocessingstarted
+    fileprocessingdone
+    fetching_lines
+    processing_lines
 
     tablefixed
     servicedebug
@@ -115,8 +124,8 @@ sub init_log_default {
                #"log4perl.appender.ScreenApp           = Log::Log4perl::Appender::ScreenColoredLevels\n" .
                "log4perl.appender.ScreenApp.Threshold = INFO\n" .
                "log4perl.appender.ScreenApp.stderr    = 0\n" .
-               "log4perl.appender.ScreenApp.layout    = Log::Log4perl::Layout::SimpleLayout\n" .
-               'log4perl.appender.ScreenApp.layout.ConversionPattern = %d> %m%n';
+               "log4perl.appender.ScreenApp.layout    = Log::Log4perl::Layout::PatternLayout\n" .
+               'log4perl.appender.ScreenApp.layout.ConversionPattern = %m%n';
 
     # Initialize logging behaviour
     Log::Log4perl->init( \$conf );
@@ -165,9 +174,9 @@ sub init_log {
 
     # Initialize logging behaviour
     Log::Log4perl->init( \$conf );
-    
+
     $loginitialized = 1;
-    
+
     get_logger(__PACKAGE__)->debug('log4perl configuration loaded');
 }
 
@@ -252,7 +261,7 @@ sub dbdebug {
 
     my ($db, $message, $logger) = @_;
     if (defined $logger) {
-        $logger->debug(_getconnectorinstanceprefix($db) . _getconnectidentifiermessage($db,$message));
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . _getsqlconnectidentifiermessage($db,$message));
     }
 
     #die();
@@ -263,7 +272,29 @@ sub dbinfo {
 
     my ($db, $message, $logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . _getconnectidentifiermessage($db,$message));
+        $logger->info(_getsqlconnectorinstanceprefix($db) . _getsqlconnectidentifiermessage($db,$message));
+    }
+
+    #die();
+
+}
+
+sub restdebug {
+
+    my ($restatpi, $message, $logger) = @_;
+    if (defined $logger) {
+        $logger->debug(_getrestconnectorinstanceprefix($restatpi) . _getrestconnectidentifiermessage($restatpi,$message));
+    }
+
+    #die();
+
+}
+
+sub restinfo {
+
+    my ($restatpi, $message, $logger) = @_;
+    if (defined $logger) {
+        $logger->info(_getrestconnectorinstanceprefix($restatpi) . _getrestconnectidentifiermessage($restatpi,$message));
     }
 
     #die();
@@ -271,21 +302,21 @@ sub dbinfo {
 }
 
 sub attachmentdownloaderdebug {
-    
+
     my ($message, $logger) = @_;
     if (defined $logger) {
         $logger->debug($message);
     }
-    
+
 }
 
 sub attachmentdownloaderinfo {
-    
+
     my ($message, $logger) = @_;
     if (defined $logger) {
         $logger->info($message);
     }
-    
+
 }
 
 sub xls2csvinfo {
@@ -301,7 +332,7 @@ sub fieldnamesaquired {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'fieldnames aquired and OK: [' . $db->connectidentifier() . '].' . $tablename);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'fieldnames aquired and OK: [' . $db->connectidentifier() . '].' . $tablename);
     }
 
 }
@@ -310,7 +341,7 @@ sub primarykeycolsaquired {
 
     my ($db,$tablename,$keycols,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'primary key columns aquired for [' . $db->connectidentifier() . '].' . $tablename . ': ' . ((defined $keycols and scalar @$keycols > 0) ? join(', ',@$keycols) : '<no primary key columns>'));
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'primary key columns aquired for [' . $db->connectidentifier() . '].' . $tablename . ': ' . ((defined $keycols and scalar @$keycols > 0) ? join(', ',@$keycols) : '<no primary key columns>'));
     }
 
 }
@@ -319,7 +350,7 @@ sub tableinfoscleared {
 
     my ($db,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'table infos cleared for ' . $db->connectidentifier());
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table infos cleared for ' . $db->connectidentifier());
     }
 
 }
@@ -328,7 +359,7 @@ sub tabletransferstarted {
 
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'table transfer started: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table transfer started: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
     }
 
 }
@@ -355,7 +386,7 @@ sub rowtransferstarted {
 
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'row transfer started: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'row transfer started: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
     }
 
 }
@@ -364,7 +395,7 @@ sub texttablecreated {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'text table created: ' . $tablename);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'text table created: ' . $tablename);
     }
 
 }
@@ -373,7 +404,7 @@ sub indexcreated {
 
     my ($db,$tablename,$indexname,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'index created: ' . $indexname . ' on ' . $tablename);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'index created: ' . $indexname . ' on ' . $tablename);
     }
 
 }
@@ -382,7 +413,7 @@ sub primarykeycreated {
 
     my ($db,$tablename,$keycols,$logger) = @_;
     if (defined $logger and (defined $keycols and scalar @$keycols > 0)) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'primary key created: ' . join(', ',@$keycols) . ' on ' . $tablename);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'primary key created: ' . join(', ',@$keycols) . ' on ' . $tablename);
     }
 
 }
@@ -391,7 +422,7 @@ sub temptablecreated {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'temporary table created: ' . $tablename);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'temporary table created: ' . $tablename);
     }
 
 }
@@ -400,7 +431,7 @@ sub tabletruncated {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'table truncated: ' . $tablename);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table truncated: ' . $tablename);
     }
 
 }
@@ -409,7 +440,7 @@ sub tabledropped {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'table dropped: ' . $tablename);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table dropped: ' . $tablename);
     }
 
 }
@@ -418,7 +449,7 @@ sub rowtransferred {
 
     my ($db,$tablename,$target_db,$targettablename,$i,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->debug(_getconnectorinstanceprefix($db) . 'row ' . $i . '/' . $numofrows . ' transferred');
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row ' . $i . '/' . $numofrows . ' transferred');
     }
 
 }
@@ -427,7 +458,7 @@ sub rowskipped {
 
     my ($db,$tablename,$target_db,$targettablename,$i,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'row ' . $i . '/' . $numofrows . ' skipped');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'row ' . $i . '/' . $numofrows . ' skipped');
     }
 
 }
@@ -436,7 +467,7 @@ sub rowinserted {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->debug(_getconnectorinstanceprefix($db) . 'row inserted');
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row inserted');
     }
 
 }
@@ -445,7 +476,7 @@ sub rowupdated {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->debug(_getconnectorinstanceprefix($db) . 'row updated');
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row updated');
     }
 
 }
@@ -455,9 +486,9 @@ sub rowsdeleted {
     my ($db,$tablename,$rowcount,$initial_rowcount,$logger) = @_;
     if (defined $logger) {
     if (defined $initial_rowcount) {
-        $logger->debug(_getconnectorinstanceprefix($db) . $rowcount . ' of ' . $initial_rowcount . ' row(s) deleted');
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . $rowcount . ' of ' . $initial_rowcount . ' row(s) deleted');
     } else {
-        $logger->debug(_getconnectorinstanceprefix($db) . $rowcount . ' row(s) deleted');
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . $rowcount . ' row(s) deleted');
     }
     }
 
@@ -467,7 +498,7 @@ sub totalrowsdeleted {
 
     my ($db,$tablename,$rowcount_total,$initial_rowcount,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . $rowcount_total . ' of ' . $initial_rowcount . ' row(s) deleted from [' . $db->connectidentifier() . '].' . $tablename);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . $rowcount_total . ' of ' . $initial_rowcount . ' row(s) deleted from [' . $db->connectidentifier() . '].' . $tablename);
     }
 
 }
@@ -476,7 +507,7 @@ sub rowinsertskipped {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'row insert skipped');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'row insert skipped');
     }
 
 }
@@ -485,7 +516,7 @@ sub rowupdateskipped {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'row update skipped');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'row update skipped');
     }
 
 }
@@ -494,7 +525,7 @@ sub tabletransferdone {
 
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'table transfer done: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table transfer done: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
     }
 
 }
@@ -503,7 +534,7 @@ sub tablefixed {
 
     my ($target_db,$targettablename,$statement,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($target_db) . 'table fix applied to ' . $targettablename . ': ' . chopstring(trim($statement),90));
+        $logger->info(_getsqlconnectorinstanceprefix($target_db) . 'table fix applied to ' . $targettablename . ': ' . chopstring(trim($statement),90));
     }
 
 }
@@ -521,7 +552,7 @@ sub rowtransferdone {
 
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'row transfer done: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'row transfer done: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
     }
 
 }
@@ -530,7 +561,7 @@ sub fetching_rows {
 
     my ($db,$tablename,$start,$blocksize,$totalnumofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'fetching rows from [' . $db->connectidentifier() . '].' . $tablename . ': ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'fetching rows from [' . $db->connectidentifier() . '].' . $tablename . ': ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
     }
 
 }
@@ -539,7 +570,7 @@ sub writing_rows {
 
     my ($db,$tablename,$start,$blocksize,$totalnumofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getconnectorinstanceprefix($db) . 'writing rows to ' . $tablename . ': ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'writing rows to ' . $tablename . ': ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
     }
 
 }
@@ -553,17 +584,63 @@ sub processing_rows {
 
 }
 
-sub mainconfigurationloaded {
 
-    my ($configfile,$logger) = @_;
+sub filethreadingdebug {
+
+    my ($message,$logger) = @_;
     if (defined $logger) {
-        $logger->info('system configuration file ' . $configfile . ' loaded');
+        $logger->debug($message);
     }
-    log_mainconfig(\&configinfo,$logger);
 
 }
 
-sub configinfo {
+sub fileprocessingstarted {
+
+    my ($file,$logger) = @_;
+    if (defined $logger) {
+        $logger->info('file processing started: ' . basename($file) . ' (' . kbytes2gigs(int((-s $file)/ 1024)) . ')');
+    }
+
+}
+
+sub fileprocessingdone {
+
+    my ($file,$logger) = @_;
+    if (defined $logger) {
+        $logger->info('file processing done: ' . basename($file));
+    }
+
+}
+
+sub fetching_lines {
+
+    my ($file,$start,$blocksize,$logger) = @_;
+    if (defined $logger) {
+        $logger->info('fetching lines from ' . basename($file) . ': ' . ($start + 1) . '~' . ($start + $blocksize));
+    }
+
+}
+
+sub processing_lines {
+
+    my ($tid, $start,$blocksize,$logger) = @_;
+    if (defined $logger) {
+        $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing lines: ' . ($start + 1) . '-' . ($start + $blocksize));
+    }
+
+}
+
+#sub mainconfigurationloaded {
+#
+#    my ($configfile,$logger) = @_;
+#    if (defined $logger) {
+#        $logger->info('system configuration file ' . $configfile . ' loaded');
+#    }
+#    log_mainconfig(\&configinfo,$logger);
+#
+#}
+
+sub configurationinfo {
 
     my ($message,$logger) = @_;
     if (defined $logger) {
@@ -605,7 +682,7 @@ sub serviceinfo {
 
 }
 
-sub _getconnectorinstanceprefix {
+sub _getsqlconnectorinstanceprefix {
     my ($db) = @_;
     my $instancestring = $db->instanceidentifier();
     if (length($instancestring) > 0) {
@@ -620,11 +697,39 @@ sub _getconnectorinstanceprefix {
     return '';
 }
 
-sub _getconnectidentifiermessage {
+sub _getsqlconnectidentifiermessage {
     my ($db,$message) = @_;
     my $result = $db->connectidentifier();
     my $connectidentifier = $db->_connectidentifier();
     if (length($result) > 0 and defined $db->cluster and length($connectidentifier) > 0) {
+    $result .= '->' . $connectidentifier;
+    }
+    if (length($result) > 0) {
+    $result .= ' - ';
+    }
+    return $result . $message;
+}
+
+sub _getrestconnectorinstanceprefix {
+    my ($restapi) = @_;
+    my $instancestring = $restapi->instanceidentifier();
+    if (length($instancestring) > 0) {
+    if ($restapi->{tid} != $root_threadid) {
+        return '[' . $restapi->{tid} . '/' . $instancestring . '] ';
+    } else {
+        return '[' . $instancestring . '] ';
+    }
+    } elsif ($restapi->{tid} != $root_threadid) {
+    return '[' . $restapi->{tid} . '] ';
+    }
+    return '';
+}
+
+sub _getrestconnectidentifiermessage {
+    my ($restapi,$message) = @_;
+    my $result = $restapi->connectidentifier();
+    my $connectidentifier = $restapi->_connectidentifier();
+    if (length($result) > 0 and length($connectidentifier) > 0) {
     $result .= '->' . $connectidentifier;
     }
     if (length($result) > 0) {
