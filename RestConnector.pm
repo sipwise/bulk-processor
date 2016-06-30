@@ -93,7 +93,7 @@ sub _create_ua {
     if (!defined $self->{uri}) {
         resterror($self,'base URL not set',getlogger(__PACKAGE__));
     }
-    $ua = LWP::UserAgent->new();
+    my $ua = LWP::UserAgent->new();
     $self->_setup_ua($ua,$self->{netloc});
     return $ua;
 
@@ -130,7 +130,7 @@ sub _ua_request {
 }
 
 sub _add_headers {
-    my ($reg,$headers) = @_;    
+    my ($req,$headers) = @_;    
     foreach my $headername (keys %$headers) {
         $req->header($headername => $headers->{$headername});
     }
@@ -184,7 +184,7 @@ sub _log_request() {
     my $self = shift;
     my ($req) = @_;
     if ($req) {
-        restdebug($self,$request->method . ' ' . $request->uri,getlogger(__PACKAGE__));
+        restdebug($self,$req->method . ' ' . $req->uri,getlogger(__PACKAGE__));
     }
 }
 
@@ -192,7 +192,7 @@ sub _log_response() {
     my $self = shift;
     my ($res) = @_;
     if ($res) {
-        restdebug($self,$request->code . ' ' . $request->message,getlogger(__PACKAGE__));
+        restdebug($self,$res->code . ' ' . $res->message,getlogger(__PACKAGE__));
     }
 }
 

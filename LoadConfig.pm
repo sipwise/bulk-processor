@@ -4,23 +4,27 @@ use strict;
 ## no critic
 
 use Globals qw(
+    $system_name
+    $system_version
+    $system_instance_label
+    $local_fqdn
     $application_path
+    $working_path
+    $executable_path
+    $cpucount
+    $enablemultithreading
     update_mainconfig
-    log_mainconfig
 );
 
 use Logging qw(
     getlogger
-    mainconfigurationloaded
-    configinfo
+    configurationinfo
 );
 
 use LogError qw(
     fileerror
-    yamlerror
     configurationwarn
     configurationerror
-    parameterdefinedtwice
 );
 
 use YAML::Tiny;
@@ -29,11 +33,10 @@ use Utils qw(format_number);
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-    $loadedmainconfigfile
     load_config
+    $SIMPLE_CONFIG_TYPE
+    $YAML_CONFIG_TYPE
 );
-
-our $loadedmainconfigfile = undef;
 
 my $tuplesplitpattern = join('|',(quotemeta(','),
                                   quotemeta(';'),
@@ -41,55 +44,85 @@ my $tuplesplitpattern = join('|',(quotemeta(','),
                                   )
                              );
 
+our $SIMPLE_CONFIG_TYPE = 1;
+our $YAML_CONFIG_TYPE = 2;
 #my $logger = getlogger(__PACKAGE__);
 
 sub load_config {
 
     my ($configfile,$process_code,$configtype) = @_;
     
+    my $is_settings = 'CODE' eq ref $process_code;
     my $data;
     if (defined $configfile) {
         if (-e $configfile) {
             $data = _parse_config($configfile,$configtype);
         } else {
-            $configfile = $application_path . $configfile;
-            if (-e $configfile) {
+            my $relative_configfile = $executable_path . $configfile;
+            if (-e $relative_configfile) {
+                $configfile = $relative_configfile;
                 $data = _parse_config($configfile,$configtype);
             } else {
-                fileerror('cannot find config file ' . $configfile,getlogger(__PACKAGE__));
+                configurationwarn($configfile,'no project ' . ($is_settings ? 'settings' : 'config') . ' file ' . $relative_configfile,getlogger(__PACKAGE__));
+                $relative_configfile = $application_path . $configfile;
+                if (-e $relative_configfile) {
+                    $configfile = $relative_configfile;
+                    $data = _parse_config($configfile,$configtype);
+                } else {
+                    configurationerror($configfile,'no global ' . ($is_settings ? 'settings' : 'config') . ' file ' . $relative_configfile,getlogger(__PACKAGE__));
+                    return 0;
+                }
             }
         }
     } else {
-        configurationerror('no config file specified',getlogger(__PACKAGE__));
-    }
-    
-    if ('CODE' eq ref $process_code) {
-        my $result = &$process_code($data);
-        configinfo('configuration file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
-        return $result;
-    } else {
-        if (update_mainconfig($data,$configfile,
-                          \&split_tuple,
-                          \&format_number,
-                          \&configurationwarn,
-                          \&configurationerror,
-                          getlogger(__PACKAGE__))) {
-            $loadedmainconfigfile = $configfile;
-            mainconfigurationloaded($configfile,getlogger(__PACKAGE__));
-            return 1;
-        }
-        log_mainconfig(\&configinfo,getlogger(__PACKAGE__));
+        fileerror('no ' . ($is_settings ? 'settings' : 'config') . ' file specified',getlogger(__PACKAGE__));
         return 0;
     }
+    
+    if ($is_settings) {
+        my $result = &$process_code($data,$configfile,
+                          \&split_tuple,
+                          \&format_number,
+                          \&configurationinfo,
+                          \&configurationwarn,
+                          \&configurationerror,
+                          \&fileerror,
+                          getlogger(__PACKAGE__));
+        configurationinfo('settings file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
+        return $result;
+    } else {
+        my $result = update_mainconfig($data,$configfile,
+                          \&split_tuple,
+                          \&format_number,
+                          \&configurationinfo,
+                          \&configurationwarn,
+                          \&configurationerror,
+                          \&fileerror,
+                          getlogger(__PACKAGE__));
+        _splashinfo();
+        return $result;
+    }
 
+}
+
+sub _splashinfo {
+    
+    configurationinfo($system_name . ' ' . $system_version . ' (' . $system_instance_label . ') [' . $local_fqdn . ']',getlogger(__PACKAGE__));
+    configurationinfo('application path ' . $application_path,getlogger(__PACKAGE__));
+    configurationinfo('working path ' . $working_path,getlogger(__PACKAGE__));
+    #configurationinfo('executable path ' . $executable_path,getlogger(__PACKAGE__));
+    configurationinfo($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),getlogger(__PACKAGE__));
+    
 }
 
 sub _parse_config {
     my ($file,$configtype) = @_;
     my $data;
     if (defined $configtype) {
-        if ($configtype == 1) {
-            $data = _parse_yaml_config($file);
+        if ($configtype == $SIMPLE_CONFIG_TYPE) {
+            $data = _parse_simple_config($file);
+        } elsif ($configtype == $YAML_CONFIG_TYPE) {
+            $data = _parse_yaml_config($file);                        
         } else {
             $data = _parse_simple_config($file);
         }
@@ -136,7 +169,7 @@ sub _parse_simple_config {
   local *CF;
 
   if (not open (CF, '<' . $file)) {
-    fileerror('parse simple config - cannot open file ' . $file . ': ' . $!,getlogger(__PACKAGE__));
+    fileerror('parsing simple format - cannot open file ' . $file . ': ' . $!,getlogger(__PACKAGE__));
     return $config;
   }
 
@@ -167,7 +200,7 @@ sub _parse_simple_config {
     $value =~ s/\s+$//g;
 
     if (exists $config->{$key}) {
-        parameterdefinedtwice('parse simple config - parameter ' . $key . ' defined twice in line ' . $count . ' of configuration file ' . $file,getlogger(__PACKAGE__));
+        configurationwarn($file,'parsing simple format - parameter ' . $key . ' defined twice in line ' . $count,getlogger(__PACKAGE__));
     }
 
     $config->{$key} = $value;
@@ -187,7 +220,7 @@ sub _parse_yaml_config {
         $yaml = YAML::Tiny->read($file);
     };
     if ($@) {
-        yamlerror('parse yaml config - error reading file ' . $file . ': ' . $!,getlogger(__PACKAGE__));
+        configurationerror($file,'parsing yaml format - error: ' . $!,getlogger(__PACKAGE__));
         return $yaml;
     }
     
