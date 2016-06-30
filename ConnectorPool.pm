@@ -22,6 +22,7 @@ use Globals qw(
     $ngcprestapi_uri
     $ngcprestapi_username
     $ngcprestapi_password
+    $ngcprestapi_realm
 
 );
 
@@ -36,6 +37,7 @@ use SqlConnectors::MySQLDB;
 #                              cleanupdbfiles);
 use SqlConnectors::CSVDB;
 #use SqlConnectors::SQLServerDB;
+use RestConnectors::NGCPRestApi;
 
 use SqlRecord qw(cleartableinfo);
 
@@ -126,7 +128,7 @@ sub get_ngcp_restapi {
     my ($instance_name) = @_;
     my $name = _get_connectorinstancename($instance_name);
     if (!defined $ngcp_restapis->{$name}) {
-        $ngcp_restapis->{$name} = RestConnectors::NGCPRestApi->new($instance_name,$ngcprestapi_uri,$ngcprestapi_username,$ngcprestapi_password);
+        $ngcp_restapis->{$name} = RestConnectors::NGCPRestApi->new($instance_name,$ngcprestapi_uri,$ngcprestapi_username,$ngcprestapi_password,$ngcprestapi_realm);
     }
     return $ngcp_restapis->{$name};
 

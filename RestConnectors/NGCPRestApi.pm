@@ -30,10 +30,10 @@ our @EXPORT_OK = qw();
 my $defaulturi = 'https://127.0.0.1:443';
 my $defaultusername = 'administrator';
 my $defaultpassword = 'administrator';
+my $defaultrealm = 'api_admin_http';
 
 my $contenttype = 'application/json';
 my $patchcontenttype = 'application/json-patch+json';
-my $realm = 'api_admin_http';
 
 #my $logger = getlogger(__PACKAGE__);
 
@@ -46,7 +46,7 @@ sub new {
     baseuri(shift // $defaulturi);
     $self->{username} = shift;
     $self->{password} = shift;
-    $self->{realm} = shift // $realm;
+    $self->{realm} = shift // $defaultrealm;
 
     bless($self,$class);
 
