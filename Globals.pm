@@ -12,9 +12,10 @@ use Time::HiRes qw(time);
 
 use Tie::IxHash;
 
-use Cwd 'abs_path'; 
+use Cwd 'abs_path';
 use File::Basename qw(dirname);
 use File::Temp qw(tempdir);
+use FindBin qw();
 
 use Utils qw(
 	get_ipaddress
@@ -27,21 +28,22 @@ use Utils qw(
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-	$system_name 
-	$system_version 
-	$system_abbreviation 
-	$system_instance 
-	$system_instance_label 
+	$system_name
+	$system_version
+	$system_abbreviation
+	$system_instance
+	$system_instance_label
 	$local_ip
 	$local_fqdn
 	$application_path
+	$executable_path
 	$working_path
 	update_working_path
 	$appstartsecs
 	$enablemultithreading
 	$root_threadid
 	$cpucount
-                    
+
 	$cells_transfer_memory_limit
 	$LongReadLen_limit
 	$defer_indexes
@@ -51,26 +53,28 @@ our @EXPORT_OK = qw(
 	$accounting_password
 	$accounting_host
 	$accounting_port
-	
+
 	$billing_databasename
 	$billing_username
 	$billing_password
 	$billing_host
-	$billing_port	
+	$billing_port
 
 $ngcprestapi_uri
 $ngcprestapi_username
 $ngcprestapi_password
+$ngcprestapi_realm
 
 	$csv_path
-                    
+	$input_path
+
 
                     $local_db_path
                     $emailenable
                     $erroremailrecipient
                     $warnemailrecipient
                     $completionemailrecipient
-                    $successemailrecipient               
+                    $successemailrecipient
                     $mailfile_path
 
                     $ismsexchangeserver
@@ -87,38 +91,39 @@ $ngcprestapi_password
 $mailprog
 $mailtype
 
-                    
+
                     $defaultconfig
 
                     update_mainconfig
-                    log_mainconfig
-                    
-                    
+
+
+
                     $chmod_umask
-                    
-                    @jobservers 
+
+                    @jobservers
                     $jobnamespace
-                    
-                    
-                    
+
+
+
                     );
 
 
 #set process umask for open and mkdir calls:
-umask oct($chmod_umask);
+umask 0000;
 
 # general constants
 our $system_name = 'Sipwise Bulk Processing Framework';
 our $system_version = '0.0.1'; #keep this filename-save
 our $system_abbreviation = 'sbpf'; #keep this filename-, dbname-save
 our $system_instance = 'initial'; #'test'; #'2014'; #dbname-save 0-9a-z_
-our $system_instance_label = 'test'; 
+our $system_instance_label = 'test';
 
 our $local_ip = get_ipaddress();
 our $local_fqdn = get_hostfqdn();
 our $application_path = get_applicationpath();
+our $executable_path = $FindBin::Bin . '/';
 #my $remotefilesystem = "MSWin32";
-our $system_username = 'system';
+#our $system_username = 'system';
 
 our $enablemultithreading;
 if ($^O eq 'MSWin32') {
@@ -155,8 +160,11 @@ our $billing_port = '3306';
 our $ngcprestapi_uri = 'https://127.0.0.1:443';
 our $ngcprestapi_username = 'administrator';
 our $ngcprestapi_password = 'administrator';
+our $ngcprestapi_realm = 'api_admin_http';
 
-our $working_path = fixdirpath(tempdir(CLEANUP => 0)); #'/var/sipwise/';
+our $working_path = tempdir(CLEANUP => 0) . '/'; #'/var/sipwise/';
+
+our $input_path = $working_path . 'input/';
 
 # csv
 our $csv_path = $working_path . 'csv/';
@@ -167,7 +175,7 @@ our $logfile_path = $working_path . 'log/';
 #mkdir $logfile_path;
 
 our $fileloglevel = 'OFF'; #'DEBUG';
-our $screenloglevel = 'OFF'; #'DEBUG';
+our $screenloglevel = 'INFO'; #'DEBUG';
 
 our $emailloglevel = 'OFF'; #'INFO';
 
@@ -226,75 +234,78 @@ our $defaultconfig = 'default.cfg';
 
 
 sub update_mainconfig {
-    
-    my ($config,$configfile,
+
+    my ($data,$configfile,
         $split_tuplecode,
-        $parse_floatcode,
+        $format_number,
+        $configurationinfocode,
         $configurationwarncode,
         $configurationerrorcode,
+        $fileerrorcode,
         $configlogger) = @_;
-    
-    if (defined $config) {
+
+    if (defined $data) {
 
         # databases - dsp
-        $accounting_host = $config->{accounting_host} if exists $config->{accounting_host};
-        $accounting_port = $config->{accounting_port} if exists $config->{accounting_port};
-        $accounting_databasename = $config->{accounting_databasename} if exists $config->{accounting_databasename};
-        $accounting_username = $config->{accounting_username} if exists $config->{accounting_username};
-        $accounting_password = $config->{accounting_password} if exists $config->{accounting_password};
-        
-        $billing_host = $config->{billing_host} if exists $config->{billing_host};
-        $billing_port = $config->{billing_port} if exists $config->{billing_port};
-        $billing_databasename = $config->{billing_databasename} if exists $config->{billing_databasename};
-        $billing_username = $config->{billing_username} if exists $config->{billing_username};
-        $billing_password = $config->{billing_password} if exists $config->{billing_password};
+        $accounting_host = $data->{accounting_host} if exists $data->{accounting_host};
+        $accounting_port = $data->{accounting_port} if exists $data->{accounting_port};
+        $accounting_databasename = $data->{accounting_databasename} if exists $data->{accounting_databasename};
+        $accounting_username = $data->{accounting_username} if exists $data->{accounting_username};
+        $accounting_password = $data->{accounting_password} if exists $data->{accounting_password};
 
-        $ngcprestapi_uri = $config->{ngcprestapi_uri} if exists $config->{ngcprestapi_uri};
-        $ngcprestapi_username = $config->{ngcprestapi_username} if exists $config->{ngcprestapi_username};
-        $ngcprestapi_password = $config->{ngcprestapi_password} if exists $config->{ngcprestapi_password};        
-        
-        $enablemultithreading = $config->{enablemultithreading} if exists $config->{enablemultithreading};
-        $cells_transfer_memory_limit = $config->{cells_transfer_memory_limit} if exists $config->{cells_transfer_memory_limit};
-        $defer_indexes = $config->{defer_indexes} if exists $config->{defer_indexes};
-        
-        
+        $billing_host = $data->{billing_host} if exists $data->{billing_host};
+        $billing_port = $data->{billing_port} if exists $data->{billing_port};
+        $billing_databasename = $data->{billing_databasename} if exists $data->{billing_databasename};
+        $billing_username = $data->{billing_username} if exists $data->{billing_username};
+        $billing_password = $data->{billing_password} if exists $data->{billing_password};
+
+        $ngcprestapi_uri = $data->{ngcprestapi_uri} if exists $data->{ngcprestapi_uri};
+        $ngcprestapi_username = $data->{ngcprestapi_username} if exists $data->{ngcprestapi_username};
+        $ngcprestapi_password = $data->{ngcprestapi_password} if exists $data->{ngcprestapi_password};
+        $ngcprestapi_realm = $data->{ngcprestapi_realm} if exists $data->{ngcprestapi_realm};
+
+        $enablemultithreading = $data->{enablemultithreading} if exists $data->{enablemultithreading};
+        $cells_transfer_memory_limit = $data->{cells_transfer_memory_limit} if exists $data->{cells_transfer_memory_limit};
+        $defer_indexes = $data->{defer_indexes} if exists $data->{defer_indexes};
+
+
         if (defined $split_tuplecode and ref $split_tuplecode eq 'CODE') {
-            @jobservers = &$split_tuplecode($config->{jobservers}) if exists $config->{jobservers};
+            @jobservers = &$split_tuplecode($data->{jobservers}) if exists $data->{jobservers};
         } else {
-            @jobservers = ($config->{jobservers}) if exists $config->{jobservers};
-        }
-        
-        if (defined $parse_floatcode and ref $parse_floatcode eq 'CODE') {
-
+            @jobservers = ($data->{jobservers}) if exists $data->{jobservers};
         }
 
-        
-        $emailenable = $config->{emailenable} if exists $config->{emailenable};
-        $erroremailrecipient = $config->{erroremailrecipient} if exists $config->{erroremailrecipient};
-        $warnemailrecipient = $config->{warnemailrecipient} if exists $config->{warnemailrecipient};
-        $completionemailrecipient = $config->{completionemailrecipient} if exists $config->{completionemailrecipient};
-        $successemailrecipient = $config->{successemailrecipient} if exists $config->{successemailrecipient};
-        
-        $ismsexchangeserver = $config->{ismsexchangeserver} if exists $config->{ismsexchangeserver};
-        $smtp_server = $config->{smtp_server} if exists $config->{smtp_server};
-        $smtpuser = $config->{smtpuser} if exists $config->{smtpuser};
-        $smtppasswd = $config->{smtppasswd} if exists $config->{smtppasswd};
-        
-        $fileloglevel = $config->{fileloglevel} if exists $config->{fileloglevel};
-        $screenloglevel = $config->{screenloglevel} if exists $config->{screenloglevel};
-        $emailloglevel = $config->{emailloglevel} if exists $config->{emailloglevel};
-        
-        my $new_working_path = (exists $config->{working_path} ? $config->{working_path} : $working_path);
+        if (defined $format_number and ref $format_number eq 'CODE') {
 
-        return update_working_path($new_working_path,1,$configurationerrorcode,$configlogger);
-        
+        }
+
+
+        $emailenable = $data->{emailenable} if exists $data->{emailenable};
+        $erroremailrecipient = $data->{erroremailrecipient} if exists $data->{erroremailrecipient};
+        $warnemailrecipient = $data->{warnemailrecipient} if exists $data->{warnemailrecipient};
+        $completionemailrecipient = $data->{completionemailrecipient} if exists $data->{completionemailrecipient};
+        $successemailrecipient = $data->{successemailrecipient} if exists $data->{successemailrecipient};
+
+        $ismsexchangeserver = $data->{ismsexchangeserver} if exists $data->{ismsexchangeserver};
+        $smtp_server = $data->{smtp_server} if exists $data->{smtp_server};
+        $smtpuser = $data->{smtpuser} if exists $data->{smtpuser};
+        $smtppasswd = $data->{smtppasswd} if exists $data->{smtppasswd};
+
+        $fileloglevel = $data->{fileloglevel} if exists $data->{fileloglevel};
+        $screenloglevel = $data->{screenloglevel} if exists $data->{screenloglevel};
+        $emailloglevel = $data->{emailloglevel} if exists $data->{emailloglevel};
+
+        my $new_working_path = (exists $data->{working_path} ? $data->{working_path} : $working_path);
+
+        return update_working_path($new_working_path,1,$fileerrorcode,$configlogger);
+
     }
     return 0;
-    
+
 }
 
 sub update_working_path {
-    
+
     my ($new_working_path,$create,$fileerrorcode,$logger) = @_;
     my $result = 1;
     if (defined $new_working_path and length($new_working_path) > 0) {
@@ -315,7 +326,7 @@ sub update_working_path {
                 }
             }
         }
-        
+
         my $new_csv_path = $working_path . 'csv/';
         if (-d $new_csv_path) {
             $csv_path = $new_csv_path;
@@ -333,7 +344,25 @@ sub update_working_path {
                 }
             }
         }
-        
+
+        my $new_input_path = $working_path . 'input/';
+        if (-d $new_input_path) {
+            $input_path = $new_input_path;
+        } else {
+            if ($create) {
+                if (makepath($new_input_path,$fileerrorcode,$logger)) {
+                    $input_path = $new_input_path;
+                } else {
+                    $result = 0;
+                }
+            } else {
+                $result = 0;
+                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+                    &$fileerrorcode("input path '$new_input_path' does not exist",$logger);
+                }
+            }
+        }
+
         my $new_logfile_path = $working_path . 'log/';
         if (-d $new_logfile_path) {
             $logfile_path = $new_logfile_path;
@@ -350,8 +379,8 @@ sub update_working_path {
                     &$fileerrorcode("logfile path '$new_logfile_path' does not exist",$logger);
                 }
             }
-        }        
-        
+        }
+
         my $new_local_db_path = $working_path . 'db/';
         if (-d $new_local_db_path) {
             $local_db_path = $new_local_db_path;
@@ -368,7 +397,7 @@ sub update_working_path {
                     &$fileerrorcode("local db path '$new_local_db_path' does not exist",$logger);
                 }
             }
-        }  
+        }
 
         my $new_mailfile_path = $working_path . 'mails/';
         if (-d $new_mailfile_path) {
@@ -387,29 +416,17 @@ sub update_working_path {
                 }
             }
         }
-        
+
     } else {
         $result = 0;
         if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
             &$fileerrorcode("empty working path",$logger);
-        }  
+        }
     }
+    #print "working path result: " . $result;
     return $result;
 
 }
-
-sub log_mainconfig {
-    
-    my ($logconfigcode,$configlogger) = @_;
-    if (defined $logconfigcode and ref $logconfigcode eq 'CODE') {
-        &$logconfigcode($system_name . ' ' . $system_version . ' (' . $system_instance_label . ') [' . $local_fqdn . ']',$configlogger);
-        &$logconfigcode('application path ' . $application_path,$configlogger);
-        &$logconfigcode('working path ' . $working_path,$configlogger);
-        &$logconfigcode($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),$configlogger);
-    }
-    
-}
-
 
 sub get_applicationpath {
 
@@ -418,4 +435,3 @@ sub get_applicationpath {
 }
 
 1;
-

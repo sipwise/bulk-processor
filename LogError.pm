@@ -36,9 +36,12 @@ use Utils qw(
 use POSIX qw(ceil); # locale_h);
 #setlocale(LC_NUMERIC, 'C'); ->utils
 
+use File::Basename qw(basename);
+
 use Time::HiRes qw(time);
 
 use Carp qw(carp cluck croak confess);
+$Carp::Verbose = 1;
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -54,12 +57,18 @@ our @EXPORT_OK = qw(
     tabletransferfailed
     tableprocessingfailed
 
+    resterror
+    restwarn
+    restrequesterror
+    restresponseerror
+
     fileerror
     filewarn
-    
-    yamlerror
 
-    parameterdefinedtwice
+    processzerofilesize
+    fileprocessingfailed
+    fileprocessingerror
+
     emailwarn
     configurationwarn
     configurationerror
@@ -261,7 +270,7 @@ sub notimplementederror {
 sub dberror {
 
     my ($db, $message, $logger) = @_;
-    $message = _getconnectorinstanceprefix($db) . _getconnectidentifiermessage($db,$message);
+    $message = _getsqlconnectorinstanceprefix($db) . _getsqlconnectidentifiermessage($db,$message);
     if (defined $logger) {
         $logger->error($message);
     }
@@ -275,7 +284,7 @@ sub dberror {
 sub dbwarn {
 
     my ($db, $message, $logger) = @_;
-    $message = _getconnectorinstanceprefix($db) . _getconnectidentifiermessage($db,$message);
+    $message = _getsqlconnectorinstanceprefix($db) . _getsqlconnectidentifiermessage($db,$message);
     if (defined $logger) {
         $logger->warn($message);
     }
@@ -285,10 +294,66 @@ sub dbwarn {
 
 }
 
+
+sub resterror {
+
+    my ($restapi, $message, $logger) = @_;
+    $message = _getrestconnectorinstanceprefix($restapi) . _getrestconnectidentifiermessage($restapi,$message);
+    if (defined $logger) {
+        $logger->error($message);
+    }
+
+    terminate($message, $logger);
+    #terminatethreads();
+    #die();
+
+}
+
+sub restwarn {
+
+    my ($restapi, $message, $logger) = @_;
+    $message = _getrestconnectorinstanceprefix($restapi) . _getrestconnectidentifiermessage($restapi,$message);
+    if (defined $logger) {
+        $logger->warn($message);
+    }
+
+    #die();
+    warning($message, $logger, 1);
+
+}
+
+sub restrequesterror {
+
+    my ($restapi, $message, $request, $logger) = @_;
+    $message = _getrestconnectorinstanceprefix($restapi) . _getrestconnectidentifiermessage($restapi,$message);
+    if (defined $logger) {
+        $logger->error($message);
+    }
+
+    terminate($message, $logger);
+    #terminatethreads();
+    #die();
+
+}
+
+sub restresponseerror {
+
+    my ($restapi, $message, $response, $logger) = @_;
+    $message = _getrestconnectorinstanceprefix($restapi) . _getrestconnectidentifiermessage($restapi,$message);
+    if (defined $logger) {
+        $logger->error($message);
+    }
+
+    terminate($message, $logger);
+    #terminatethreads();
+    #die();
+
+}
+
 sub fieldnamesdiffer {
 
     my ($db,$tablename,$expectedfieldnames,$fieldnamesfound,$logger) = @_;
-    my $message = _getconnectorinstanceprefix($db) . 'wrong table fieldnames (v ' . $system_version . '): [' . $db->connectidentifier() . '].' . $tablename . ":\nexpected: " . ((defined $expectedfieldnames) ? join(', ',@$expectedfieldnames) : '<none>') . "\nfound:    " . ((defined $fieldnamesfound) ? join(', ',@$fieldnamesfound) : '<none>');
+    my $message = _getsqlconnectorinstanceprefix($db) . 'wrong table fieldnames (v ' . $system_version . '): [' . $db->connectidentifier() . '].' . $tablename . ":\nexpected: " . ((defined $expectedfieldnames) ? join(', ',@$expectedfieldnames) : '<none>') . "\nfound:    " . ((defined $fieldnamesfound) ? join(', ',@$fieldnamesfound) : '<none>');
     if (defined $logger) {
         $logger->error($message);
     }
@@ -327,7 +392,7 @@ sub dbclusterwarn {
 sub transferzerorowcount {
 
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
-    my $message = _getconnectorinstanceprefix($db) . '[' . $db->connectidentifier() . '].' . $tablename . ' has 0 rows';
+    my $message = _getsqlconnectorinstanceprefix($db) . '[' . $db->connectidentifier() . '].' . $tablename . ' has 0 rows';
     if (defined $logger) {
         $logger->error($message);
     }
@@ -355,7 +420,7 @@ sub processzerorowcount {
 sub deleterowserror {
 
     my ($db,$tablename,$message,$logger) = @_;
-    $message = _getconnectorinstanceprefix($db) . '[' . $db->connectidentifier() . '].' . $tablename . ' - ' . $message;
+    $message = _getsqlconnectorinstanceprefix($db) . '[' . $db->connectidentifier() . '].' . $tablename . ' - ' . $message;
     if (defined $logger) {
         $logger->error($message);
     }
@@ -369,7 +434,7 @@ sub deleterowserror {
 sub tabletransferfailed {
 
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
-    my $message = _getconnectorinstanceprefix($db) . 'table transfer failed: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename;
+    my $message = _getsqlconnectorinstanceprefix($db) . 'table transfer failed: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename;
     if (defined $logger) {
         $logger->error($message);
     }
@@ -401,9 +466,23 @@ sub fileerror {
 
 }
 
-sub yamlerror {
-    
-    my ($message, $logger) = @_;
+#sub yamlerror {
+#
+#    my ($message, $logger) = @_;
+#    if (defined $logger) {
+#        $logger->error($message);
+#    }
+#
+#    terminate($message, $logger);
+#    #terminatethreads();
+#    #die();
+#
+#}
+
+sub processzerofilesize {
+
+    my ($file,$logger) = @_;
+    my $message = basename($file) . ' has 0 bytes';
     if (defined $logger) {
         $logger->error($message);
     }
@@ -411,6 +490,28 @@ sub yamlerror {
     terminate($message, $logger);
     #terminatethreads();
     #die();
+
+}
+
+sub fileprocessingfailed {
+
+    my ($file,$logger) = @_;
+    my $message = 'file processing failed: ' . basename($file);
+    if (defined $logger) {
+        $logger->error($message);
+    }
+    terminate($message, $logger);
+
+}
+
+sub fileprocessingerror {
+
+    my ($file,$message,$logger) = @_;
+    my $message = basename($file) . ': ' . $message;
+    if (defined $logger) {
+        $logger->error($message);
+    }
+    terminate($message, $logger);
 
 }
 
@@ -472,14 +573,14 @@ sub webarchivexls2csvwarn {
     warning($message, $logger, 1);
 }
 
-sub parameterdefinedtwice {
-
-    my ($message,$logger) = @_;
-    if (defined $logger) {
-        $logger->warn($message);
-    }
-    warning($message, $logger, 1);
-}
+#sub parameterdefinedtwice {
+#
+#    my ($message,$logger) = @_;
+#    if (defined $logger) {
+#        $logger->warn($message);
+#    }
+#    warning($message, $logger, 1);
+#}
 
 sub emailwarn {
 
@@ -561,7 +662,7 @@ sub servicewarn {
 
 }
 
-sub _getconnectorinstanceprefix {
+sub _getsqlconnectorinstanceprefix {
     my ($db) = @_;
     my $instancestring = $db->instanceidentifier();
     if (length($instancestring) > 0) {
@@ -576,11 +677,39 @@ sub _getconnectorinstanceprefix {
     return '';
 }
 
-sub _getconnectidentifiermessage {
+sub _getsqlconnectidentifiermessage {
     my ($db,$message) = @_;
     my $result = $db->connectidentifier();
     my $connectidentifier = $db->_connectidentifier();
     if (length($result) > 0 and defined $db->cluster and length($connectidentifier) > 0) {
+    $result .= '->' . $connectidentifier;
+    }
+    if (length($result) > 0) {
+    $result .= ' - ';
+    }
+    return $result . $message;
+}
+
+sub _getrestconnectorinstanceprefix {
+    my ($restapi) = @_;
+    my $instancestring = $restapi->instanceidentifier();
+    if (length($instancestring) > 0) {
+    if ($restapi->{tid} != $root_threadid) {
+        return '[' . $restapi->{tid} . '/' . $instancestring . '] ';
+    } else {
+        return '[' . $instancestring . '] ';
+    }
+    } elsif ($restapi->{tid} != $root_threadid) {
+    return '[' . $restapi->{tid} . '] ';
+    }
+    return '';
+}
+
+sub _getrestconnectidentifiermessage {
+    my ($restapi,$message) = @_;
+    my $result = $restapi->connectidentifier();
+    my $connectidentifier = $restapi->_connectidentifier();
+    if (length($result) > 0 and length($connectidentifier) > 0) {
     $result .= '->' . $connectidentifier;
     }
     if (length($result) > 0) {
