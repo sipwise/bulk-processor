@@ -100,7 +100,7 @@ our @EXPORT_OK = qw(
 
 );
 
-our $chmod_umask = '0777';
+our $chmod_umask = 0644;
 
 my $default_epsilon = 1e-3; #float comparison tolerance
 
@@ -578,6 +578,8 @@ sub fixdirpath {
 
 sub makepath {
     my ($dirpath,$fileerrorcode,$logger) = @_;
+    #print $chmod_umask ."\n";
+    #changemod($dirpath);
     make_path($dirpath,{ 
         'chmod' => $chmod_umask,
         'error' => \my $err });
@@ -588,7 +590,7 @@ sub makepath {
                 if ($file eq '') {
                     &$fileerrorcode("general error: $message",$logger);
                 } else {
-                    &$fileerrorcode("problem unlinking $file: $message",$logger);
+                    &$fileerrorcode("problem creating $file: $message",$logger);
                 }
             }                
         }
@@ -612,7 +614,7 @@ sub makepath {
 
 sub changemod {
     my ($filepath) = @_;
-    chmod oct($chmod_umask),$filepath;
+    chmod $chmod_umask,$filepath;
 }
 
 sub threadid {
