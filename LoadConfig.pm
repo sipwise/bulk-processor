@@ -5,22 +5,20 @@ use strict;
 
 use Globals qw(
     $application_path
+    $executable_path
     update_mainconfig
     log_mainconfig
 );
 
 use Logging qw(
     getlogger
-    mainconfigurationloaded
-    configinfo
+    configurationinfo
 );
 
 use LogError qw(
     fileerror
-    yamlerror
     configurationwarn
     configurationerror
-    parameterdefinedtwice
 );
 
 use YAML::Tiny;
@@ -52,20 +50,30 @@ sub load_config {
         if (-e $configfile) {
             $data = _parse_config($configfile,$configtype);
         } else {
-            $configfile = $application_path . $configfile;
-            if (-e $configfile) {
+            my $relative_configfile = $executable_path . $configfile;
+            if (-e $relative_configfile) {
+                $configfile = $relative_configfile;
                 $data = _parse_config($configfile,$configtype);
             } else {
-                fileerror('cannot find config file ' . $configfile,getlogger(__PACKAGE__));
+                configurationwarn($configfile,'no project config file ' . $relative_configfile,getlogger(__PACKAGE__));
+                $relative_configfile = $application_path . $configfile;
+                if (-e $relative_configfile) {
+                    $configfile = $relative_configfile;
+                    $data = _parse_config($configfile,$configtype);
+                } else {
+                    configurationerror($configfile,'no global config file ' . $relative_configfile,getlogger(__PACKAGE__));
+                    return 0;
+                }
             }
         }
     } else {
-        configurationerror('no config file specified',getlogger(__PACKAGE__));
+        fileerror('no config file specified',getlogger(__PACKAGE__));
+        return 0;
     }
     
     if ('CODE' eq ref $process_code) {
         my $result = &$process_code($data);
-        configinfo('configuration file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
+        configurationinfo('configuration file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
         return $result;
     } else {
         if (update_mainconfig($data,$configfile,
@@ -73,12 +81,14 @@ sub load_config {
                           \&format_number,
                           \&configurationwarn,
                           \&configurationerror,
+                          \&fileerror,
                           getlogger(__PACKAGE__))) {
             $loadedmainconfigfile = $configfile;
-            mainconfigurationloaded($configfile,getlogger(__PACKAGE__));
+            #configurationinfo('master configuration file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
+            log_mainconfig(\&configurationinfo,getlogger(__PACKAGE__));
             return 1;
         }
-        log_mainconfig(\&configinfo,getlogger(__PACKAGE__));
+        log_mainconfig(\&configurationinfo,getlogger(__PACKAGE__));
         return 0;
     }
 
@@ -167,7 +177,7 @@ sub _parse_simple_config {
     $value =~ s/\s+$//g;
 
     if (exists $config->{$key}) {
-        parameterdefinedtwice('parse simple config - parameter ' . $key . ' defined twice in line ' . $count . ' of configuration file ' . $file,getlogger(__PACKAGE__));
+        configurationwarn($file,'parse simple config - parameter ' . $key . ' defined twice in line ' . $count,getlogger(__PACKAGE__));
     }
 
     $config->{$key} = $value;
@@ -187,7 +197,7 @@ sub _parse_yaml_config {
         $yaml = YAML::Tiny->read($file);
     };
     if ($@) {
-        yamlerror('parse yaml config - error reading file ' . $file . ': ' . $!,getlogger(__PACKAGE__));
+        configurationerror($file,'parse yaml config - error reading file: ' . $!,getlogger(__PACKAGE__));
         return $yaml;
     }
     
