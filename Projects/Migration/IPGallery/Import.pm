@@ -13,6 +13,7 @@ use Globals qw(
 use Projects::Migration::IPGallery::Settings qw(
     $import_multithreading
     $feature_define_import_numofthreads
+    $skip_duplicate_setoptionitems
     $dry
 );
 use Logging qw (
@@ -75,7 +76,7 @@ sub import_features_define {
                     foreach my $option (@{$row->{$subscriber_number}}) {
                         if ('HASH' eq ref $option) {
                             foreach my $setoption (keys %$option) {
-                                foreach my $setoptionitem (@{removeduplicates($option->{$setoption})}) {
+                                foreach my $setoptionitem (@{$skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption}}) {
                                     push(@featureoptionset_rows,[ $subscriber_number, $setoption, $setoptionitem ]);
                                 }
                                 push(@featureoption_rows,[ $subscriber_number, $setoption ]);

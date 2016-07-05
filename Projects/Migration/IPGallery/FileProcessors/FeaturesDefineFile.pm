@@ -34,9 +34,9 @@ my $encoding = 'UTF-8';
 
 my $buffersize = 1400; # 512 * 1024;
 my $threadqueuelength = 10;
-my $default_numofthreads = undef; #3;
+my $default_numofthreads = 2; #3;
 #my $multithreading = 0;
-my $blocksize = 200;  #2000;
+my $blocksize = 1000;  #2000;
 
 my $stoponparseerrors = 1; #1;
 my $parselines = 0;

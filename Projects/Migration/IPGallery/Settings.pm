@@ -27,6 +27,7 @@ our @EXPORT_OK = qw(
     $defaultconfig
     $features_define_filename
     $feature_define_import_numofthreads
+    $skip_duplicate_setoptionitems
 
     $import_multithreading
     $run_id
@@ -43,6 +44,8 @@ our $features_define_filename = undef;
 
 our $import_multithreading = $enablemultithreading;
 our $feature_define_import_numofthreads = $cpucount;
+
+our $skip_duplicate_setoptionitems = 0;
 
 our $force = 0;
 our $dry = 1;

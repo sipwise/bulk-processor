@@ -47,9 +47,9 @@ my $expected_fieldnames = [ 'subscribernumber',
                             'option',
                             'optionsetitem' ];
 
-my $primarykey_fieldnames = [ 'subscribernumber', 'option', 'optionsetitem' ];
+my $primarykey_fieldnames = []; #[ 'subscribernumber', 'option', 'optionsetitem' ];
 
-my $indexes = {};
+my $indexes = { $tablename . '_subscribernumber_option_optionsetitem' => ['subscribernumber(11)', 'option(32)', 'optionsetitem(32)'] }; #(25),(27)
 
 my $fixtable_statements = [];
 
