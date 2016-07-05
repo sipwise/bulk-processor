@@ -12,7 +12,9 @@ use Globals qw(
 );
 use Projects::Migration::IPGallery::Settings qw(
     $import_multithreading
-    $feature_define_import_numofthreads
+    $features_define_import_numofthreads
+    $skip_duplicate_setoptionitems
+    $subscriber_define_import_numofthreads
     $dry
 );
 use Logging qw (
@@ -26,6 +28,7 @@ use LogError qw(
 #use FileProcessors::CSVFile;
 use Projects::Migration::IPGallery::FileProcessors::FeaturesDefineFile qw();
 use Projects::Migration::IPGallery::FeaturesDefineParser qw();
+use Projects::Migration::IPGallery::FileProcessors::SubscriberDefineFile qw();
 
 use Projects::Migration::IPGallery::ProjectConnectorPool qw(
     get_import_db
@@ -33,6 +36,7 @@ use Projects::Migration::IPGallery::ProjectConnectorPool qw(
 
 use Projects::Migration::IPGallery::Dao::FeatureOption qw();
 use Projects::Migration::IPGallery::Dao::FeatureOptionSet qw();
+use Projects::Migration::IPGallery::Dao::Subscriber qw();
 
 use Array qw(removeduplicates);
 
@@ -40,6 +44,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     import_features_define
+    import_subscriber_define
 );
 
 
@@ -48,7 +53,7 @@ sub import_features_define {
     my ($file) = @_;
     my $result = Projects::Migration::IPGallery::Dao::FeatureOption::create_table(1);
     $result &= Projects::Migration::IPGallery::Dao::FeatureOptionSet::create_table(1);
-    my $importer = Projects::Migration::IPGallery::FileProcessors::FeaturesDefineFile->new($feature_define_import_numofthreads);
+    my $importer = Projects::Migration::IPGallery::FileProcessors::FeaturesDefineFile->new($features_define_import_numofthreads);
     $importer->{stoponparseerrors} = !$dry;
     return $result && $importer->process($file,sub {
             my ($context,$rows,$row_offset) = @_;
@@ -75,7 +80,7 @@ sub import_features_define {
                     foreach my $option (@{$row->{$subscriber_number}}) {
                         if ('HASH' eq ref $option) {
                             foreach my $setoption (keys %$option) {
-                                foreach my $setoptionitem (@{removeduplicates($option->{$setoption})}) {
+                                foreach my $setoptionitem (@{$skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption}}) {
                                     push(@featureoptionset_rows,[ $subscriber_number, $setoption, $setoptionitem ]);
                                 }
                                 push(@featureoption_rows,[ $subscriber_number, $setoption ]);
@@ -121,6 +126,28 @@ sub import_features_define {
 
 }
 
+sub import_subscriber_define {
 
+    my ($file) = @_;
+    my $result = Projects::Migration::IPGallery::Dao::Subscriber::create_table(1);
+    my $importer = Projects::Migration::IPGallery::FileProcessors::SubscriberDefineFile->new($subscriber_define_import_numofthreads);
+    return $result && $importer->process($file,sub {
+            my ($context,$rows,$row_offset) = @_;
+
+            my $import_db = &get_import_db();
+            if ((scalar @$rows) > 0) {
+                $import_db->db_do_begin(
+                    Projects::Migration::IPGallery::Dao::Subscriber::getinsertstatement(),
+                    Projects::Migration::IPGallery::Dao::Subscriber::gettablename(),
+                    #lock - $import_multithreading
+                );
+                $import_db->db_do_rowblock($rows);
+                $import_db->db_finish();
+            }
+
+            return 1;
+        }, undef, $import_multithreading);
+
+}
 
 1;

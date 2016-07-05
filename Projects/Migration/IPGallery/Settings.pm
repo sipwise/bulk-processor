@@ -26,7 +26,10 @@ our @EXPORT_OK = qw(
     $defaultsettings
     $defaultconfig
     $features_define_filename
-    $feature_define_import_numofthreads
+    $features_define_import_numofthreads
+    $skip_duplicate_setoptionitems
+    $subscriber_define_filename
+    $subscriber_define_import_numofthreads
 
     $import_multithreading
     $run_id
@@ -40,9 +43,14 @@ our $defaultconfig = 'config.cfg';
 our $defaultsettings = 'settings.cfg';
 
 our $features_define_filename = undef;
+our $subscriber_define_filename = undef;
 
 our $import_multithreading = $enablemultithreading;
-our $feature_define_import_numofthreads = $cpucount;
+our $features_define_import_numofthreads = $cpucount;
+
+our $subscriber_define_import_numofthreads = $cpucount;
+
+our $skip_duplicate_setoptionitems = 0;
 
 our $force = 0;
 our $dry = 1;
@@ -71,12 +79,21 @@ sub update_settings {
             $features_define_filename = $input_path . $features_define_filename unless -e $features_define_filename;
         }
 
+        $subscriber_define_filename = $data->{subscriber_define_filename} if exists $data->{subscriber_define_filename};
+        if (defined $subscriber_define_filename and length($subscriber_define_filename) > 0) {
+            $subscriber_define_filename = $input_path . $subscriber_define_filename unless -e $subscriber_define_filename;
+        }
+
         $import_multithreading = $data->{import_multithreading} if exists $data->{import_multithreading};
         #my $new_working_path = (exists $data->{working_path} ? $data->{working_path} : $working_path);
 
-        $feature_define_import_numofthreads = $cpucount;
-$feature_define_import_numofthreads = $data->{feature_define_import_numofthreads} if exists $data->{feature_define_import_numofthreads};
-        $feature_define_import_numofthreads = $cpucount if $feature_define_import_numofthreads > $cpucount;
+        $features_define_import_numofthreads = $cpucount;
+$features_define_import_numofthreads = $data->{features_define_import_numofthreads} if exists $data->{features_define_import_numofthreads};
+        $features_define_import_numofthreads = $cpucount if $features_define_import_numofthreads > $cpucount;
+
+        $subscriber_define_import_numofthreads = $cpucount;
+$subscriber_define_import_numofthreads = $data->{subscriber_define_import_numofthreads} if exists $data->{subscriber_define_import_numofthreads};
+        $subscriber_define_import_numofthreads = $cpucount if $subscriber_define_import_numofthreads > $cpucount;
         #return update_working_path($new_working_path,1,$fileerrorcode,$configlogger);
 
         $import_db_file = ((defined $run_id and length($run_id) > 0) ? '_' : '') . 'import';

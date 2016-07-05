@@ -1,4 +1,4 @@
-package Projects::Migration::IPGallery::Dao::FeatureOptionSet;
+package Projects::Migration::IPGallery::Dao::Subscriber;
 use strict;
 
 ## no critic
@@ -38,18 +38,27 @@ our @EXPORT_OK = qw(
     test_table_source_select_temptable
 );
 
-my $tablename = 'feature_option_set';
+my $tablename = 'subscriber';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 
-my $expected_fieldnames = [ 'subscribernumber',
-                            'option',
-                            'optionsetitem' ];
+my $expected_fieldnames = [
+    'country_code', #356
+    'area_code', #None
+    'dial_number', #35627883323
+    'rgw_fqdn', #35627883323
+    'port', #None
+    'region_name', #None
+    'carrier_code', #None
+    'time_zone_name', #malta
+    'lang_code', #eng
+    'barring_profile', #None
+];
 
-my $primarykey_fieldnames = []; #[ 'subscribernumber', 'option', 'optionsetitem' ];
+my $primarykey_fieldnames = [ 'country_code', 'area_code', 'dial_number' ];
 
-my $indexes = { $tablename . '_subscribernumber_option_optionsetitem' => ['subscribernumber(11)', 'option(32)', 'optionsetitem(32)'] }; #(25),(27)
+my $indexes = {};
 
 my $fixtable_statements = [];
 

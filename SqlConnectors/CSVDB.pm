@@ -362,7 +362,7 @@ sub cleanupcvsdirs {
             #if (remove_tree($dirpath) == 0) {
             #    filewarn('cannot remove ' . $dirpath . ': ' . $!,getlogger(__PACKAGE__));
             #}
-            remove_tree($dirpath, { 
+            remove_tree($dirpath, {
                 keep_root => 0,
                 error => \my $err });
             if (@$err) {
@@ -373,8 +373,8 @@ sub cleanupcvsdirs {
                     } else {
                         filewarn("problem unlinking $file: $message",getlogger(__PACKAGE__));
                     }
-                }                
-            }            
+                }
+            }
         }
     }
 

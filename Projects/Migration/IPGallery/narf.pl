@@ -17,6 +17,7 @@ use Projects::Migration::IPGallery::Settings qw(
     check_dry
     $run_id
     $features_define_filename
+    $subscriber_define_filename
     $dry
     $force
 );
@@ -50,6 +51,7 @@ use Projects::Migration::IPGallery::ProjectConnectorPool qw();
 
 use Projects::Migration::IPGallery::Import qw(
     import_features_define
+    import_subscriber_define
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -59,6 +61,8 @@ my @TASK_OPTS = ();
 my $tasks = [];
 my $import_features_define_task_opt = 'import_features_define';
 push(@TASK_OPTS,$import_features_define_task_opt);
+my $import_subscriber_define_task_opt = 'import_subscriber_define';
+push(@TASK_OPTS,$import_subscriber_define_task_opt);
 
 if (init()) {
     main();
@@ -102,6 +106,9 @@ sub main() {
             if (lc($import_features_define_task_opt) eq lc($task)) {
                 scriptinfo('task: ' . $import_features_define_task_opt,getlogger(getscriptpath()));
                 $result |= import_features_define_task(\@messages);
+            } elsif (lc($import_subscriber_define_task_opt) eq lc($task)) {
+                scriptinfo('task: ' . $import_subscriber_define_task_opt,getlogger(getscriptpath()));
+                $result |= import_subscriber_define_task(\@messages);
             } elsif (lc('blah') eq lc($task)) {
                 scriptinfo('task: ' . 'balh',getlogger(getscriptpath()));
                 next unless check_dry();
@@ -141,6 +148,21 @@ sub import_features_define_task {
     my ($messages) = shift;
     if (import_features_define(
             $features_define_filename
+        )) {
+        push(@$messages,'sucessfully inserted x records...');
+        return 1;
+    } else {
+        push(@$messages,'was not executed');
+        return 0;
+    }
+
+}
+
+sub import_subscriber_define_task {
+
+    my ($messages) = shift;
+    if (import_subscriber_define(
+            $subscriber_define_filename
         )) {
         push(@$messages,'sucessfully inserted x records...');
         return 1;
