@@ -90,6 +90,9 @@ our @EXPORT_OK = qw(
 
     success
     completion
+
+    scripterror
+    scriptwarn
 );
 
 my $erroremailsubject = 'error: module ';
@@ -521,7 +524,7 @@ sub fileprocessingwarn {
     my ($file,$message,$logger) = @_;
     my $message = basename($file) . ': ' . $message;
     if (defined $logger) {
-        $logger->error($message);
+        $logger->warn($message);
     }
     warning($message, $logger);
 
@@ -687,6 +690,30 @@ sub _getsqlconnectorinstanceprefix {
     return '[' . $db->{tid} . '] ';
     }
     return '';
+}
+
+sub scripterror {
+
+    my ($message, $logger) = @_;
+    if (defined $logger) {
+        $logger->error($message);
+    }
+
+    terminate($message, $logger);
+    #terminatethreads();
+    #die();
+
+}
+
+sub scriptwarn {
+
+    my ($message, $logger) = @_;
+    if (defined $logger) {
+        $logger->warn($message);
+    }
+
+    warning($message, $logger);
+
 }
 
 sub _getsqlconnectidentifiermessage {

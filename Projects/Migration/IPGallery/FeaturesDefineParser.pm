@@ -31,7 +31,7 @@ OptionValues     ::= OptionValue+                      action => _build_setoptio
 
 SubscriberNumber ~ [0-9]+
 OptionName       ~ [-a-zA-Z_0-9]+
-OptionValue      ~ [-a-zA-Z_0-9]+
+OptionValue      ~ [-a-zA-Z_0-9 \t]+
 whitespace       ~ [\s]+
 :discard         ~ whitespace
 __GRAMMAR__

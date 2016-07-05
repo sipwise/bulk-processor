@@ -7,9 +7,9 @@ use File::Basename;
 use Cwd;
 use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../');
 
-use Globals qw(
-    $cpucount
-);
+#use Globals qw(
+#    $cpucount
+#);
 
 use Logging qw(
     getlogger
@@ -27,7 +27,7 @@ my $default_encoding = 'UTF-8';
 
 my $buffersize = 100 * 1024;
 my $threadqueuelength = 10;
-my $numofthreads = $cpucount; #3;
+my $default_numofthreads = 3;
 #my $multithreading = 0;
 my $blocksize = 100;
 
@@ -37,12 +37,12 @@ sub new {
 
     my $self = FileProcessor->new(@_);
 
+    $self->{numofthreads} = shift // $default_numofthreads;
     $self->{line_separator} = shift // $default_lineseparator;
     $self->{field_separator} = shift // $default_fieldseparator;
     $self->{encoding} = shift // $default_encoding;
     $self->{buffersize} = $buffersize;
     $self->{threadqueuelength} = $threadqueuelength;
-    $self->{numofthreads} = $numofthreads;
     #$self->{multithreading} = $multithreading;
     $self->{blocksize} = $blocksize;
 

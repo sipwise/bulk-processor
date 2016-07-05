@@ -7,9 +7,9 @@ use File::Basename;
 use Cwd;
 use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../../');
 
-use Globals qw(
-    $cpucount
-);
+#use Globals qw(
+#    $cpucount
+#);
 
 use Logging qw(
     getlogger
@@ -34,11 +34,11 @@ my $encoding = 'UTF-8';
 
 my $buffersize = 1400; # 512 * 1024;
 my $threadqueuelength = 10;
-my $numofthreads = $cpucount; #3;
+my $default_numofthreads = undef; #3;
 #my $multithreading = 0;
-my $blocksize = 2000;
+my $blocksize = 200;  #2000;
 
-my $stoponparseerrors = 0; #1;
+my $stoponparseerrors = 1; #1;
 my $parselines = 0;
 
 sub new {
@@ -47,11 +47,11 @@ sub new {
 
     my $self = FileProcessor->new(@_);
 
+    $self->{numofthreads} = shift // $default_numofthreads;
     $self->{line_separator} = $lineseparator;
     $self->{encoding} = $encoding;
     $self->{buffersize} = $buffersize;
     $self->{threadqueuelength} = $threadqueuelength;
-    $self->{numofthreads} = $numofthreads;
     #$self->{multithreading} = $multithreading;
     $self->{blocksize} = $blocksize;
     $self->{parselines} = $parselines;

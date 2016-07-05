@@ -46,7 +46,7 @@ our @EXPORT_OK = qw(
 
 	$cells_transfer_memory_limit
 	$LongReadLen_limit
-	$defer_indexes
+	$transfer_defer_indexes
 
 	$accounting_databasename
 	$accounting_username
@@ -136,7 +136,7 @@ our $cpucount = get_cpucount();
 
 our $root_threadid = 0; #threadid() . ''; #0
 our $cells_transfer_memory_limit = 10000000; #db fields
-our $defer_indexes = 1;
+our $transfer_defer_indexes = 1;
 #http://docstore.mik.ua/orelly/linux/dbi/ch06_01.htm
 our $LongReadLen_limit = 128*1024; #longest LOB field size in bytes
 
@@ -264,9 +264,10 @@ sub update_mainconfig {
         $ngcprestapi_password = $data->{ngcprestapi_password} if exists $data->{ngcprestapi_password};
         $ngcprestapi_realm = $data->{ngcprestapi_realm} if exists $data->{ngcprestapi_realm};
 
+        $cpucount = $data->{cpucount} if exists $data->{cpucount};
         $enablemultithreading = $data->{enablemultithreading} if exists $data->{enablemultithreading};
         $cells_transfer_memory_limit = $data->{cells_transfer_memory_limit} if exists $data->{cells_transfer_memory_limit};
-        $defer_indexes = $data->{defer_indexes} if exists $data->{defer_indexes};
+        $transfer_defer_indexes = $data->{transfer_defer_indexes} if exists $data->{transfer_defer_indexes};
 
 
         if (defined $split_tuplecode and ref $split_tuplecode eq 'CODE') {

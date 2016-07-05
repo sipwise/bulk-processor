@@ -71,7 +71,7 @@ our @EXPORT_OK = qw(
     init_log
     $currentlogfile
     $attachmentlogfile
-    cleanupinfo
+    scriptinfo
 
     xls2csvinfo
     tablethreadingdebug
@@ -649,7 +649,9 @@ sub configurationinfo {
 
 }
 
-sub cleanupinfo {
+
+
+sub scriptinfo {
 
     my ($message,$logger) = @_;
     if (defined $logger) {

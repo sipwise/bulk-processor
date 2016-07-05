@@ -67,7 +67,7 @@ use Globals qw(
 $enablemultithreading
 $cpucount
 $cells_transfer_memory_limit
-$defer_indexes);
+$transfer_defer_indexes);
 
 #use Terminate qw(setsigkill);
 
@@ -86,6 +86,8 @@ our @EXPORT_OK = qw(
     insert_record
     update_record
     delete_records
+
+    insert_stmt
 );
 
 my $table_expected_fieldnames = {};
@@ -725,6 +727,19 @@ sub transfer_records {
 
 }
 
+sub insert_stmt {
+
+    my ($get_db,$tablename) = @_;
+    my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
+    my $connectidentifier = $db->connectidentifier();
+    my $tid = threadid();
+    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
+    return 'INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+      join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @$expected_fieldnames) .
+      ') VALUES (' . substr(',?' x scalar @$expected_fieldnames,1) . ')';
+
+}
+
 sub transfer_table {
 
     my ($get_db,$tablename,$get_target_db,$targettablename,$truncate_targettable,$create_indexes,$texttable_engine,$fixtable_statements,$selectcount,$select,@values) = @_;
@@ -754,7 +769,7 @@ sub transfer_table {
 
         my $errorstate = $RUNNING; # 1;
 
-        $create_indexes = ((defined $create_indexes) ? $create_indexes : $defer_indexes);
+        $create_indexes = ((defined $create_indexes) ? $create_indexes : $transfer_defer_indexes);
 
         if (create_targettable($db,$tablename,$target_db,$targettablename,$truncate_targettable,$create_indexes,$texttable_engine)) {
 

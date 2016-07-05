@@ -57,7 +57,7 @@ our $privatedbfilemode = 4; #somewhere on disk, cleaned on shutdown
 
 my $cachesize = 16384; #40000;
 my $pagesize = 2048; #8192;
-my $busytimeout = 20000; #msecs
+my $busytimeout = 60000; #20000; #msecs
 
 my $dbextension = '.db';
 my $journalpostfix = '-journal';
@@ -80,6 +80,8 @@ my $lock_do_chunk = 1;
 my $lock_get_chunk = 1;
 
 #SQLite transactions are always serializable.
+
+#my $read_uncommitted_isolation_level = 1;
 
 sub new {
 
@@ -253,6 +255,7 @@ sub db_connect {
     $self->db_do('PRAGMA encoding = "' . $texttable_encoding . '"'); # only new databases!
     #PRAGMA locking_mode = NORMAL ... by default
     #$self->db_do('PRAGMA auto_vacuum = INCREMENTAL');
+    #$self->db_do('PRAGMA read_uncommitted = ' . $read_uncommitted_isolation_level);
 
     dbinfo($self,'connected',getlogger(__PACKAGE__));
 

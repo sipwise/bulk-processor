@@ -4,8 +4,6 @@ use strict;
 ## no critic
 
 use Globals qw(
-    $system_abbreviation
-    $system_instance
 
     $accounting_databasename
     $accounting_username
@@ -18,7 +16,7 @@ use Globals qw(
     $billing_password
     $billing_host
     $billing_port
-    
+
     $ngcprestapi_uri
     $ngcprestapi_username
     $ngcprestapi_password
@@ -60,6 +58,8 @@ our @EXPORT_OK = qw(
     billing_db_tableidentifier
 
     destroy_dbs
+    get_connectorinstancename
+    get_cluster_db
 );
 
 my $connectorinstancenameseparator = '_';
@@ -75,7 +75,7 @@ my $ngcp_restapis = {};
 sub get_accounting_db {
 
     my ($instance_name,$reconnect) = @_;
-    my $name = _get_connectorinstancename($instance_name);
+    my $name = get_connectorinstancename($instance_name);
     if (!defined $accounting_dbs->{$name}) {
         $accounting_dbs->{$name} = SqlConnectors::MySQLDB->new($instance_name);
         if (!defined $reconnect) {
@@ -101,7 +101,7 @@ sub accounting_db_tableidentifier {
 sub get_billing_db {
 
     my ($instance_name,$reconnect) = @_;
-    my $name = _get_connectorinstancename($instance_name);
+    my $name = get_connectorinstancename($instance_name);
     if (!defined $billing_dbs->{$name}) {
         $billing_dbs->{$name} = SqlConnectors::MySQLDB->new($instance_name);
         if (!defined $reconnect) {
@@ -126,7 +126,7 @@ sub billing_db_tableidentifier {
 sub get_ngcp_restapi {
 
     my ($instance_name) = @_;
-    my $name = _get_connectorinstancename($instance_name);
+    my $name = get_connectorinstancename($instance_name);
     if (!defined $ngcp_restapis->{$name}) {
         $ngcp_restapis->{$name} = RestConnectors::NGCPRestApi->new($instance_name,$ngcprestapi_uri,$ngcprestapi_username,$ngcprestapi_password,$ngcprestapi_realm);
     }
@@ -135,7 +135,7 @@ sub get_ngcp_restapi {
 }
 
 
-sub _get_connectorinstancename {
+sub get_connectorinstancename {
     my ($name) = @_;
     my $instance_name = threadid();
     if (length($name) > 0) {
@@ -161,8 +161,7 @@ sub destroy_dbs {
 
 }
 
-
-sub _get_cluster_db { # oracle RAC and the like ...
+sub get_cluster_db { # oracle RAC and the like ...
 
     my ($cluster,$instance_name,$reconnect) = @_;
     #if ((defined $cluster) and ref $cluster ne 'HASH') {
@@ -211,7 +210,7 @@ sub _get_cluster_db { # oracle RAC and the like ...
                     if ($@) {
                         dbclusterwarn($cluster->{name},'node ' . $node->{label} . ' inactive',getlogger(__PACKAGE__));
                         delete $nodes->{$node->{label}};
-                        return _get_cluster_db($cluster,$instance_name,$reconnect);
+                        return get_cluster_db($cluster,$instance_name,$reconnect);
                     } else {
                         #$db->cluster($cluster);
                         return $db;
@@ -219,7 +218,7 @@ sub _get_cluster_db { # oracle RAC and the like ...
                 } else {
                     dbclustererror($cluster->{name},'node ' . $node->{label} . ' configuration error',getlogger(__PACKAGE__));
                     delete $nodes->{$node->{label}};
-                    return _get_cluster_db($cluster,$instance_name,$reconnect);
+                    return get_cluster_db($cluster,$instance_name,$reconnect);
                 }
             }
         } else {

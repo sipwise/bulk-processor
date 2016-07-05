@@ -8,7 +8,7 @@ use File::Basename;
 use Cwd;
 use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../');
 
-use Logging qw(getlogger);
+#use Logging qw(getlogger);
 
 use ConnectorPool qw(get_billing_db
                     billing_db_tableidentifier);
@@ -47,6 +47,8 @@ my $expected_fieldnames = [
     'underrun_profiles',
     'underrun_lock',
 ];
+
+#my $indexes = { $tablename . '_subscribernumber' => ['subscribernumber(11)'] };
 
 sub new {
 
@@ -87,14 +89,11 @@ sub buildrecords_fromrows {
 
 sub gettablename {
 
-    my $db = &$get_local_db();
-    return &$get_tablename($db,$tablename);
+    return &$get_tablename($get_db,$tablename);
 
 }
 
 sub check_table {
-
-    my $db = &$get_local_db();
 
     return checktableinfo($get_db,
                    gettablename(),

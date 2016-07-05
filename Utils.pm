@@ -37,7 +37,8 @@ use File::Path qw(remove_tree make_path);
 #use Sys::Info::Constants qw( :device_cpu );
 
 # after all, the only reliable way to get the true vCPU count:
-use Sys::CpuAffinity; # qw(getNumCpus); not exported?
+#use Sys::CpuAffinity; # qw(getNumCpus); not exported?
+#disabling for now, no debian package yet.
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -98,6 +99,7 @@ our @EXPORT_OK = qw(
 
     $chmod_umask
 
+    prompt
 );
 
 our $chmod_umask = 0644;
@@ -542,9 +544,9 @@ sub kbytes2gigs {
 
 sub cleanupdir {
 
-    my ($dirpath,$keeproot,$cleanupinfocode,$filewarncode,$logger) = @_;
+    my ($dirpath,$keeproot,$scriptinfocode,$filewarncode,$logger) = @_;
     if (-d $dirpath) {
-        remove_tree($dirpath, { 
+        remove_tree($dirpath, {
                 keep_root => $keeproot,
                 error => \my $err });
         if (@$err) {
@@ -556,11 +558,11 @@ sub cleanupdir {
                     } else {
                         &$filewarncode("problem unlinking $file: $message",$logger);
                     }
-                }                
+                }
             }
         } else {
-            if (defined $cleanupinfocode and ref $cleanupinfocode eq 'CODE') {
-                &$cleanupinfocode($dirpath . ' removed',$logger);
+            if (defined $scriptinfocode and ref $scriptinfocode eq 'CODE') {
+                &$scriptinfocode($dirpath . ' removed',$logger);
             }
         }
         #if ($restoredir) {
@@ -580,7 +582,7 @@ sub makepath {
     my ($dirpath,$fileerrorcode,$logger) = @_;
     #print $chmod_umask ."\n";
     #changemod($dirpath);
-    make_path($dirpath,{ 
+    make_path($dirpath,{
         'chmod' => $chmod_umask,
         'error' => \my $err });
     if (@$err) {
@@ -592,7 +594,7 @@ sub makepath {
                 } else {
                     &$fileerrorcode("problem creating $file: $message",$logger);
                 }
-            }                
+            }
         }
         return 0;
     }
@@ -812,7 +814,7 @@ sub secs_to_years {
 }
 
 sub get_cpucount {
-    my $cpucount = Sys::CpuAffinity::getNumCpus() + 0;
+    my $cpucount = 0; #Sys::CpuAffinity::getNumCpus() + 0;
     return ($cpucount > 0) ? $cpucount : 1;
     #my $info = Sys::Info->new();
     #my $cpu  = $info->device('CPU'); # => %options );
@@ -824,11 +826,18 @@ sub get_cpucount {
     #    $cpucount *= 2;
     #}
 
-    return ($cpucount > 0) ? $cpucount : 1;
    #printf "CPU: %s\n", scalar($cpu->identify)  || 'N/A';
    #printf "CPU speed is %s MHz\n", $cpu->speed || 'N/A';
    #printf "There are %d CPUs\n"  , $cpu->count || 1;
    #printf "CPU load: %s\n"       , $cpu->load  || 0;
+}
+
+sub prompt {
+  my ($query) = @_; # take a prompt string as argument
+  local $| = 1; # activate autoflush to immediately show the prompt
+  print $query;
+  chomp(my $answer = <STDIN>);
+  return $answer;
 }
 
 1;
