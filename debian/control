@@ -1,0 +1,14 @@
+Source: ngcp-bulk-processor
+Section: admin
+Priority: extra
+Maintainer: Sipwise Development Team <support@sipwise.com>
+Build-Depends: debhelper (>= 9~)
+Standards-Version: 3.9.7
+Homepage: https://www.sipwise.com/
+
+Package: ngcp-bulk-processor-pro
+Architecture: all
+Depends: perl,
+         ${misc:Depends}
+Description: NGCP bulk-processor tool
+ Tool for bulk process for NGCP.
