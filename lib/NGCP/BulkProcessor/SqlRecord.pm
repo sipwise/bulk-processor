@@ -252,7 +252,7 @@ sub checktableinfo {
 
     my ($get_db,$tablename,$expected_fieldnames,$target_indexes) = @_;
 
-    my $success = 1;
+    my $result = 1;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
 
@@ -295,7 +295,7 @@ sub checktableinfo {
             # otherwise we log a failure (exit? - see Logging Module)
             #$table_fieldnames_cached->{$connectidentifier}->{$tablename} = {}; #$fieldnames;
             fieldnamesdiffer($db,$tablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename},getlogger(__PACKAGE__));
-            $success = 0;
+            $result = 0;
         }
     }
 
@@ -328,7 +328,7 @@ sub checktableinfo {
     #$table_target_indexes->{$tid}->{$connectidentifier}->{$tablename} = shared_clone($target_indexes);
     $table_target_indexes->{$tid}->{$connectidentifier}->{$tablename} = $target_indexes;
 
-    return $success;
+    return $result;
 
 }
 
@@ -719,12 +719,12 @@ sub transfer_records {
 
 sub insert_stmt {
 
-    my ($get_db,$tablename) = @_;
+    my ($get_db,$tablename,$insert_ignore) = @_;
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
     my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-    return 'INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+    return 'INSERT ' . ($insert_ignore ? $db->insert_ignore_phrase() . ' ' : '') . 'INTO ' . $db->tableidentifier($tablename) . ' (' .
       join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @$expected_fieldnames) .
       ') VALUES (' . substr(',?' x scalar @$expected_fieldnames,1) . ')';
 
@@ -869,7 +869,7 @@ sub transfer_table {
                 #$target_db = &$get_target_db($writer_connection_name);
 
                 eval {
-                    $db->db_get_begin($selectstatement,$tablename,@values);
+                    $db->db_get_begin($selectstatement,@values); #$tablename
 
                     my $i = 0;
                     while (1) {
@@ -878,7 +878,7 @@ sub transfer_table {
                         my $realblocksize = scalar @$rowblock;
                         if ($realblocksize > 0) {
                             writing_rows($target_db,$targettablename,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
-                            $target_db->db_do_begin($insertstatement,$targettablename);
+                            $target_db->db_do_begin($insertstatement); #,$targettablename);
                             $target_db->db_do_rowblock($rowblock);
                             $target_db->db_finish();
                             $i += $realblocksize;
@@ -1137,14 +1137,14 @@ sub process_table {
             #$db->db_disconnect();
             #undef $db;
             #$db = &$get_db($reader_connection_name);
-            my $context = {};
+            my $context = { tid => $tid };
             my $rowblock_result = 1;
             eval {
                 if ('CODE' eq ref $init_process_context_code) {
                     &$init_process_context_code($context);
                 }
 
-                $db->db_get_begin($selectstatement,$tablename,@values);
+                $db->db_get_begin($selectstatement,@values); #$tablename
 
                 my $i = 0;
                 while (1) {
@@ -1156,7 +1156,7 @@ sub process_table {
 
                         $rowblock_result = &$process_code($context,$rowblock,$i);
 
-                        #$target_db->db_do_begin($insertstatement,$targettablename);
+                        #$target_db->db_do_begin($insertstatement); #,$targettablename);
                         #$target_db->db_do_rowblock($rowblock);
                         #$target_db->db_finish();
                         $i += $realblocksize;
@@ -1170,9 +1170,6 @@ sub process_table {
                 }
                 $db->db_finish();
 
-                if ('CODE' eq ref $uninit_process_context_code) {
-                    &$uninit_process_context_code($context);
-                }
             };
 
             if ($@) {
@@ -1181,6 +1178,11 @@ sub process_table {
                 $errorstate = (not $rowblock_result) ? $ERROR : $COMPLETED;
             }
 
+            eval {
+                if ('CODE' eq ref $uninit_process_context_code) {
+                    &$uninit_process_context_code($context);
+                }
+            };
             $db->db_disconnect();
             #undef $db;
 
@@ -1296,6 +1298,7 @@ sub _reader {
 
     my $reader_db;
     my $tid = threadid();
+    $context->{tid} = $tid;
     {
         lock $context->{errorstates};
         $context->{errorstates}->{$tid} = $RUNNING;
@@ -1306,7 +1309,7 @@ sub _reader {
     my $blockcount = 0;
     eval {
         $reader_db = &{$context->{get_db}}(); #$reader_connection_name);
-        $reader_db->db_get_begin($context->{selectstatement},$context->{tablename},@{$context->{values_ref}});
+        $reader_db->db_get_begin($context->{selectstatement},@{$context->{values_ref}}); #$context->{tablename}
         tablethreadingdebug('[' . $tid . '] reader thread waiting for consumer threads',getlogger(__PACKAGE__));
         while ((_get_other_threads_state($context->{errorstates},$tid) & $RUNNING) == 0) { #wait on cosumers to come up
             #yield();
@@ -1376,6 +1379,7 @@ sub _writer {
     #get_target_db
     my $writer_db;
     my $tid = threadid();
+    $context->{tid} = $tid;
     {
         lock $context->{errorstates};
         $context->{errorstates}->{$tid} = $RUNNING;
@@ -1391,7 +1395,7 @@ sub _writer {
                 if ($packet->{size} > 0) {
                     writing_rows($writer_db,$context->{targettablename},$packet->{row_offset},$packet->{size},$context->{rowcount},getlogger(__PACKAGE__));
 
-                    $writer_db->db_do_begin($context->{insertstatement},$context->{targettablename});
+                    $writer_db->db_do_begin($context->{insertstatement}); #,$context->{targettablename});
                     $writer_db->db_do_rowblock($packet->{rows});
                     $writer_db->db_finish();
                     $blockcount++;
@@ -1427,6 +1431,7 @@ sub _process {
     #my $writer_db;
     my $rowblock_result = 1;
     my $tid = threadid();
+    $context->{tid} = $tid;
     {
         lock $context->{errorstates};
         $context->{errorstates}->{$tid} = $RUNNING;
@@ -1447,7 +1452,7 @@ sub _process {
 
                     #writing_rows($writer_db,$context->{targettablename},$i,$realblocksize,$context->{rowcount},getlogger(__PACKAGE__));
 
-                    #$writer_db->db_do_begin($context->{insertstatement},$context->{targettablename});
+                    #$writer_db->db_do_begin($context->{insertstatement}); #,$context->{targettablename});
                     #$writer_db->db_do_rowblock($rowblock);
                     #$writer_db->db_finish();
 
@@ -1475,16 +1480,17 @@ sub _process {
                 sleep($thread_sleep_secs); #2015-01
             }
         }
+
+    };
+    my $err = $@;
+    tablethreadingdebug($err ? '[' . $tid . '] processor thread error: ' . $err : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
+    eval {
         if ('CODE' eq ref $context->{uninit_process_context_code}) {
             &{$context->{uninit_process_context_code}}($context);
         }
     };
-    #if (defined $writer_db) {
-    #    $writer_db->db_disconnect();
-    #}
-    tablethreadingdebug($@ ? '[' . $tid . '] processor thread error: ' . $@ : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     lock $context->{errorstates};
-    if ($@) {
+    if ($err) {
         $context->{errorstates}->{$tid} = $ERROR;
     } else {
         $context->{errorstates}->{$tid} = (not $rowblock_result) ? $ERROR : $COMPLETED;

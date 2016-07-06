@@ -543,27 +543,29 @@ sub kbytes2gigs {
 
 sub cleanupdir {
 
-    my ($dirpath,$keeproot,$scriptinfocode,$filewarncode,$logger) = @_;
+    my ($dirpath,$keeproot,$filewarncode,$logger) = @_;
     if (-d $dirpath) {
         remove_tree($dirpath, {
-                keep_root => $keeproot,
-                error => \my $err });
+                'keep_root' => $keeproot,
+                'verbose' => 1,
+                'error' => \my $err });
         if (@$err) {
             if (defined $filewarncode and ref $filewarncode eq 'CODE') {
                 for my $diag (@$err) {
                     my ($file, $message) = %$diag;
                     if ($file eq '') {
-                        &$filewarncode("general error: $message",$logger);
+                        &$filewarncode("cleanup: $message",$logger);
                     } else {
                         &$filewarncode("problem unlinking $file: $message",$logger);
                     }
                 }
             }
-        } else {
-            if (defined $scriptinfocode and ref $scriptinfocode eq 'CODE') {
-                &$scriptinfocode($dirpath . ' removed',$logger);
-            }
         }
+        #else {
+        #    if (!$keeproot and defined $scriptinfocode and ref $scriptinfocode eq 'CODE') {
+        #        &$scriptinfocode($dirpath . ' removed',$logger);
+        #    }
+        #}
         #if ($restoredir) {
         #      makedir($dirpath);
         #}
@@ -583,13 +585,14 @@ sub makepath {
     #changemod($dirpath);
     make_path($dirpath,{
         'chmod' => $chmod_umask,
+        'verbose' => 1,
         'error' => \my $err });
     if (@$err) {
         if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
             for my $diag (@$err) {
                 my ($file, $message) = %$diag;
                 if ($file eq '') {
-                    &$fileerrorcode("general error: $message",$logger);
+                    &$fileerrorcode("creating path: $message",$logger);
                 } else {
                     &$fileerrorcode("problem creating $file: $message",$logger);
                 }

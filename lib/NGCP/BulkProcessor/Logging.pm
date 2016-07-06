@@ -79,6 +79,7 @@ our @EXPORT_OK = qw(
     fileprocessingdone
     fetching_lines
     processing_lines
+    processing_info
 
     tablefixed
     servicedebug
@@ -620,6 +621,15 @@ sub processing_lines {
     my ($tid, $start,$blocksize,$logger) = @_;
     if (defined $logger) {
         $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing lines: ' . ($start + 1) . '-' . ($start + $blocksize));
+    }
+
+}
+
+sub processing_info {
+
+    my ($tid, $message, $logger) = @_;
+    if (defined $logger) {
+        $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
     }
 
 }

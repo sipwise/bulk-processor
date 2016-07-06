@@ -50,7 +50,8 @@ use HTML::PullParser qw();
 use HTML::Entities qw(decode_entities);
 use IO::Uncompress::Unzip qw(unzip $UnzipError);
 
-use DateTime::Format::Excel;
+# no debian package yet:
+#use DateTime::Format::Excel;
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlConnector);
@@ -60,10 +61,10 @@ our @EXPORT_OK = qw(
     xlsxbin2csv
     sanitize_column_name
     sanitize_spreadsheet_name
-    excel_to_timestamp
-    excel_to_date
     get_tableidentifier
     $csvextension);
+#excel_to_timestamp
+#excel_to_date
 
 our $csvextension = '.csv';
 
@@ -80,8 +81,9 @@ my $LongTruncOk = 0;
 
 #my $logger = getlogger(__PACKAGE__);
 
-my $lock_do_chunk = 0;
-my $lock_get_chunk = 0;
+#my $lock_do_chunk = 0;
+#my $lock_get_chunk = 0;
+my $rowblock_transactional = 0;
 
 my $invalid_excel_spreadsheet_chars_pattern = '[' . quotemeta('[]:*?/\\') . ']';
 
@@ -97,23 +99,23 @@ sub sanitize_column_name {
     return $column_name;
 }
 
-sub excel_to_date {
-    my $excel_date_value = shift;
-    if ($excel_date_value > 0) {
-        my $datetime = DateTime::Format::Excel->parse_datetime($excel_date_value);
-        return $datetime->ymd('-'); # prints 1992-02-28
-    }
-    return undef;
-}
+#sub excel_to_date {
+#    my $excel_date_value = shift;
+#    if ($excel_date_value > 0) {
+#        my $datetime = DateTime::Format::Excel->parse_datetime($excel_date_value);
+#        return $datetime->ymd('-'); # prints 1992-02-28
+#    }
+#    return undef;
+#}
 
-sub excel_to_timestamp {
-    my $excel_datetime_value = shift;
-    if ($excel_datetime_value > 0) {
-        my $datetime = DateTime::Format::Excel->parse_datetime($excel_datetime_value);
-        return $datetime->ymd('-') . ' ' . $datetime->hms(':');
-    }
-    return undef;
-}
+#sub excel_to_timestamp {
+#    my $excel_datetime_value = shift;
+#    if ($excel_datetime_value > 0) {
+#        my $datetime = DateTime::Format::Excel->parse_datetime($excel_datetime_value);
+#        return $datetime->ymd('-') . ' ' . $datetime->hms(':');
+#    }
+#    return undef;
+#}
 
 sub new {
 
@@ -363,13 +365,14 @@ sub cleanupcvsdirs {
             #    filewarn('cannot remove ' . $dirpath . ': ' . $!,getlogger(__PACKAGE__));
             #}
             remove_tree($dirpath, {
-                keep_root => 0,
-                error => \my $err });
+                'keep_root' => 0,
+                'verbose' => 1,
+                'error' => \my $err });
             if (@$err) {
                 for my $diag (@$err) {
                     my ($file, $message) = %$diag;
                     if ($file eq '') {
-                        filewarn("general error: $message",getlogger(__PACKAGE__));
+                        filewarn("cleanup: $message",getlogger(__PACKAGE__));
                     } else {
                         filewarn("problem unlinking $file: $message",getlogger(__PACKAGE__));
                     }
@@ -557,9 +560,9 @@ sub db_do_begin {
 
     my $self = shift;
     my $query = shift;
-    my $tablename = shift;
+    #my $tablename = shift;
 
-    $self->SUPER::db_do_begin($query,$tablename,$lock_do_chunk,@_);
+    $self->SUPER::db_do_begin($query,$rowblock_transactional,@_);
 
 }
 
@@ -567,9 +570,9 @@ sub db_get_begin {
 
     my $self = shift;
     my $query = shift;
-    my $tablename = shift;
+    #my $tablename = shift;
 
-    $self->SUPER::db_get_begin($query,$tablename,$lock_get_chunk,@_);
+    $self->SUPER::db_get_begin($query,$rowblock_transactional,@_);
 
 }
 
@@ -577,7 +580,7 @@ sub db_finish {
 
     my $self = shift;
 
-    $self->SUPER::db_finish($lock_do_chunk | $lock_get_chunk);
+    $self->SUPER::db_finish($rowblock_transactional);
 
 }
 

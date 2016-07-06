@@ -154,7 +154,9 @@ sub process {
         } else {
 
             my $context = { instance => $self,
-                            filename => $file,};
+                            filename => $file,
+                            tid      => $tid,
+                            };
             my $rowblock_result = 1;
             eval {
 
@@ -237,10 +239,6 @@ sub process {
                 }
                 close(INPUTFILE);
 
-                if ('CODE' eq ref $uninit_process_context_code) {
-                    &$uninit_process_context_code($context);
-                }
-
             };
 
             if ($@) {
@@ -249,6 +247,11 @@ sub process {
                 $errorstate = (not $rowblock_result) ? $ERROR : $COMPLETED;
             }
 
+            eval {
+                if ('CODE' eq ref $uninit_process_context_code) {
+                    &$uninit_process_context_code($context);
+                }
+            };
         }
 
         if ($errorstate == $COMPLETED) {
@@ -269,6 +272,7 @@ sub _reader {
     my $context = shift;
 
     my $tid = threadid();
+    $context->{tid} = $tid;
     {
         lock $context->{errorstates};
         $context->{errorstates}->{$tid} = $RUNNING;
@@ -396,6 +400,7 @@ sub _process {
 
     my $rowblock_result = 1;
     my $tid = threadid();
+    $context->{tid} = $tid;
     {
         lock $context->{errorstates};
         $context->{errorstates}->{$tid} = $RUNNING;
@@ -433,13 +438,16 @@ sub _process {
                 sleep($thread_sleep_secs); #2015-01
             }
         }
+    };
+    my $err = $@;
+    filethreadingdebug($err ? '[' . $tid . '] processor thread error: ' . $err : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
+    eval {
         if ('CODE' eq ref $context->{uninit_process_context_code}) {
             &{$context->{uninit_process_context_code}}($context);
         }
     };
-    filethreadingdebug($@ ? '[' . $tid . '] processor thread error: ' . $@ : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     lock $context->{errorstates};
-    if ($@) {
+    if ($err) {
         $context->{errorstates}->{$tid} = $ERROR;
     } else {
         $context->{errorstates}->{$tid} = (not $rowblock_result) ? $ERROR : $COMPLETED;

@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSet;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem;
 use strict;
 
 ## no critic
@@ -30,13 +30,11 @@ our @EXPORT_OK = qw(
     check_table
     getinsertstatement
 
-    test_table_bycolumn1
-    test_table_local_select
-    test_table_source_select
-    test_table_source_select_temptable
+    findby_subscribernumber_option
+    countby_subscribernumber_option
 );
 
-my $tablename = 'feature_option_set';
+my $tablename = 'feature_option_set_item';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
@@ -77,6 +75,48 @@ sub create_table {
 
 }
 
+sub findby_subscribernumber_option {
+
+    my ($subscribernumber,$option,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $rows = $db->db_get_all_arrayref(
+        'SELECT * FROM ' .
+            $table .
+        ' WHERE ' .
+            $db->columnidentifier('subscribernumber') . ' = ? ' .
+            ' AND ' . $db->columnidentifier('option') . ' = ?'
+    ,$subscribernumber,$option);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub countby_subscribernumber_option {
+
+    my ($subscribernumber,$option) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my @params = ();
+    if (defined $subscribernumber) {
+        $stmt .= ' WHERE ' . $db->columnidentifier('subscribernumber') . ' = ?';
+        push(@params,$subscribernumber);
+        if (defined $option) {
+            $stmt .= ' AND ' . $db->columnidentifier('option') . ' = ?';
+            push(@params,$option);
+        }
+    }
+
+    return $db->db_get_value($stmt,@params);
+
+}
 
 sub buildrecords_fromrows {
 
@@ -101,8 +141,9 @@ sub buildrecords_fromrows {
 
 sub getinsertstatement {
 
+    my ($insert_ignore) = @_;
     check_table();
-    return insert_stmt($get_db,$tablename);
+    return insert_stmt($get_db,$tablename,$insert_ignore);
 
 }
 

@@ -177,6 +177,14 @@ sub paginate_sort_query {
 
 }
 
+sub insert_ignore_phrase {
+
+    my $self = shift;
+
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+
+}
+
 sub _force_numeric_column {
     my $self = shift;
     my $column = shift;
@@ -440,6 +448,22 @@ sub _fetch_error {
 
 }
 
+#sub db_autocommit {
+#
+#    my $self = shift;
+#    if (defined $self->{dbh}) {
+#        if (@_) {
+#            my ($autocommit) = @_;
+#            $autocommit = ($autocommit ? 1 : 0);
+#            dbdebug($self,'set AutoCommit ' . $self->{dbh}->{AutoCommit} . ' -> ' . $autocommit,getlogger(__PACKAGE__));
+#            $self->{dbh}->{AutoCommit} = $autocommit;
+#        }
+#        return $self->{dbh}->{AutoCommit};
+#    }
+#    return undef;
+#
+#}
+
 # This method executes a SQL query that doesn't return any data. The
 # query may contain placeholders, that will be replaced by the elements
 # in @params during execute(). The method will die if any error occurs
@@ -702,7 +726,8 @@ sub lock_tables {
     my $self = shift;
     my $tablestolock = shift;
 
-    $self->db_begin();
+    #$self->db_begin();
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 
 }
 
@@ -710,7 +735,8 @@ sub unlock_tables {
 
     my $self = shift;
 
-    $self->db_commit();
+    #$self->db_commit();
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 
 }
 
@@ -718,18 +744,19 @@ sub db_do_begin {
 
     my $self = shift;
     my $query = shift;
-    my $tablename = shift;
-    my $lock = shift;
+    #my $tablename = shift;
+    my $transactional = shift;
 
     #notimplementederror('db_do_begin',getlogger(__PACKAGE__));
 
-    if (defined $self->{dbh} and !defined $self->{sth} and length($tablename) > 0) {
-
-        if ($lock) {
-            $self->lock_tables({ $tablename => 'WRITE' });
-        }
+    if (defined $self->{dbh} and !defined $self->{sth}) { # and length($tablename) > 0) {
 
         dbdebug($self,'db_do_begin: ' . $query,getlogger(__PACKAGE__));
+        if ($transactional) {
+            #$self->lock_tables({ $tablename => 'WRITE' });
+            $self->db_begin();
+        }
+
         $self->{sth} = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $self->{query} = $query;
         $self->{params} = [];
@@ -765,17 +792,18 @@ sub db_get_begin {
 
     my $self = shift;
     my $query = shift;
-    my $tablename = shift;
-    my $lock = shift;
+    #my $tablename = shift;
+    my $transactional = shift;
 
-    if (defined $self->{dbh} and !defined $self->{sth} and length($tablename) > 0) {
-
-        #eval { $self->lock_tables({ $tablename => 'WRITE' }); };
-        if ($lock) {
-            $self->lock_tables({ $tablename => 'WRITE' });
-        }
+    if (defined $self->{dbh} and !defined $self->{sth}) { # and length($tablename) > 0) {
 
         dbdebug($self,'db_get_begin: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
+        #eval { $self->lock_tables({ $tablename => 'WRITE' }); };
+        if ($transactional) {
+            #$self->lock_tables({ $tablename => 'WRITE' });
+            $self->db_begin();
+        }
+
         $self->{sth} = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         $self->{sth}->execute(@_) or $self->_execute_error($query,$self->{sth},@_);
         $self->{query} = $query;
@@ -844,7 +872,7 @@ sub db_get_rowblock {
 sub db_finish {
 
     my $self = shift;
-    my $unlock = shift;
+    my $transactional = shift;
 
     # since this is also called from DESTROY, no die() here!
 
@@ -855,8 +883,9 @@ sub db_finish {
         $self->{sth}->finish();
         $self->{sth} = undef;
 
-        if ($unlock) {
-            $self->unlock_tables();
+        if ($transactional) {
+            #$self->unlock_tables();
+            $self->db_commit();
         }
 
         $self->{query} = undef;

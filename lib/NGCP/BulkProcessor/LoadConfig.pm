@@ -34,6 +34,8 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     load_config
+    parse_regexp
+    split_tuple
     $SIMPLE_CONFIG_TYPE
     $YAML_CONFIG_TYPE
 );
@@ -80,20 +82,14 @@ sub load_config {
     }
 
     if ($is_settings) {
-        my $result = &$process_code($data,$configfile,
-                          \&split_tuple,
-                          \&format_number,
-                          \&configurationinfo,
-                          \&configurationwarn,
-                          \&configurationerror,
-                          \&fileerror,
-                          getlogger(__PACKAGE__));
+        my $result = &$process_code($data,$configfile);
         configurationinfo('settings file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
         return $result;
     } else {
         my $result = update_mainconfig($data,$configfile,
                           \&split_tuple,
                           \&format_number,
+                          \&parse_regexp,
                           \&configurationinfo,
                           \&configurationwarn,
                           \&configurationerror,
@@ -108,9 +104,8 @@ sub load_config {
 sub _splashinfo {
 
     configurationinfo($system_name . ' ' . $system_version . ' (' . $system_instance_label . ') [' . $local_fqdn . ']',getlogger(__PACKAGE__));
-    configurationinfo('application path ' . $application_path,getlogger(__PACKAGE__));
-    configurationinfo('working path ' . $working_path,getlogger(__PACKAGE__));
-    #configurationinfo('executable path ' . $executable_path,getlogger(__PACKAGE__));
+    configurationinfo('application path: ' . $application_path,getlogger(__PACKAGE__));
+    configurationinfo('working path: ' . $working_path,getlogger(__PACKAGE__));
     configurationinfo($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),getlogger(__PACKAGE__));
 
 }
@@ -136,6 +131,24 @@ sub split_tuple {
 
     my $token = shift;
     return split(/$tuplesplitpattern/,$token);
+
+}
+
+sub parse_regexp {
+
+    my ($token,$file) = @_;
+    my $regexp = undef;
+    my $result = 1;
+    if (defined $token and length($token) > 0) {
+        eval {
+            $regexp = qr/$token/;
+        };
+        if ($@ or !defined $regexp) {
+            configurationerror($file,'invalid pattern: ' . $@,getlogger(__PACKAGE__));
+            $result = 0;
+        }
+    }
+    return ($result,$regexp);
 
 }
 

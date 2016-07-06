@@ -55,8 +55,10 @@ my $LongTruncOk = 0;
 
 #my $logger = getlogger(__PACKAGE__);
 
-my $lock_do_chunk = 0;
-my $lock_get_chunk = 0;
+#my $lock_do_chunk = 0;
+#my $lock_get_chunk = 0;
+
+my $rowblock_transactional = 1;
 
 my $transaction_isolation_level = ''; #'SERIALIZABLE'
 
@@ -498,9 +500,9 @@ sub db_do_begin {
 
     my $self = shift;
     my $query = shift;
-    my $tablename = shift;
+    #my $tablename = shift;
 
-    $self->SUPER::db_do_begin($query,$tablename,$lock_do_chunk,@_);
+    $self->SUPER::db_do_begin($query,$rowblock_transactional,@_);
 
 }
 
@@ -508,10 +510,10 @@ sub db_get_begin {
 
     my $self = shift;
     my $query = shift;
-    my $tablename = shift;
+    #my $tablename = shift;
     #my $lock = shift;
 
-    $self->SUPER::db_get_begin($query,$tablename,$lock_get_chunk,@_);
+    $self->SUPER::db_get_begin($query,$rowblock_transactional,@_);
 
 }
 
@@ -520,7 +522,7 @@ sub db_finish {
     my $self = shift;
     #my $unlock = shift;
 
-    $self->SUPER::db_finish($lock_do_chunk | $lock_get_chunk);
+    $self->SUPER::db_finish($rowblock_transactional);
 
 }
 

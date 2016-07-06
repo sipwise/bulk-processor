@@ -22,6 +22,8 @@ use NGCP::BulkProcessor::SqlRecord qw(
     insert_stmt
 );
 
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -30,10 +32,8 @@ our @EXPORT_OK = qw(
     check_table
     getinsertstatement
 
-    test_table_bycolumn1
-    test_table_local_select
-    test_table_source_select
-    test_table_source_select_temptable
+    findby_subscribernumber
+    countby_subscribernumber
 );
 
 my $tablename = 'feature_option';
@@ -76,6 +76,43 @@ sub create_table {
 
 }
 
+sub findby_subscribernumber {
+
+    my ($subscribernumber,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $rows = $db->db_get_all_arrayref(
+        'SELECT * FROM ' .
+            $table .
+        ' WHERE ' .
+            $db->columnidentifier('subscribernumber') . ' = ?'
+    ,$subscribernumber);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub countby_subscribernumber {
+
+    my ($subscribernumber) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my @params = ();
+    if (defined $subscribernumber) {
+        $stmt .= ' WHERE ' . $db->columnidentifier('subscribernumber') . ' = ?';
+        push(@params,$subscribernumber);
+    }
+
+    return $db->db_get_value($stmt,@params);
+
+}
 
 sub buildrecords_fromrows {
 
@@ -89,6 +126,13 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            if ($load_recursive) {
+                $record->{_optionsetitems} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem::findby_subscribernumber_option(
+                    $record->{subscribernumber},
+                    $record->{option},
+                    $load_recursive
+                );
+            }
 
             push @records,$record;
         }
@@ -100,8 +144,9 @@ sub buildrecords_fromrows {
 
 sub getinsertstatement {
 
+    my ($insert_ignore) = @_;
     check_table();
-    return insert_stmt($get_db,$tablename);
+    return insert_stmt($get_db,$tablename,$insert_ignore);
 
 }
 

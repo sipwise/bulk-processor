@@ -7,7 +7,7 @@ use NGCP::BulkProcessor::Globals qw(
     $system_version
     $erroremailrecipient
     $warnemailrecipient
-    $successemailrecipient
+    $doneemailrecipient
     $completionemailrecipient
     $appstartsecs
     $root_threadid
@@ -84,7 +84,7 @@ our @EXPORT_OK = qw(
     dbclustererror
     dbclusterwarn
 
-    success
+    done
     completion
 
     scripterror
@@ -93,15 +93,15 @@ our @EXPORT_OK = qw(
 
 my $erroremailsubject = 'error: module ';
 my $warnemailsubject = 'warning: module ';
-my $successmailsubject = 'success: module ';
+my $donemailsubject = 'done: module ';
 my $completionmailsubject = 'completed: module ';
 
-sub success {
+sub done {
 
     my ($message,$attachments,$logger) = @_;
 
     if (length($message) == 0) {
-        $message = 'success';
+        $message = 'done';
     }
 
     my $appexitsecs = Time::HiRes::time();
@@ -113,16 +113,16 @@ sub success {
     }
 
     if (threadid() == $root_threadid) {
-        if (length($successemailrecipient) > 0 and defined $logger) {
+        if (length($doneemailrecipient) > 0 and defined $logger) {
             my $email = {
-                to          => $successemailrecipient,
+                to          => $doneemailrecipient,
                 #cc          => 'rkrenn@sipwise.com',
                 #bcc         => '',
                 #return_path => undef,
                 priority    => $lowpriority,
                 #sender_name => 'Rene K.',
                 #from        => 'rkrenn@sipwise.com',
-                subject     => $successmailsubject . $logger->{category},
+                subject     => $donemailsubject . $logger->{category},
                 body        => getscriptpath() . ":\n\n" . wrap_mailbody($message) . "\n\n" . $signature,
                 guid        => create_guid()
             };
@@ -290,7 +290,7 @@ sub dbwarn {
     }
 
     #die();
-    warning($message, $logger, 1);
+    warning($message, $logger);
 
 }
 
@@ -318,7 +318,7 @@ sub restwarn {
     }
 
     #die();
-    warning($message, $logger, 1);
+    warning($message, $logger);
 
 }
 
@@ -385,7 +385,7 @@ sub dbclusterwarn {
     }
 
     #die();
-    warning($message, $logger, 1);
+    warning($message, $logger);
 
 }
 
@@ -482,7 +482,7 @@ sub fileerror {
 sub processzerofilesize {
 
     my ($file,$logger) = @_;
-    my $message = basename($file) . ' has 0 bytes';
+    my $message = basename($file) . ' ' . (-e $file ? 'has 0 bytes' : 'not found');
     if (defined $logger) {
         $logger->error($message);
     }
@@ -560,7 +560,7 @@ sub filewarn {
     }
 
     #die();
-    warning($message, $logger, 1);
+    warning($message, $logger);
 }
 
 
@@ -571,7 +571,7 @@ sub xls2csvwarn {
         $logger->warn($message);
     }
 
-    warning($message, $logger, 1);
+    warning($message, $logger);
 }
 
 sub webarchivexls2csvwarn {
@@ -581,7 +581,7 @@ sub webarchivexls2csvwarn {
         $logger->warn($message);
     }
 
-    warning($message, $logger, 1);
+    warning($message, $logger);
 }
 
 #sub parameterdefinedtwice {
@@ -590,7 +590,7 @@ sub webarchivexls2csvwarn {
 #    if (defined $logger) {
 #        $logger->warn($message);
 #    }
-#    warning($message, $logger, 1);
+#    warning($message, $logger);
 #}
 
 sub emailwarn {
@@ -669,7 +669,7 @@ sub servicewarn {
     }
 
     #die();
-    warning($message, $logger, 1);
+    warning($message, $logger);
 
 }
 

@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::SubscriberDefineFile;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::LnpDefineFile;
 use strict;
 
 ## no critic

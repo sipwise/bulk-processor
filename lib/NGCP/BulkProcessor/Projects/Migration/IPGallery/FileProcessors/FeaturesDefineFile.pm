@@ -81,6 +81,7 @@ sub extractfields {
     my ($context,$line_ref) = @_;
 
     return undef if length($$line_ref) == 0;
+    #return undef if $$line_ref =~ /^#/;
 
     if ($context->{instance}->{parselines}) {
         my $row = undef;
@@ -99,6 +100,18 @@ sub extractfields {
         return $$line_ref;
     }
 
+}
+
+sub stoponparseerrors {
+    my $self = shift;
+    $self->{stoponparseerrors} = shift if @_;
+    return $self->{stoponparseerrors};
+}
+
+sub parselines {
+    my $self = shift;
+    $self->{parselines} = shift if @_;
+    return $self->{parselines};
 }
 
 1;

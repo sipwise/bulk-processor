@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp;
 use strict;
 
 ## no critic
@@ -30,29 +30,23 @@ our @EXPORT_OK = qw(
     check_table
     getinsertstatement
 
-    findby_subscribernumber
-    countby_subscribernumber
+    findby_lrncode_portednumber
+    countby_lrncode_portednumber
+    count_lrncodes
 );
 
-my $tablename = 'subscriber';
+my $tablename = 'lnp';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 
 my $expected_fieldnames = [
-    'country_code', #356
-    'area_code', #None
-    'dial_number', #35627883323
-    'rgw_fqdn', #35627883323
-    'port', #None
-    'region_name', #None
-    'carrier_code', #None
-    'time_zone_name', #malta
-    'lang_code', #eng
-    'barring_profile', #None
+    'ported_number',
+    'type',
+    'lrn_code',
 ];
 
-my $primarykey_fieldnames = [ 'country_code', 'area_code', 'dial_number' ];
+my $primarykey_fieldnames = [ 'lrn_code', 'ported_number' ];
 
 my $indexes = {};
 
@@ -84,32 +78,29 @@ sub create_table {
 
 }
 
-sub findby_subscribernumber {
+sub findby_lrncode_portednumber {
 
-    my ($subscribernumber,$load_recursive) = @_;
+    my ($lrncode,$portednumber,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    return [] unless defined $subscribernumber;
-
     my $rows = $db->db_get_all_arrayref(
         'SELECT * FROM ' .
             $table .
         ' WHERE ' .
-            $db->columnidentifier('country_code') . ' = ?' .
-            ' AND ' . $db->columnidentifier('area_code') . ' = ?' .
-            ' AND ' . $db->columnidentifier('dial_number') . ' = ?'
-    ,split_subscribernumber($subscribernumber));
+            $db->columnidentifier('lrn_code') . ' = ? ' .
+            ' AND ' . $db->columnidentifier('ported_number') . ' = ?'
+    ,$lrncode,$portednumber);
 
     return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
-sub countby_subscribernumber {
+sub countby_lrncode_portednumber {
 
-    my ($subscribernumber) = @_;
+    my ($lrncode,$portednumber) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -117,15 +108,27 @@ sub countby_subscribernumber {
 
     my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @params = ();
-    if (defined $subscribernumber) {
-        $stmt .= ' WHERE ' .
-            $db->columnidentifier('country_code') . ' = ?' .
-            ' AND ' . $db->columnidentifier('area_code') . ' = ?' .
-            ' AND ' . $db->columnidentifier('dial_number') . ' = ?';
-        push(@params,split_subscribernumber($subscribernumber));
+    if (defined $lrncode) {
+        $stmt .= ' WHERE ' . $db->columnidentifier('lrn_code') . ' = ?';
+        push(@params,$lrncode);
+        if (defined $portednumber) {
+            $stmt .= ' AND ' . $db->columnidentifier('ported_number') . ' = ?';
+            push(@params,$portednumber);
+        }
     }
 
     return $db->db_get_value($stmt,@params);
+
+}
+
+sub count_lrncodes {
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    return $db->db_get_value('SELECT COUNT(DISTINCT ' .
+        $db->columnidentifier('lrn_code') . ') FROM ' . $table);
 
 }
 
@@ -141,12 +144,6 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
-            if ($load_recursive) {
-                $record->{_features} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::findby_subscribernumber(
-                    $record->subscribernumber(),
-                    $load_recursive
-                );
-            }
 
             push @records,$record;
         }
@@ -177,19 +174,6 @@ sub check_table {
                    $expected_fieldnames,
                    $indexes);
 
-}
-
-sub subscribernumber {
-    my $self = shift;
-    return $self->{dial_number}; #$self->{country_code} . $self->{dial_number};
-}
-
-sub split_subscribernumber {
-    my ($subscribernumber) = @_;
-    my $country_code = substr($subscribernumber,0,3);
-    my $area_code = 'None';
-    my $dial_number = $subscribernumber; #substr($subscribernumber,3);
-    return ($country_code,$area_code,$dial_number);
 }
 
 1;
