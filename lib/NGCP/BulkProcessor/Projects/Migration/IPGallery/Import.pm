@@ -15,6 +15,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $features_define_import_numofthreads
     $skip_duplicate_setoptionitems
     $subscriber_define_import_numofthreads
+    $lnp_define_import_numofthreads
     $dry
 );
 use NGCP::BulkProcessor::Logging qw (
@@ -28,6 +29,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::FeaturesDefineFile qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::FeaturesDefineParser qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::SubscriberDefineFile qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::LnpDefineFile qw();
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw(
     get_import_db
@@ -37,6 +39,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSet qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp qw();
 
 use NGCP::BulkProcessor::Array qw(removeduplicates);
 
@@ -45,6 +48,7 @@ our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     import_features_define
     import_subscriber_define
+    import_lnp_define
 );
 
 sub import_features_define {
@@ -146,6 +150,45 @@ sub import_subscriber_define {
                     #lock - $import_multithreading
                 );
                 $context->{db}->db_do_rowblock($rows);
+                $context->{db}->db_finish();
+            }
+
+            return 1;
+        }, sub {
+            my ($context)= @_;
+            $context->{db} = &get_import_db(); # keep ref count low..
+        }, sub {
+            my ($context)= @_;
+            undef $context->{db};
+            destroy_dbs();
+        }, $import_multithreading);
+
+}
+
+sub import_lnp_define {
+
+    my ($file) = @_;
+    my $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::create_table(1);
+    my $importer = NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::LnpDefineFile->new($lnp_define_import_numofthreads);
+    destroy_dbs(); #close all db connections before forking..
+    return $result && $importer->process($file,sub {
+            my ($context,$rows,$row_offset) = @_;
+
+            my @lnp_rows = ();
+            foreach my $row (@$rows) {
+                next if $row->[2] eq 'In';
+                $row->[3] = substr($row->[3],0,4);
+                shift @$row; #ignore first col
+                push(@lnp_rows,$row);
+            }
+
+            if ((scalar @lnp_rows) > 0) {
+                $context->{db}->db_do_begin(
+                    NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::getinsertstatement(),
+                    NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::gettablename(),
+                    #lock - $import_multithreading
+                );
+                $context->{db}->db_do_rowblock(\@lnp_rows);
                 $context->{db}->db_finish();
             }
 

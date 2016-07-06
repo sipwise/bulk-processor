@@ -482,7 +482,7 @@ sub fileerror {
 sub processzerofilesize {
 
     my ($file,$logger) = @_;
-    my $message = basename($file) . ' has 0 bytes';
+    my $message = basename($file) . ' ' . (-e $file ? 'has 0 bytes' : 'not found');
     if (defined $logger) {
         $logger->error($message);
     }
