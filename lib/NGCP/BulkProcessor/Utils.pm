@@ -546,8 +546,9 @@ sub cleanupdir {
     my ($dirpath,$keeproot,$scriptinfocode,$filewarncode,$logger) = @_;
     if (-d $dirpath) {
         remove_tree($dirpath, {
-                keep_root => $keeproot,
-                error => \my $err });
+                'keep_root' => $keeproot,
+                'verbose' => 1,
+                'error' => \my $err });
         if (@$err) {
             if (defined $filewarncode and ref $filewarncode eq 'CODE') {
                 for my $diag (@$err) {
@@ -583,6 +584,7 @@ sub makepath {
     #changemod($dirpath);
     make_path($dirpath,{
         'chmod' => $chmod_umask,
+        'verbose' => 1,
         'error' => \my $err });
     if (@$err) {
         if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
