@@ -8,10 +8,10 @@ use strict;
 #use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../');
 
 use NGCP::BulkProcessor::Globals qw(
-    update_working_path
-    $input_path
+    $working_path
     $enablemultithreading
     $cpucount
+    create_path
 );
 
 use NGCP::BulkProcessor::Logging qw(
@@ -23,40 +23,55 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     update_settings
+    check_dry
+
+    $input_path
+    $output_path
+    $rollback_path
+
     $defaultsettings
     $defaultconfig
-    $features_define_filename
-    $features_define_import_numofthreads
-    $skip_duplicate_setoptionitems
-    $subscriber_define_filename
-    $subscriber_define_import_numofthreads
 
     $import_multithreading
     $run_id
     $dry
     $force
     $import_db_file
-    check_dry
+
+    $features_define_filename
+    $features_define_import_numofthreads
+    $skip_duplicate_setoptionitems
+
+    $subscriber_define_filename
+    $subscriber_define_import_numofthreads
+
+    $lnp_define_filename
+    $lnp_define_import_numofthreads
+
 );
 
 our $defaultconfig = 'config.cfg';
 our $defaultsettings = 'settings.cfg';
 
-our $features_define_filename = undef;
-our $subscriber_define_filename = undef;
-
-our $import_multithreading = $enablemultithreading;
-our $features_define_import_numofthreads = $cpucount;
-
-our $subscriber_define_import_numofthreads = $cpucount;
-
-our $skip_duplicate_setoptionitems = 0;
+our $input_path = $working_path . 'input/';
+our $output_path = $working_path . 'output/';
+our $rollback_path = $working_path . 'rollback/';
 
 our $force = 0;
-our $dry = 1;
+our $dry = 0;
 our $run_id = '';
+our $import_db_file = _get_import_db_file($run_id,'import');
+our $import_multithreading = $enablemultithreading;
 
-our $import_db_file = ((defined $run_id and length($run_id) > 0) ? '_' : '') . 'import';
+our $features_define_filename = undef;
+our $features_define_import_numofthreads = $cpucount;
+our $skip_duplicate_setoptionitems = 0;
+
+our $subscriber_define_filename = undef;
+our $subscriber_define_import_numofthreads = $cpucount;
+
+our $lnp_define_filename = undef;
+our $lnp_define_import_numofthreads = $cpucount;
 
 sub update_settings {
 
@@ -71,40 +86,70 @@ sub update_settings {
 
     if (defined $data) {
 
-        #print "$configlogger narf";
+        my $result = 1;
+
         #&$configurationinfocode("testinfomessage",$configlogger);
 
-        $features_define_filename = $data->{features_define_filename} if exists $data->{features_define_filename};
-        if (defined $features_define_filename and length($features_define_filename) > 0) {
-            $features_define_filename = $input_path . $features_define_filename unless -e $features_define_filename;
-        }
-
-        $subscriber_define_filename = $data->{subscriber_define_filename} if exists $data->{subscriber_define_filename};
-        if (defined $subscriber_define_filename and length($subscriber_define_filename) > 0) {
-            $subscriber_define_filename = $input_path . $subscriber_define_filename unless -e $subscriber_define_filename;
-        }
-
-        $import_multithreading = $data->{import_multithreading} if exists $data->{import_multithreading};
-        #my $new_working_path = (exists $data->{working_path} ? $data->{working_path} : $working_path);
-
-        $features_define_import_numofthreads = $cpucount;
-$features_define_import_numofthreads = $data->{features_define_import_numofthreads} if exists $data->{features_define_import_numofthreads};
-        $features_define_import_numofthreads = $cpucount if $features_define_import_numofthreads > $cpucount;
-
-        $subscriber_define_import_numofthreads = $cpucount;
-$subscriber_define_import_numofthreads = $data->{subscriber_define_import_numofthreads} if exists $data->{subscriber_define_import_numofthreads};
-        $subscriber_define_import_numofthreads = $cpucount if $subscriber_define_import_numofthreads > $cpucount;
-        #return update_working_path($new_working_path,1,$fileerrorcode,$configlogger);
-
-        $import_db_file = ((defined $run_id and length($run_id) > 0) ? '_' : '') . 'import';
+        $result &= _prepare_working_paths(1,$fileerrorcode,$configlogger);
 
         $dry = $data->{dry} if exists $data->{dry};
+        $import_db_file = _get_import_db_file($run_id,'import');
+        $import_multithreading = $data->{import_multithreading} if exists $data->{import_multithreading};
 
-        return 1;
+        $features_define_filename = _get_import_filename($features_define_filename,$data,'features_define_filename');
+        $features_define_import_numofthreads =_get_import_numofthreads($cpucount,$data,'features_define_import_numofthreads');
+
+        $subscriber_define_filename = _get_import_filename($subscriber_define_filename,$data,'subscriber_define_filename');
+        $subscriber_define_import_numofthreads = _get_import_numofthreads($cpucount,$data,'subscriber_define_import_numofthreads');
+
+        $lnp_define_filename = _get_import_filename($lnp_define_filename,$data,'lnp_define_filename');
+        $lnp_define_import_numofthreads= _get_import_numofthreads($cpucount,$data,'lnp_define_import_numofthreads');
+
+        return $result;
 
     }
     return 0;
 
+}
+
+sub _prepare_working_paths {
+
+    my ($create,$fileerrorcode,$logger) = @_;
+    my $result = 1;
+    my $path_result;
+
+    ($path_result,$input_path) = create_path($working_path . 'input',$input_path,$create,$fileerrorcode,$logger);
+    $result &= $path_result;
+    ($path_result,$output_path) = create_path($working_path . 'output',$output_path,$create,$fileerrorcode,$logger);
+    $result &= $path_result;
+    ($path_result,$rollback_path) = create_path($working_path . 'rollback',$rollback_path,$create,$fileerrorcode,$logger);
+    $result &= $path_result;
+
+    return $result;
+
+}
+
+sub _get_import_numofthreads {
+    my ($default_value,$data,$key) = @_;
+    my $import_numofthreads = $default_value;
+    $import_numofthreads = $data->{$key} if exists $data->{$key};
+    $import_numofthreads = $cpucount if $import_numofthreads > $cpucount;
+    return $import_numofthreads;
+}
+
+sub _get_import_db_file {
+    my ($run,$name) = @_;
+    return ((defined $run and length($run) > 0) ? '_' : '') . $name;
+}
+
+sub _get_import_filename {
+    my ($old_value,$data,$key) = @_;
+    my $import_filename = $old_value;
+    $import_filename = $data->{$key} if exists $data->{$key};
+    if (defined $import_filename and length($import_filename) > 0) {
+        $import_filename = $input_path . $import_filename unless -e $import_filename;
+    }
+    return $import_filename;
 }
 
 sub check_dry {

@@ -39,7 +39,8 @@ our @EXPORT_OK = qw(
 	$application_path
 	$executable_path
 	$working_path
-	update_working_path
+
+    create_path
 	$appstartsecs
 	$enablemultithreading
 	$root_threadid
@@ -67,14 +68,13 @@ our @EXPORT_OK = qw(
     $ngcprestapi_realm
 
 	$csv_path
-	$input_path
 
     $local_db_path
     $emailenable
     $erroremailrecipient
     $warnemailrecipient
     $completionemailrecipient
-    $successemailrecipient
+    $doneemailrecipient
     $mailfile_path
 
     $ismsexchangeserver
@@ -94,6 +94,7 @@ our @EXPORT_OK = qw(
     $defaultconfig
 
     update_mainconfig
+    create_path
 
     $chmod_umask
 
@@ -157,7 +158,7 @@ our $ngcprestapi_realm = 'api_admin_http';
 
 our $working_path = tempdir(CLEANUP => 0) . '/'; #'/var/sipwise/';
 
-our $input_path = $working_path . 'input/';
+#our $input_path = $working_path . 'input/';
 
 # csv
 our $csv_path = $working_path . 'csv/';
@@ -182,7 +183,7 @@ our $local_db_path = $working_path . 'db/';
 #mkdir $local_db_path;
 
 
-
+#our $rollback_path = $working_path . 'rollback/';
 
 
 # email setup
@@ -196,7 +197,7 @@ our $writefiles = 0;                                 # save emails
 our $erroremailrecipient = ''; #'rkrenn@sipwise.com';
 our $warnemailrecipient = ''; #'rkrenn@sipwise.com';
 our $completionemailrecipient = '';
-our $successemailrecipient = '';
+our $doneemailrecipient = '';
 
 our $mailprog = "/usr/sbin/sendmail"; # linux only
 our $mailtype = 1; #0 .. mailprog, 1 .. socket, 2 .. Net::SMTP
@@ -239,6 +240,8 @@ sub update_mainconfig {
 
     if (defined $data) {
 
+        my $result = 1;
+
         # databases - dsp
         $accounting_host = $data->{accounting_host} if exists $data->{accounting_host};
         $accounting_port = $data->{accounting_port} if exists $data->{accounting_port};
@@ -278,7 +281,7 @@ sub update_mainconfig {
         $erroremailrecipient = $data->{erroremailrecipient} if exists $data->{erroremailrecipient};
         $warnemailrecipient = $data->{warnemailrecipient} if exists $data->{warnemailrecipient};
         $completionemailrecipient = $data->{completionemailrecipient} if exists $data->{completionemailrecipient};
-        $successemailrecipient = $data->{successemailrecipient} if exists $data->{successemailrecipient};
+        $doneemailrecipient = $data->{doneemailrecipient} if exists $data->{doneemailrecipient};
 
         $ismsexchangeserver = $data->{ismsexchangeserver} if exists $data->{ismsexchangeserver};
         $smtp_server = $data->{smtp_server} if exists $data->{smtp_server};
@@ -289,135 +292,40 @@ sub update_mainconfig {
         $screenloglevel = $data->{screenloglevel} if exists $data->{screenloglevel};
         $emailloglevel = $data->{emailloglevel} if exists $data->{emailloglevel};
 
-        my $new_working_path = (exists $data->{working_path} ? $data->{working_path} : $working_path);
+        if (exists $data->{working_path}) {
+            $result &= _prepare_working_paths($data->{working_path},1,$fileerrorcode,$configlogger);
+        } else {
+            $result &= _prepare_working_paths($working_path,1,$fileerrorcode,$configlogger);
+        }
 
-        return update_working_path($new_working_path,1,$fileerrorcode,$configlogger);
+        return $result;
 
     }
     return 0;
 
 }
 
-sub update_working_path {
+sub _prepare_working_paths {
 
     my ($new_working_path,$create,$fileerrorcode,$logger) = @_;
     my $result = 1;
-    if (defined $new_working_path and length($new_working_path) > 0) {
-        $new_working_path = fixdirpath($new_working_path);
-        if (-d $new_working_path) {
-            $working_path = $new_working_path;
-        } else {
-            if ($create) {
-                if (makepath($new_working_path,$fileerrorcode,$logger)) {
-                    $working_path = $new_working_path;
-                } else {
-                    $result = 0;
-                }
-            } else {
-                $result = 0;
-                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-                    &$fileerrorcode("working path '$new_working_path' does not exist",$logger);
-                }
-            }
-        }
+    my $path_result;
 
-        my $new_csv_path = $working_path . 'csv/';
-        if (-d $new_csv_path) {
-            $csv_path = $new_csv_path;
-        } else {
-            if ($create) {
-                if (makepath($new_csv_path,$fileerrorcode,$logger)) {
-                    $csv_path = $new_csv_path;
-                } else {
-                    $result = 0;
-                }
-            } else {
-                $result = 0;
-                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-                    &$fileerrorcode("csv path '$new_csv_path' does not exist",$logger);
-                }
-            }
-        }
+    ($path_result,$working_path) = create_path($new_working_path,$working_path,$create,$fileerrorcode,$logger);
+    $result &= $path_result;
+    ($path_result,$csv_path) = create_path($working_path . 'csv',$csv_path,$create,$fileerrorcode,$logger);
+    $result &= $path_result;
+    #($path_result,$input_path) = create_path($working_path . 'input',$input_path,$create,$fileerrorcode,$logger);
+    #$result &= $path_result;
+    ($path_result,$logfile_path) = create_path($working_path . 'log',$logfile_path,$create,$fileerrorcode,$logger);
+    $result &= $path_result;
+    ($path_result,$local_db_path) = create_path($working_path . 'db',$local_db_path,$create,$fileerrorcode,$logger);
+    $result &= $path_result;
+    ($path_result,$mailfile_path) = create_path($working_path . 'mails',$local_db_path,$create,$fileerrorcode,$logger);
+    $result &= $path_result;
+    #($path_result,$rollback_path) = create_path($working_path . 'rollback',$rollback_path,$create,$fileerrorcode,$logger);
+    #$result &= $path_result;
 
-        my $new_input_path = $working_path . 'input/';
-        if (-d $new_input_path) {
-            $input_path = $new_input_path;
-        } else {
-            if ($create) {
-                if (makepath($new_input_path,$fileerrorcode,$logger)) {
-                    $input_path = $new_input_path;
-                } else {
-                    $result = 0;
-                }
-            } else {
-                $result = 0;
-                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-                    &$fileerrorcode("input path '$new_input_path' does not exist",$logger);
-                }
-            }
-        }
-
-        my $new_logfile_path = $working_path . 'log/';
-        if (-d $new_logfile_path) {
-            $logfile_path = $new_logfile_path;
-        } else {
-            if ($create) {
-                if (makepath($new_logfile_path,$fileerrorcode,$logger)) {
-                    $logfile_path = $new_logfile_path;
-                } else {
-                    $result = 0;
-                }
-            } else {
-                $result = 0;
-                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-                    &$fileerrorcode("logfile path '$new_logfile_path' does not exist",$logger);
-                }
-            }
-        }
-
-        my $new_local_db_path = $working_path . 'db/';
-        if (-d $new_local_db_path) {
-            $local_db_path = $new_local_db_path;
-        } else {
-            if ($create) {
-                if (makepath($new_local_db_path,$fileerrorcode,$logger)) {
-                    $local_db_path = $new_local_db_path;
-                } else {
-                    $result = 0;
-                }
-            } else {
-                $result = 0;
-                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-                    &$fileerrorcode("local db path '$new_local_db_path' does not exist",$logger);
-                }
-            }
-        }
-
-        my $new_mailfile_path = $working_path . 'mails/';
-        if (-d $new_mailfile_path) {
-            $mailfile_path = $new_mailfile_path;
-        } else {
-            if ($create) {
-                if (makepath($new_mailfile_path,$fileerrorcode,$logger)) {
-                    $mailfile_path = $new_mailfile_path;
-                } else {
-                    $result = 0;
-                }
-            } else {
-                $result = 0;
-                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-                    &$fileerrorcode("mailfile path '$new_mailfile_path' does not exist",$logger);
-                }
-            }
-        }
-
-    } else {
-        $result = 0;
-        if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
-            &$fileerrorcode("empty working path",$logger);
-        }
-    }
-    #print "working path result: " . $result;
     return $result;
 
 }
@@ -426,6 +334,35 @@ sub get_applicationpath {
 
   return dirname(abs_path(__FILE__)) . '/';
 
+}
+
+sub create_path {
+    my ($new_value,$old_value,$create,$fileerrorcode,$logger) = @_;
+    my $path = $old_value;
+    my $result = 0;
+    if (defined $new_value and length($new_value) > 0) {
+        $new_value = fixdirpath($new_value);
+        if (-d $new_value) {
+            $path = $new_value;
+            $result = 1;
+        } else {
+            if ($create) {
+                if (makepath($new_value,$fileerrorcode,$logger)) {
+                    $path = $new_value;
+                    $result = 1;
+                }
+            } else {
+                if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+                    &$fileerrorcode("path '$new_value' does not exist",$logger);
+                }
+            }
+        }
+    } else {
+        if (defined $fileerrorcode and ref $fileerrorcode eq 'CODE') {
+            &$fileerrorcode("empty path",$logger);
+        }
+    }
+    return ($result,$path);
 }
 
 1;

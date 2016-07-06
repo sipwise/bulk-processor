@@ -101,4 +101,16 @@ sub extractfields {
 
 }
 
+sub stoponparseerrors {
+    my $self = shift;
+    $self->{stoponparseerrors} = shift if @_;
+    return $self->{stoponparseerrors};
+}
+
+sub parselines {
+    my $self = shift;
+    $self->{parselines} = shift if @_;
+    return $self->{parselines};
+}
+
 1;

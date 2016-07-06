@@ -363,8 +363,9 @@ sub cleanupcvsdirs {
             #    filewarn('cannot remove ' . $dirpath . ': ' . $!,getlogger(__PACKAGE__));
             #}
             remove_tree($dirpath, {
-                keep_root => 0,
-                error => \my $err });
+                'keep_root' => 0,
+                'verbose' => 1,
+                'error' => \my $err });
             if (@$err) {
                 for my $diag (@$err) {
                     my ($file, $message) = %$diag;

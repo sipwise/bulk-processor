@@ -252,7 +252,7 @@ sub checktableinfo {
 
     my ($get_db,$tablename,$expected_fieldnames,$target_indexes) = @_;
 
-    my $success = 1;
+    my $result = 1;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
 
@@ -295,7 +295,7 @@ sub checktableinfo {
             # otherwise we log a failure (exit? - see Logging Module)
             #$table_fieldnames_cached->{$connectidentifier}->{$tablename} = {}; #$fieldnames;
             fieldnamesdiffer($db,$tablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename},getlogger(__PACKAGE__));
-            $success = 0;
+            $result = 0;
         }
     }
 
@@ -328,7 +328,7 @@ sub checktableinfo {
     #$table_target_indexes->{$tid}->{$connectidentifier}->{$tablename} = shared_clone($target_indexes);
     $table_target_indexes->{$tid}->{$connectidentifier}->{$tablename} = $target_indexes;
 
-    return $success;
+    return $result;
 
 }
 
@@ -1170,9 +1170,6 @@ sub process_table {
                 }
                 $db->db_finish();
 
-                if ('CODE' eq ref $uninit_process_context_code) {
-                    &$uninit_process_context_code($context);
-                }
             };
 
             if ($@) {
@@ -1181,6 +1178,11 @@ sub process_table {
                 $errorstate = (not $rowblock_result) ? $ERROR : $COMPLETED;
             }
 
+            eval {
+                if ('CODE' eq ref $uninit_process_context_code) {
+                    &$uninit_process_context_code($context);
+                }
+            };
             $db->db_disconnect();
             #undef $db;
 
@@ -1475,16 +1477,17 @@ sub _process {
                 sleep($thread_sleep_secs); #2015-01
             }
         }
+
+    };
+    my $err = $@;
+    tablethreadingdebug($err ? '[' . $tid . '] processor thread error: ' . $err : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
+    eval {
         if ('CODE' eq ref $context->{uninit_process_context_code}) {
             &{$context->{uninit_process_context_code}}($context);
         }
     };
-    #if (defined $writer_db) {
-    #    $writer_db->db_disconnect();
-    #}
-    tablethreadingdebug($@ ? '[' . $tid . '] processor thread error: ' . $@ : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     lock $context->{errorstates};
-    if ($@) {
+    if ($err) {
         $context->{errorstates}->{$tid} = $ERROR;
     } else {
         $context->{errorstates}->{$tid} = (not $rowblock_result) ? $ERROR : $COMPLETED;

@@ -108,9 +108,8 @@ sub load_config {
 sub _splashinfo {
 
     configurationinfo($system_name . ' ' . $system_version . ' (' . $system_instance_label . ') [' . $local_fqdn . ']',getlogger(__PACKAGE__));
-    configurationinfo('application path ' . $application_path,getlogger(__PACKAGE__));
-    configurationinfo('working path ' . $working_path,getlogger(__PACKAGE__));
-    #configurationinfo('executable path ' . $executable_path,getlogger(__PACKAGE__));
+    configurationinfo('application path: ' . $application_path,getlogger(__PACKAGE__));
+    configurationinfo('working path: ' . $working_path,getlogger(__PACKAGE__));
     configurationinfo($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),getlogger(__PACKAGE__));
 
 }
