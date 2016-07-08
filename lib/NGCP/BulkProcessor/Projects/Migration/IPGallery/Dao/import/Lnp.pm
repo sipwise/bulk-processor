@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp;
 use strict;
 
 ## no critic
@@ -30,22 +30,25 @@ our @EXPORT_OK = qw(
     check_table
     getinsertstatement
 
-    findby_subscribernumber_option
-    countby_subscribernumber_option
+    findby_lrncode_portednumber
+    countby_lrncode_portednumber
+    count_lrncodes
 );
 
-my $tablename = 'feature_option_set_item';
+my $tablename = 'lnp';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 
-my $expected_fieldnames = [ 'subscribernumber',
-                            'option',
-                            'optionsetitem' ];
+my $expected_fieldnames = [
+    'ported_number',
+    'type',
+    'lrn_code',
+];
 
-my $primarykey_fieldnames = []; #[ 'subscribernumber', 'option', 'optionsetitem' ];
+my $primarykey_fieldnames = [ 'lrn_code', 'ported_number' ];
 
-my $indexes = { $tablename . '_subscribernumber_option_optionsetitem' => ['subscribernumber(11)', 'option(32)', 'optionsetitem(32)'] }; #(25),(27)
+my $indexes = {};
 
 my $fixtable_statements = [];
 
@@ -75,9 +78,9 @@ sub create_table {
 
 }
 
-sub findby_subscribernumber_option {
+sub findby_lrncode_portednumber {
 
-    my ($subscribernumber,$option,$load_recursive) = @_;
+    my ($lrncode,$portednumber,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -87,17 +90,17 @@ sub findby_subscribernumber_option {
         'SELECT * FROM ' .
             $table .
         ' WHERE ' .
-            $db->columnidentifier('subscribernumber') . ' = ? ' .
-            ' AND ' . $db->columnidentifier('option') . ' = ?'
-    ,$subscribernumber,$option);
+            $db->columnidentifier('lrn_code') . ' = ? ' .
+            ' AND ' . $db->columnidentifier('ported_number') . ' = ?'
+    ,$lrncode,$portednumber);
 
     return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
-sub countby_subscribernumber_option {
+sub countby_lrncode_portednumber {
 
-    my ($subscribernumber,$option) = @_;
+    my ($lrncode,$portednumber) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -105,16 +108,27 @@ sub countby_subscribernumber_option {
 
     my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @params = ();
-    if (defined $subscribernumber) {
-        $stmt .= ' WHERE ' . $db->columnidentifier('subscribernumber') . ' = ?';
-        push(@params,$subscribernumber);
-        if (defined $option) {
-            $stmt .= ' AND ' . $db->columnidentifier('option') . ' = ?';
-            push(@params,$option);
+    if (defined $lrncode) {
+        $stmt .= ' WHERE ' . $db->columnidentifier('lrn_code') . ' = ?';
+        push(@params,$lrncode);
+        if (defined $portednumber) {
+            $stmt .= ' AND ' . $db->columnidentifier('ported_number') . ' = ?';
+            push(@params,$portednumber);
         }
     }
 
     return $db->db_get_value($stmt,@params);
+
+}
+
+sub count_lrncodes {
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    return $db->db_get_value('SELECT COUNT(DISTINCT ' .
+        $db->columnidentifier('lrn_code') . ') FROM ' . $table);
 
 }
 

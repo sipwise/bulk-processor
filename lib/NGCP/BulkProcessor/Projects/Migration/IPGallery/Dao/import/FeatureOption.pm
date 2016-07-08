@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption;
 use strict;
 
 ## no critic
@@ -22,7 +22,7 @@ use NGCP::BulkProcessor::SqlRecord qw(
     insert_stmt
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -127,7 +127,7 @@ sub buildrecords_fromrows {
 
             # transformations go here ...
             if ($load_recursive) {
-                $record->{_optionsetitems} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem::findby_subscribernumber_option(
+                $record->{_optionsetitems} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::findby_subscribernumber_option(
                     $record->{subscribernumber},
                     $record->{option},
                     $load_recursive

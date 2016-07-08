@@ -40,13 +40,13 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::LnpDefi
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw(
     get_import_db
-    destroy_dbs
+    destroy_all_dbs
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
 
 use NGCP::BulkProcessor::Array qw(removeduplicates);
 
@@ -62,8 +62,8 @@ sub import_features_define {
 
     my ($file) = @_;
     # create tables:
-    my $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::create_table(1);
-    $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem::create_table(1);
+    my $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::create_table(1);
+    $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::create_table(1);
 
     # checks, e.g. other table must be present:
     # ..none..
@@ -73,7 +73,7 @@ sub import_features_define {
     $importer->stoponparseerrors(!$dry);
 
     # launch:
-    destroy_dbs(); #close all db connections before forking..
+    destroy_all_dbs(); #close all db connections before forking..
     return $result && $importer->process($file,sub {
             my ($context,$rows,$row_offset) = @_;
             my $rownum = $row_offset;
@@ -140,7 +140,7 @@ sub import_features_define {
         }, sub {
             my ($context)= @_;
             undef $context->{db};
-            destroy_dbs();
+            destroy_all_dbs();
         },$import_multithreading);
 
 }
@@ -148,8 +148,8 @@ sub import_features_define {
 sub _insert_featureoption_rows {
     my ($context,$featureoption_rows) = @_;
     $context->{db}->db_do_begin(
-        NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::getinsertstatement($ignore_options_unique),
-        #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::gettablename(),
+        NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::getinsertstatement($ignore_options_unique),
+        #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::gettablename(),
         #lock - $import_multithreading
     );
     $context->{db}->db_do_rowblock($featureoption_rows);
@@ -159,8 +159,8 @@ sub _insert_featureoption_rows {
 sub _insert_featureoptionsetitem_rows {
     my ($context,$featureoptionsetitem_rows) = @_;
     $context->{db}->db_do_begin(
-        NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem::getinsertstatement($ignore_setoptionitems_unique),
-        #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem::gettablename(),
+        NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::getinsertstatement($ignore_setoptionitems_unique),
+        #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::gettablename(),
         #lock
     );
     $context->{db}->db_do_rowblock($featureoptionsetitem_rows);
@@ -171,20 +171,20 @@ sub import_subscriber_define {
 
     my ($file) = @_;
 
-    my $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber::create_table(1);
+    my $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::create_table(1);
 
     $result &= _import_subscriber_define_checks($file);
 
     my $importer = NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::SubscriberDefineFile->new($subscriber_define_import_numofthreads);
 
-    destroy_dbs(); #close all db connections before forking..
+    destroy_all_dbs(); #close all db connections before forking..
     return $result && $importer->process($file,sub {
             my ($context,$rows,$row_offset) = @_;
             my $rownum = $row_offset;
             my @subscriber_rows = ();
             foreach my $row (@$rows) {
                 $rownum++;
-                my $record = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber->new($row);
+                my $record = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber->new($row);
                 next if 'None' eq $record->{rgw_fqdn};
                 if ($record->{dial_number} =~ $subscribernumer_exclude_pattern) {
                     if ($record->{dial_number} =~ $subscribernumer_exclude_exception_pattern) {
@@ -213,7 +213,7 @@ sub import_subscriber_define {
         }, sub {
             my ($context)= @_;
             undef $context->{db};
-            destroy_dbs();
+            destroy_all_dbs();
         }, $import_multithreading);
 
 }
@@ -221,7 +221,7 @@ sub import_subscriber_define {
 sub _import_subscriber_define_referential_checks {
     my ($context,$record,$rownum) = @_;
     my $result = 0;
-    if (NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::countby_subscribernumber($record->subscribernumber()) > 0) {
+    if (NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber($record->subscribernumber()) > 0) {
         $result = 1;
     } else {
         if ($dry) {
@@ -239,7 +239,7 @@ sub _import_subscriber_define_checks {
     my $result = 1;
     my $optioncount = 0;
     eval {
-        $optioncount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::countby_subscribernumber();
+        $optioncount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber();
     };
     if ($@ or $optioncount == 0) {
         fileprocessingerror($file,'please import subscriber features first',getlogger(__PACKAGE__));
@@ -251,8 +251,8 @@ sub _import_subscriber_define_checks {
 sub _insert_subscriber_rows {
     my ($context,$subscriber_rows) = @_;
     $context->{db}->db_do_begin(
-        NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber::getinsertstatement($ignore_subscriber_unique),
-        #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber::gettablename(),
+        NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::getinsertstatement($ignore_subscriber_unique),
+        #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::gettablename(),
         #lock
     );
     $context->{db}->db_do_rowblock($subscriber_rows);
@@ -263,11 +263,11 @@ sub import_lnp_define {
 
     my ($file) = @_;
 
-    my $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::create_table(1);
+    my $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::create_table(1);
 
     my $importer = NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::LnpDefineFile->new($lnp_define_import_numofthreads);
 
-    destroy_dbs(); #close all db connections before forking..
+    destroy_all_dbs(); #close all db connections before forking..
     return $result && $importer->process($file,sub {
             my ($context,$rows,$row_offset) = @_;
             my $rownum = $row_offset;
@@ -295,7 +295,7 @@ sub import_lnp_define {
         }, sub {
             my ($context)= @_;
             undef $context->{db};
-            destroy_dbs();
+            destroy_all_dbs();
         }, $import_multithreading);
 
 }
@@ -303,8 +303,8 @@ sub import_lnp_define {
 sub _insert_lnp_rows {
     my ($context,$lnp_rows) = @_;
     $context->{db}->db_do_begin(
-        NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::getinsertstatement($ignore_lnp_unique),
-        #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::gettablename(),
+        NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::getinsertstatement($ignore_lnp_unique),
+        #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::gettablename(),
         #lock
     );
     $context->{db}->db_do_rowblock($lnp_rows);

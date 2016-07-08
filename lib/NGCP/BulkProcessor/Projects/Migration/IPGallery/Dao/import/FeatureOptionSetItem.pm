@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem;
 use strict;
 
 ## no critic
@@ -30,31 +30,22 @@ our @EXPORT_OK = qw(
     check_table
     getinsertstatement
 
-    findby_subscribernumber
-    countby_subscribernumber
+    findby_subscribernumber_option
+    countby_subscribernumber_option
 );
 
-my $tablename = 'subscriber';
+my $tablename = 'feature_option_set_item';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 
-my $expected_fieldnames = [
-    'country_code', #356
-    'area_code', #None
-    'dial_number', #35627883323
-    'rgw_fqdn', #35627883323
-    'port', #None
-    'region_name', #None
-    'carrier_code', #None
-    'time_zone_name', #malta
-    'lang_code', #eng
-    'barring_profile', #None
-];
+my $expected_fieldnames = [ 'subscribernumber',
+                            'option',
+                            'optionsetitem' ];
 
-my $primarykey_fieldnames = [ 'country_code', 'area_code', 'dial_number' ];
+my $primarykey_fieldnames = []; #[ 'subscribernumber', 'option', 'optionsetitem' ];
 
-my $indexes = {};
+my $indexes = { $tablename . '_subscribernumber_option_optionsetitem' => ['subscribernumber(11)', 'option(32)', 'optionsetitem(32)'] }; #(25),(27)
 
 my $fixtable_statements = [];
 
@@ -84,32 +75,29 @@ sub create_table {
 
 }
 
-sub findby_subscribernumber {
+sub findby_subscribernumber_option {
 
-    my ($subscribernumber,$load_recursive) = @_;
+    my ($subscribernumber,$option,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    return [] unless defined $subscribernumber;
-
     my $rows = $db->db_get_all_arrayref(
         'SELECT * FROM ' .
             $table .
         ' WHERE ' .
-            $db->columnidentifier('country_code') . ' = ?' .
-            ' AND ' . $db->columnidentifier('area_code') . ' = ?' .
-            ' AND ' . $db->columnidentifier('dial_number') . ' = ?'
-    ,split_subscribernumber($subscribernumber));
+            $db->columnidentifier('subscribernumber') . ' = ? ' .
+            ' AND ' . $db->columnidentifier('option') . ' = ?'
+    ,$subscribernumber,$option);
 
     return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
-sub countby_subscribernumber {
+sub countby_subscribernumber_option {
 
-    my ($subscribernumber) = @_;
+    my ($subscribernumber,$option) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -118,11 +106,12 @@ sub countby_subscribernumber {
     my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @params = ();
     if (defined $subscribernumber) {
-        $stmt .= ' WHERE ' .
-            $db->columnidentifier('country_code') . ' = ?' .
-            ' AND ' . $db->columnidentifier('area_code') . ' = ?' .
-            ' AND ' . $db->columnidentifier('dial_number') . ' = ?';
-        push(@params,split_subscribernumber($subscribernumber));
+        $stmt .= ' WHERE ' . $db->columnidentifier('subscribernumber') . ' = ?';
+        push(@params,$subscribernumber);
+        if (defined $option) {
+            $stmt .= ' AND ' . $db->columnidentifier('option') . ' = ?';
+            push(@params,$option);
+        }
     }
 
     return $db->db_get_value($stmt,@params);
@@ -141,12 +130,6 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
-            if ($load_recursive) {
-                $record->{_features} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::findby_subscribernumber(
-                    $record->subscribernumber(),
-                    $load_recursive
-                );
-            }
 
             push @records,$record;
         }
@@ -177,19 +160,6 @@ sub check_table {
                    $expected_fieldnames,
                    $indexes);
 
-}
-
-sub subscribernumber {
-    my $self = shift;
-    return $self->{dial_number}; #$self->{country_code} . $self->{dial_number};
-}
-
-sub split_subscribernumber {
-    my ($subscribernumber) = @_;
-    my $country_code = substr($subscribernumber,0,3);
-    my $area_code = 'None';
-    my $dial_number = $subscribernumber; #substr($subscribernumber,3);
-    return ($country_code,$area_code,$dial_number);
 }
 
 1;
