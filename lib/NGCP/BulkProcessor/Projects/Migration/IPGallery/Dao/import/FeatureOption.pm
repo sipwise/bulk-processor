@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption;
 use strict;
 
 ## no critic
@@ -22,6 +22,8 @@ use NGCP::BulkProcessor::SqlRecord qw(
     insert_stmt
 );
 
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -30,24 +32,24 @@ our @EXPORT_OK = qw(
     check_table
     getinsertstatement
 
-    findby_subscribernumber_option
-    countby_subscribernumber_option
+    findby_subscribernumber
+    countby_subscribernumber
 );
 
-my $tablename = 'feature_option_set_item';
+my $tablename = 'feature_option';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 
-my $expected_fieldnames = [ 'subscribernumber',
-                            'option',
-                            'optionsetitem' ];
+my $expected_fieldnames = [
+    'subscribernumber',
+    'option'
+];
 
-my $primarykey_fieldnames = []; #[ 'subscribernumber', 'option', 'optionsetitem' ];
-
-my $indexes = { $tablename . '_subscribernumber_option_optionsetitem' => ['subscribernumber(11)', 'option(32)', 'optionsetitem(32)'] }; #(25),(27)
-
-my $fixtable_statements = [];
+# table creation:
+my $primarykey_fieldnames = [ 'subscribernumber', 'option' ];
+my $indexes = {};
+#my $fixtable_statements = [];
 
 sub new {
 
@@ -75,9 +77,9 @@ sub create_table {
 
 }
 
-sub findby_subscribernumber_option {
+sub findby_subscribernumber {
 
-    my ($subscribernumber,$option,$load_recursive) = @_;
+    my ($subscribernumber,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -87,17 +89,16 @@ sub findby_subscribernumber_option {
         'SELECT * FROM ' .
             $table .
         ' WHERE ' .
-            $db->columnidentifier('subscribernumber') . ' = ? ' .
-            ' AND ' . $db->columnidentifier('option') . ' = ?'
-    ,$subscribernumber,$option);
+            $db->columnidentifier('subscribernumber') . ' = ?'
+    ,$subscribernumber);
 
     return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
-sub countby_subscribernumber_option {
+sub countby_subscribernumber {
 
-    my ($subscribernumber,$option) = @_;
+    my ($subscribernumber) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -108,10 +109,6 @@ sub countby_subscribernumber_option {
     if (defined $subscribernumber) {
         $stmt .= ' WHERE ' . $db->columnidentifier('subscribernumber') . ' = ?';
         push(@params,$subscribernumber);
-        if (defined $option) {
-            $stmt .= ' AND ' . $db->columnidentifier('option') . ' = ?';
-            push(@params,$option);
-        }
     }
 
     return $db->db_get_value($stmt,@params);
@@ -130,6 +127,13 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            if ($load_recursive) {
+                $record->{_optionsetitems} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::findby_subscribernumber_option(
+                    $record->{subscribernumber},
+                    $record->{option},
+                    $load_recursive
+                );
+            }
 
             push @records,$record;
         }
