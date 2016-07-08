@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption;
 use strict;
 
 ## no critic
@@ -13,7 +13,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw
 );
 #import_db_tableidentifier
 
-use NGCP::BulkProcessor::SqlRecord qw(
+use NGCP::BulkProcessor::SqlProcessor qw(
     registertableinfo
     create_targettable
     checktableinfo
@@ -21,6 +21,9 @@ use NGCP::BulkProcessor::SqlRecord qw(
 
     insert_stmt
 );
+use NGCP::BulkProcessor::SqlRecord qw();
+
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -30,27 +33,24 @@ our @EXPORT_OK = qw(
     check_table
     getinsertstatement
 
-    findby_lrncode_portednumber
-    countby_lrncode_portednumber
-    count_lrncodes
+    findby_subscribernumber
+    countby_subscribernumber
 );
 
-my $tablename = 'lnp';
+my $tablename = 'feature_option';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 
 my $expected_fieldnames = [
-    'ported_number',
-    'type',
-    'lrn_code',
+    'subscribernumber',
+    'option'
 ];
 
-my $primarykey_fieldnames = [ 'lrn_code', 'ported_number' ];
-
+# table creation:
+my $primarykey_fieldnames = [ 'subscribernumber', 'option' ];
 my $indexes = {};
-
-my $fixtable_statements = [];
+#my $fixtable_statements = [];
 
 sub new {
 
@@ -78,9 +78,9 @@ sub create_table {
 
 }
 
-sub findby_lrncode_portednumber {
+sub findby_subscribernumber {
 
-    my ($lrncode,$portednumber,$load_recursive) = @_;
+    my ($subscribernumber,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -90,17 +90,16 @@ sub findby_lrncode_portednumber {
         'SELECT * FROM ' .
             $table .
         ' WHERE ' .
-            $db->columnidentifier('lrn_code') . ' = ? ' .
-            ' AND ' . $db->columnidentifier('ported_number') . ' = ?'
-    ,$lrncode,$portednumber);
+            $db->columnidentifier('subscribernumber') . ' = ?'
+    ,$subscribernumber);
 
     return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
-sub countby_lrncode_portednumber {
+sub countby_subscribernumber {
 
-    my ($lrncode,$portednumber) = @_;
+    my ($subscribernumber) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -108,27 +107,12 @@ sub countby_lrncode_portednumber {
 
     my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @params = ();
-    if (defined $lrncode) {
-        $stmt .= ' WHERE ' . $db->columnidentifier('lrn_code') . ' = ?';
-        push(@params,$lrncode);
-        if (defined $portednumber) {
-            $stmt .= ' AND ' . $db->columnidentifier('ported_number') . ' = ?';
-            push(@params,$portednumber);
-        }
+    if (defined $subscribernumber) {
+        $stmt .= ' WHERE ' . $db->columnidentifier('subscribernumber') . ' = ?';
+        push(@params,$subscribernumber);
     }
 
     return $db->db_get_value($stmt,@params);
-
-}
-
-sub count_lrncodes {
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    return $db->db_get_value('SELECT COUNT(DISTINCT ' .
-        $db->columnidentifier('lrn_code') . ') FROM ' . $table);
 
 }
 
@@ -144,6 +128,13 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            if ($load_recursive) {
+                $record->{_optionsetitems} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::findby_subscribernumber_option(
+                    $record->{subscribernumber},
+                    $record->{option},
+                    $load_recursive
+                );
+            }
 
             push @records,$record;
         }
