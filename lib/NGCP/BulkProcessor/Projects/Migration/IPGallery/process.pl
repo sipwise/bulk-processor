@@ -23,6 +23,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $features_define_filename
     $subscriber_define_filename
     $lnp_define_filename
+    $stats_record_list_limit
 );
 use NGCP::BulkProcessor::Logging qw(
     init_log
@@ -58,8 +59,7 @@ use NGCP::BulkProcessor::Mail qw(
 use NGCP::BulkProcessor::SqlConnectors::CSVDB qw(cleanupcvsdirs);
 use NGCP::BulkProcessor::SqlConnectors::SQLiteDB qw(cleanupdbfiles);
 
-use NGCP::BulkProcessor::ConnectorPool qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw(destroy_all_dbs);
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_features_define
@@ -67,10 +67,10 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_lnp_define
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
 
@@ -85,6 +85,8 @@ my $import_features_define_task_opt = 'import_features';
 push(@TASK_OPTS,$import_features_define_task_opt);
 my $import_subscriber_define_task_opt = 'import_subscriber';
 push(@TASK_OPTS,$import_subscriber_define_task_opt);
+my $import_truncate_subscriber_task_opt = 'truncate_subscriber';
+push(@TASK_OPTS,$import_truncate_subscriber_task_opt);
 my $import_lnp_define_task_opt = 'import_lnp';
 push(@TASK_OPTS,$import_lnp_define_task_opt);
 
@@ -137,6 +139,8 @@ sub main() {
                 $result = import_features_define_task(\@messages) if taskinfo($import_features_define_task_opt,$result);
             } elsif (lc($import_subscriber_define_task_opt) eq lc($task)) {
                 $result = import_subscriber_define_task(\@messages) if taskinfo($import_subscriber_define_task_opt,$result);
+            } elsif (lc($import_truncate_subscriber_task_opt) eq lc($task)) {
+                $result = import_truncate_subscriber_task(\@messages) if taskinfo($import_truncate_subscriber_task_opt,$result);
             } elsif (lc($import_lnp_define_task_opt) eq lc($task)) {
                 $result = import_lnp_define_task(\@messages) if taskinfo($import_lnp_define_task_opt,$result);
             } elsif (lc('blah') eq lc($task)) {
@@ -203,16 +207,19 @@ sub import_features_define_task {
         $result = import_features_define($features_define_filename);
     };
     my $err = $@;
-    my $stats = '  feature option: ' .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::countby_subscribernumber() . ' rows';
-    $stats .= "\n  feature set option items: " .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem::countby_subscribernumber_option() . ' rows';
+    my $stats = '';
+    eval {
+        $stats .= "\n  total feature option records: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber() . ' rows';
+        $stats .= "\n  total feature set option item records: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::countby_subscribernumber_option() . ' rows';
+    };
     if ($err or !$result) {
-        push(@$messages,"importing subscriber features incomplete\n$stats");
+        push(@$messages,"importing subscriber features incomplete$stats");
     } else {
-        push(@$messages,"importing subscriber features completed\n$stats");
+        push(@$messages,"importing subscriber features completed$stats");
     }
-    destroy_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
 
 }
@@ -225,14 +232,73 @@ sub import_subscriber_define_task {
         $result = import_subscriber_define($subscriber_define_filename);
     };
     my $err = $@;
-    my $stats = '  subscriber: ' .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber::countby_subscribernumber() . ' rows';
+    my $stats = '';
+    eval {
+        $stats .= "\n  total subscriber records: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_subscribernumber() . ' rows';
+        my $added_count = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::added_delta
+        );
+        $stats .= "\n  new: $added_count rows";
+        if ($added_count <= $stats_record_list_limit) {
+            foreach my $record (@{NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_delta(
+                    $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::added_delta
+                )}) {
+                $stats .= "\n    " . $record->{dial_number};
+            }
+        }
+        my $existing_count = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::updated_delta
+        );
+        $stats .= "\n  existing: $existing_count rows";
+        if ($existing_count <= $stats_record_list_limit) {
+            foreach my $record (@{NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_delta(
+                    $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::updated_delta
+                )}) {
+                $stats .= "\n    " . $record->{dial_number};
+            }
+        }
+        my $deleted_count = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::deleted_delta
+        );
+        $stats .= "\n  removed: $deleted_count rows";
+        if ($deleted_count <= $stats_record_list_limit) {
+            foreach my $record (@{NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_delta(
+                    $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::deleted_delta
+                )}) {
+                $stats .= "\n    " . $record->{dial_number};
+            }
+        }
+    };
     if ($err or !$result) {
-        push(@$messages,"importing subscribers incomplete\n$stats");
+        push(@$messages,"importing subscribers incomplete$stats");
     } else {
-        push(@$messages,"importing subscribers completed\n$stats");
+        push(@$messages,"importing subscribers completed$stats");
     }
-    destroy_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+sub import_truncate_subscriber_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::create_table(1);
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        $stats .= "\n  total subscriber records: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_subscribernumber() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"truncating imported subscribers incomplete$stats");
+    } else {
+        push(@$messages,"truncating imported subscribers completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
 
 }
@@ -245,30 +311,27 @@ sub import_lnp_define_task {
         $result = import_lnp_define($lnp_define_filename);
     };
     my $err = $@;
-    my $stats = '  lnp numbers: ' .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::countby_lrncode_portednumber() . ' rows';
-    $stats .= "\n  lrn codes: " .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::count_lrncodes();
+    my $stats = '';
+    eval {
+        $stats .= "\n  total lnp number records: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::countby_lrncode_portednumber() . ' rows';
+        $stats .= "\n  total lrn codes: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::count_lrncodes();
+    };
     if ($err or !$result) {
-        push(@$messages,"importing lnp numbers incomplete\n$stats");
+        push(@$messages,"importing lnp numbers incomplete$stats");
     } else {
-        push(@$messages,"importing lnp numbers\n$stats");
+        push(@$messages,"importing lnp numbers$stats");
     }
-    destroy_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
 
-}
-
-sub destroy_dbs() {
-    NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool::destroy_dbs();
-    NGCP::BulkProcessor::ConnectorPool::destroy_dbs();
 }
 
 #END {
 #    # this should not be required explicitly, but prevents Log4Perl's
 #    # "rootlogger not initialized error upon exit..
-#    NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool::destroy_dbs();
-#    NGCP::BulkProcessor::ConnectorPool::destroy_dbs();
+#    destroy_all_dbs
 #}
 
 __DATA__

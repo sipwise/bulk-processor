@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances;
+package NGCP::BulkProcessor::Dao::Trunk::billing::contracts;
 use strict;
 
 ## no critic
@@ -28,23 +28,29 @@ our @EXPORT_OK = qw(
 
 #my $logger = getlogger(__PACKAGE__);
 
-my $tablename = 'contract_balances';
+my $tablename = 'contracts';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'contract_id',
-    'cash_balance',
-    'cash_balance_interval',
-    'free_time_balance',
-    'free_time_balance_interval',
-    'topup_count',
-    'timely_topup_count',
-    'start',
-    'end',
-    'invoice_id',
-    'underrun_profiles',
-    'underrun_lock',
+    'customer_id',
+    'contact_id',
+    'order_id',
+    'profile_package_id',
+    'status',
+    'external_id',
+    'modify_timestamp',
+    'create_timestamp',
+    'activate_timestamp',
+    'terminate_timestamp',
+    'max_subscribers',
+    'send_invoice',
+    'subscriber_email_template_id',
+    'passreset_email_template_id',
+    'invoice_email_template_id',
+    'invoice_template_id',
+    'vat_rate',
+    'add_vat',
 ];
 
 my $indexes = {};

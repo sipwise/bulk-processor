@@ -67,6 +67,7 @@ our @EXPORT_OK = qw(
     $lnp_define_import_numofthreads
     $ignore_lnp_unique
 
+    $stats_record_list_limit
 );
 
 our $defaultconfig = 'config.cfg';
@@ -97,6 +98,9 @@ our $ignore_subscriber_unique = 0;
 our $lnp_define_filename = undef;
 our $lnp_define_import_numofthreads = $cpucount;
 our $ignore_lnp_unique = 1;
+
+
+our $stats_record_list_limit = 1000;
 
 sub update_settings {
 
