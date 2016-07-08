@@ -509,9 +509,9 @@ sub rowinsertskipped {
 
 sub rowupdateskipped {
 
-    my ($db,$tablename,$logger) = @_;
+    my ($db,$tablename,$matched,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getsqlconnectorinstanceprefix($db) . 'row update skipped');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . "row update skipped, $matched matching rows");
     }
 
 }
