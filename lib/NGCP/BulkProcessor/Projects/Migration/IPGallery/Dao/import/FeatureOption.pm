@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption;
 use strict;
 
 ## no critic
@@ -13,7 +13,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw
 );
 #import_db_tableidentifier
 
-use NGCP::BulkProcessor::SqlRecord qw(
+use NGCP::BulkProcessor::SqlProcessor qw(
     registertableinfo
     create_targettable
     checktableinfo
@@ -21,8 +21,9 @@ use NGCP::BulkProcessor::SqlRecord qw(
 
     insert_stmt
 );
+use NGCP::BulkProcessor::SqlRecord qw();
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -41,14 +42,15 @@ my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 
-my $expected_fieldnames = [ 'subscribernumber',
-                            'option'];
+my $expected_fieldnames = [
+    'subscribernumber',
+    'option'
+];
 
+# table creation:
 my $primarykey_fieldnames = [ 'subscribernumber', 'option' ];
-
 my $indexes = {};
-
-my $fixtable_statements = [];
+#my $fixtable_statements = [];
 
 sub new {
 
@@ -127,7 +129,7 @@ sub buildrecords_fromrows {
 
             # transformations go here ...
             if ($load_recursive) {
-                $record->{_optionsetitems} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem::findby_subscribernumber_option(
+                $record->{_optionsetitems} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::findby_subscribernumber_option(
                     $record->{subscribernumber},
                     $record->{option},
                     $load_recursive

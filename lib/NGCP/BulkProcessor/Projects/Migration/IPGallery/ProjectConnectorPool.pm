@@ -26,7 +26,7 @@ use NGCP::BulkProcessor::SqlConnectors::SQLiteDB qw(
 #use NGCP::BulkProcessor::SqlConnectors::SQLServerDB;
 #use NGCP::BulkProcessor::RestConnectors::NGCPRestApi;
 
-use NGCP::BulkProcessor::SqlRecord qw(cleartableinfo);
+use NGCP::BulkProcessor::SqlProcessor qw(cleartableinfo);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -35,6 +35,7 @@ our @EXPORT_OK = qw(
     import_db_tableidentifier
 
     destroy_dbs
+    destroy_all_dbs
 );
 
 # thread connector pools:
@@ -78,6 +79,11 @@ sub destroy_dbs {
         delete $import_dbs->{$name};
     }
 
+}
+
+sub destroy_all_dbs() {
+    destroy_dbs();
+    NGCP::BulkProcessor::ConnectorPool::destroy_dbs();
 }
 
 1;

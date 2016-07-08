@@ -37,7 +37,7 @@ use NGCP::BulkProcessor::SqlConnectors::CSVDB;
 #use NGCP::BulkProcessor::SqlConnectors::SQLServerDB;
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi;
 
-use NGCP::BulkProcessor::SqlRecord qw(cleartableinfo);
+use NGCP::BulkProcessor::SqlProcessor qw(cleartableinfo);
 
 use NGCP::BulkProcessor::Utils qw(threadid);
 

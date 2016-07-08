@@ -3,6 +3,7 @@ use strict;
 
 ## no critic
 
+use DateTime qw();
 use Time::HiRes qw(); #prevent warning from Time::Warp
 use Time::Warp qw();
 use DateTime::TimeZone qw();
