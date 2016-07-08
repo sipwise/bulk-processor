@@ -35,6 +35,7 @@ our @EXPORT_OK = qw(
     import_db_tableidentifier
 
     destroy_dbs
+    destroy_all_dbs
 );
 
 # thread connector pools:
@@ -78,6 +79,11 @@ sub destroy_dbs {
         delete $import_dbs->{$name};
     }
 
+}
+
+sub destroy_all_dbs() {
+    destroy_dbs();
+    NGCP::BulkProcessor::ConnectorPool::destroy_dbs();
 }
 
 1;

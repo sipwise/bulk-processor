@@ -9,27 +9,25 @@ use strict;
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
-    billing_db_tableidentifier
+
 );
 
-use NGCP::BulkProcessor::SqlRecord qw(checktableinfo);
+use NGCP::BulkProcessor::SqlRecord qw(
+    checktableinfo
+    insert_record
+);
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
-XX
-backoffice_client_byboclientid
-                        sync_table
-                        drop_table
-
-                        check_local_table
-                        check_source_table);
+    gettablename
+    check_table
+);
 
 #my $logger = getlogger(__PACKAGE__);
 
 my $tablename = 'contract_balances';
 my $get_db = \&get_billing_db;
-my $get_tablename = \&billing_db_tableidentifier;
 
 my $expected_fieldnames = [
     'id',
@@ -47,14 +45,17 @@ my $expected_fieldnames = [
     'underrun_lock',
 ];
 
-#my $indexes = { $tablename . '_subscribernumber' => ['subscribernumber(11)'] };
+my $indexes = {};
+#    'balance_interval' => [ 'contract_id','start','end' ],
+#    'invoice_idx' => [ 'invoice_id' ],
+#};
 
 sub new {
 
     my $class = shift;
     my $self = NGCP::BulkProcessor::SqlRecord->new($get_db,
-                           gettablename(),
-                           $expected_fieldnames);
+                           $tablename,
+                           $expected_fieldnames,$indexes);
 
     bless($self,$class);
 
@@ -64,6 +65,24 @@ sub new {
 
 }
 
+sub insert_row {
+
+    my $data = shift;
+    #my $db = &$get_db();
+
+    my $inserted;
+    my $updated = 0;
+    my $found = 0;
+    my $remaining_ic_id = $data->{id};
+
+    $inserted = insert_record($get_db,
+                          $tablename,
+                          1,
+                          $data);
+
+    return ($inserted,$updated,$found,$remaining_ic_id);
+
+}
 
 sub buildrecords_fromrows {
 
@@ -88,15 +107,16 @@ sub buildrecords_fromrows {
 
 sub gettablename {
 
-    return &$get_tablename($get_db,$tablename);
+    return $tablename;
 
 }
 
 sub check_table {
 
     return checktableinfo($get_db,
-                   gettablename(),
-                   $expected_fieldnames);
+                   $tablename,
+                   $expected_fieldnames,
+                   $indexes);
 
 }
 

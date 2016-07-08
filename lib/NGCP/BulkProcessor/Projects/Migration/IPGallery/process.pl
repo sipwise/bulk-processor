@@ -58,8 +58,7 @@ use NGCP::BulkProcessor::Mail qw(
 use NGCP::BulkProcessor::SqlConnectors::CSVDB qw(cleanupcvsdirs);
 use NGCP::BulkProcessor::SqlConnectors::SQLiteDB qw(cleanupdbfiles);
 
-use NGCP::BulkProcessor::ConnectorPool qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw(destroy_all_dbs);
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_features_define
@@ -67,10 +66,10 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_lnp_define
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
 
@@ -204,15 +203,15 @@ sub import_features_define_task {
     };
     my $err = $@;
     my $stats = '  feature option: ' .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOption::countby_subscribernumber() . ' rows';
+      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber() . ' rows';
     $stats .= "\n  feature set option items: " .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::FeatureOptionSetItem::countby_subscribernumber_option() . ' rows';
+      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::countby_subscribernumber_option() . ' rows';
     if ($err or !$result) {
         push(@$messages,"importing subscriber features incomplete\n$stats");
     } else {
         push(@$messages,"importing subscriber features completed\n$stats");
     }
-    destroy_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
 
 }
@@ -226,13 +225,13 @@ sub import_subscriber_define_task {
     };
     my $err = $@;
     my $stats = '  subscriber: ' .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Subscriber::countby_subscribernumber() . ' rows';
+      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_subscribernumber() . ' rows';
     if ($err or !$result) {
         push(@$messages,"importing subscribers incomplete\n$stats");
     } else {
         push(@$messages,"importing subscribers completed\n$stats");
     }
-    destroy_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
 
 }
@@ -246,29 +245,23 @@ sub import_lnp_define_task {
     };
     my $err = $@;
     my $stats = '  lnp numbers: ' .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::countby_lrncode_portednumber() . ' rows';
+      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::countby_lrncode_portednumber() . ' rows';
     $stats .= "\n  lrn codes: " .
-      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::Lnp::count_lrncodes();
+      NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::count_lrncodes();
     if ($err or !$result) {
         push(@$messages,"importing lnp numbers incomplete\n$stats");
     } else {
         push(@$messages,"importing lnp numbers\n$stats");
     }
-    destroy_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
 
-}
-
-sub destroy_dbs() {
-    NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool::destroy_dbs();
-    NGCP::BulkProcessor::ConnectorPool::destroy_dbs();
 }
 
 #END {
 #    # this should not be required explicitly, but prevents Log4Perl's
 #    # "rootlogger not initialized error upon exit..
-#    NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool::destroy_dbs();
-#    NGCP::BulkProcessor::ConnectorPool::destroy_dbs();
+#    destroy_all_dbs
 #}
 
 __DATA__

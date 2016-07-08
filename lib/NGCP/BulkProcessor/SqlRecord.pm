@@ -71,14 +71,14 @@ our @EXPORT_OK = qw(
     checktableinfo
     registertableinfo
     create_targettable
-    transfer_record
-    transfer_records
     insert_record
     update_record
     delete_records
 
     insert_stmt
 );
+#transfer_record
+#transfer_records
 
 my $table_expected_fieldnames = {};
 my $table_fieldnames_cached = {};
@@ -441,7 +441,7 @@ sub delete_records {
 
 sub insert_record {
 
-    my ($get_db,$tablename,$allowdupes,$row) = @_;
+    my ($get_db,$tablename,$unique_fields,$row) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
 
@@ -450,55 +450,47 @@ sub insert_record {
     my $tid = threadid();
 
     my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
+    #my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
 
     if (defined $expected_fieldnames and defined $row) {
 
-        my @fieldnames = @$expected_fieldnames;
         my @fields = ();
         my @vals = ();
 
-        foreach my $fieldname (@fieldnames) {
+        foreach my $fieldname (@$expected_fieldnames) {
             if (exists $row->{$fieldname}) {
                 push @fields,$fieldname;
                 push @vals,$row->{$fieldname};
             }
         }
 
-        my @pk_fieldnames;
-        my @pk_fields = ();
-        my @pk_vals = ();
-
-        if (not $allowdupes) {
-            if (defined $primarykeys) {
-                @pk_fieldnames = @$primarykeys;
-                if (scalar @pk_fieldnames > 0) {
-                    foreach my $fieldname (@pk_fieldnames) {
-                        if (exists $row->{$fieldname}) {
-                            push @pk_fields,$fieldname;
-                            push @pk_vals,$row->{$fieldname};
-                        #} else {
-                        #    'insert error: pk field not foun din row';
-                        #    push @pk_vals,undef;
-                        }
-                    }
+        my @unique_fields = ();
+        my @unique_vals = ();
+        if ('ARRAY' eq ref $unique_fields) {
+            foreach my $fieldname (@$unique_fields) {
+                push(@unique_fields,$fieldname);
+                if (exists $row->{$fieldname}) {
+                    push @unique_vals,$row->{$fieldname};
                 } else {
-                    @pk_fields = @fields;
-                    @pk_vals = @vals;
+                    push @unique_vals,undef;
                 }
-            } else {
-                @pk_fields = @fields;
-                @pk_vals = @vals;
             }
         }
 
-        if ($allowdupes or $db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @pk_fields) . ' = ?',@pk_vals) == 0) {
-            $db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ') VALUES (' . substr(',?' x scalar @fields,1) . ')',@vals);
+        my $stmt = 'INSERT INTO ' . $db->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ') VALUES (' . substr(',?' x scalar @fields,1) . ')';
+        if ((scalar @unique_fields) > 0) {
+            if ($db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @unique_fields) . ' = ?',@unique_vals) == 0) {
+                $db->db_do($stmt,@vals);
+                rowinserted($db,$tablename,getlogger(__PACKAGE__));
+                return 1;
+            } else {
+                rowinsertskipped($db,$tablename,getlogger(__PACKAGE__));
+                return 0;
+            }
+        } else {
+            $db->db_do($stmt,@vals);
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return 1;
-        } else {
-            rowinsertskipped($db,$tablename,getlogger(__PACKAGE__));
-            return 0;
         }
 
     }
@@ -520,25 +512,22 @@ sub update_record {
 
     if (defined $expected_fieldnames and defined $row) {
 
-        my @fieldnames = @$expected_fieldnames;
         my @fields = ();
         my @vals = ();
 
-        foreach my $fieldname (@fieldnames) {
+        foreach my $fieldname (@$expected_fieldnames) {
             if (exists $row->{$fieldname}) {
                 push @fields,$fieldname;
                 push @vals,$row->{$fieldname};
             }
         }
 
-        my @pk_fieldnames;
         my @pk_fields = ();
         my @pk_vals = ();
 
         if (defined $primarykeys) {
-            @pk_fieldnames = @$primarykeys;
-            if (scalar @pk_fieldnames > 0) {
-                foreach my $fieldname (@pk_fieldnames) {
+            if (scalar @$primarykeys > 0) {
+                foreach my $fieldname (@$primarykeys) {
                     if (exists $row->{$fieldname}) {
                         push @pk_fields,$fieldname;
                         push @pk_vals,$row->{$fieldname};
@@ -558,12 +547,13 @@ sub update_record {
 
         my $selectpk_fieldnames = join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @pk_fields);
 
-        if ($db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?',@pk_vals) == 1) {
+        my $count = $db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?',@pk_vals);
+        if ($count == 1) {
             $db->db_do('UPDATE ' . $db->tableidentifier($tablename) . ' SET ' . join(' = ?, ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ' = ? WHERE ' . $selectpk_fieldnames . ' = ?',@vals,@pk_vals);
             rowupdated($db,$tablename,getlogger(__PACKAGE__));
             return 1;
         } else {
-            rowupdateskipped($db,$tablename,getlogger(__PACKAGE__));
+            rowupdateskipped($db,$tablename,$count,getlogger(__PACKAGE__));
             return 0;
         }
 
@@ -571,151 +561,149 @@ sub update_record {
 
 }
 
-sub transfer_record {
+#sub transfer_record {
+#
+#    #my $self = shift
+#    my ($get_db,$tablename,$get_target_db,$targettablename,$allowdupes,$row) = @_;
+#
+#    my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
+#    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
+#
+#    #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
+#    my $connectidentifier = $db->connectidentifier();
+#    my $tid = threadid();
+#
+#    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
+#    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
+#
+#    if (defined $expected_fieldnames and defined $row) {
+#
+#        my @vals = ();
+#
+#        foreach my $fieldname (@$expected_fieldnames) {
+#            push @vals,$row->{$fieldname};
+#        }
+#
+#        my @pk_fieldnames;
+#        my @pk_vals = ();
+#
+#        if (not $allowdupes) {
+#            if (defined $primarykeys) {
+#                if (scalar @$primarykeys > 0) {
+#                    foreach my $fieldname (@$primarykeys) {
+#                        push @pk_vals,$row->{$fieldname};
+#                    }
+#                } else {
+#                    @pk_fieldnames = @fieldnames;
+#                    @pk_vals = @vals;
+#                }
+#            } else {
+#                @pk_fieldnames = @fieldnames;
+#                @pk_vals = @vals;
+#            }
+#        }
+#
+#        if ($allowdupes or $target_db->db_get_value('SELECT COUNT(*) FROM ' . $target_db->tableidentifier($targettablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @pk_fieldnames) . ' = ?',@pk_vals) == 0) {
+#            $target_db->db_do('INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . substr(',?' x scalar @fieldnames,1) . ')',@vals);
+#            rowtransferred($db,$tablename,$target_db,$targettablename,1,1,getlogger(__PACKAGE__));
+#            return 1;
+#        } else {
+#            rowskipped($db,$tablename,$target_db,$targettablename,1,1,getlogger(__PACKAGE__));
+#            return 0;
+#        }
+#
+#    }
+#
+#}
 
-    #my $self = shift
-    my ($get_db,$tablename,$get_target_db,$targettablename,$allowdupes,$row) = @_;
-
-    my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
-    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
-
-    #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
-    my $connectidentifier = $db->connectidentifier();
-    my $tid = threadid();
-
-    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
-
-    if (defined $expected_fieldnames and defined $row) {
-
-        my @fieldnames = @$expected_fieldnames;
-        my @vals = ();
-
-        foreach my $fieldname (@fieldnames) {
-            push @vals,$row->{$fieldname};
-        }
-
-        my @pk_fieldnames;
-        my @pk_vals = ();
-
-        if (not $allowdupes) {
-            if (defined $primarykeys) {
-                @pk_fieldnames = @$primarykeys;
-                if (scalar @pk_fieldnames > 0) {
-                    foreach my $fieldname (@pk_fieldnames) {
-                        push @pk_vals,$row->{$fieldname};
-                    }
-                } else {
-                    @pk_fieldnames = @fieldnames;
-                    @pk_vals = @vals;
-                }
-            } else {
-                @pk_fieldnames = @fieldnames;
-                @pk_vals = @vals;
-            }
-        }
-
-        if ($allowdupes or $target_db->db_get_value('SELECT COUNT(*) FROM ' . $target_db->tableidentifier($targettablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @pk_fieldnames) . ' = ?',@pk_vals) == 0) {
-            $target_db->db_do('INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . substr(',?' x scalar @fieldnames,1) . ')',@vals);
-            rowtransferred($db,$tablename,$target_db,$targettablename,1,1,getlogger(__PACKAGE__));
-            return 1;
-        } else {
-            rowskipped($db,$tablename,$target_db,$targettablename,1,1,getlogger(__PACKAGE__));
-            return 0;
-        }
-
-    }
-
-}
-
-sub transfer_records {
-
-    my ($get_db,$tablename,$get_target_db,$targettablename,$allowdupes,$rows) = @_;
-
-    my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
-    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
-
-    #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
-    my $connectidentifier = $db->connectidentifier();
-    my $tid = threadid();
-
-    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
-
-    if (defined $expected_fieldnames and defined $rows and ref $rows eq 'ARRAY') { # and defined $getrecords_code and ref $getrecords_code eq 'CODE') {
-        #get_local_db();
-
-        my $numofrows = scalar @$rows;
-        rowtransferstarted($db,$tablename,$target_db,$targettablename,$numofrows,getlogger(__PACKAGE__));
-
-        my @fieldnames = @$expected_fieldnames;
-
-        my $setfieldnames = join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames);
-        my $valueplaceholders = substr(',?' x scalar @fieldnames,1);
-
-        my $rowstransferred = 0;
-
-        if ($allowdupes) {
-
-            my @rows_array = ();
-            $target_db->db_do_begin('INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . $setfieldnames . ') VALUES (' . $valueplaceholders . ')');
-            foreach my $row (@$rows) {
-                my @vals = ();
-                foreach my $fieldname (@fieldnames) {
-                    push @vals,$row->{$fieldname};
-                }
-                push @rows_array,\@vals;
-            }
-            $target_db->db_do_rowblock(\@rows_array);
-            $target_db->db_finish();
-            $rowstransferred = scalar @rows_array;
-
-        } else {
-
-            my $i = 1;
-
-            my @pk_fieldnames;
-
-            if (defined $primarykeys) {
-                @pk_fieldnames = @$primarykeys;
-                if (scalar @pk_fieldnames == 0) {
-                    @pk_fieldnames = @fieldnames;
-                }
-            } else {
-                @pk_fieldnames = @fieldnames;
-            }
-
-            my $selectpk_fieldnames = join(' = ? AND ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @pk_fieldnames) . ' = ?';
-
-            foreach my $row (@$rows) {
-
-                my @vals = ();
-
-                foreach my $fieldname (@fieldnames) {
-                    push @vals,$row->{$fieldname};
-                }
-
-                my @pk_vals;
-
-                foreach my $fieldname (@pk_fieldnames) {
-                    push @pk_vals,$row->{$fieldname};
-                }
-
-                if ($target_db->db_get_value('SELECT COUNT(*) FROM ' . $target_db->tableidentifier($targettablename) . ' WHERE ' . $selectpk_fieldnames,@pk_vals) == 0) {
-                    $target_db->db_do('INSERT INTO ' . $db->target_tableidentifier($targettablename) . ' (' . $setfieldnames . ') VALUES (' . $valueplaceholders . ')',@vals);
-                    rowtransferred($db,$tablename,$target_db,$targettablename,$i,$numofrows,getlogger(__PACKAGE__));
-                    $rowstransferred += 1;
-                } else {
-                    rowskipped($db,$tablename,$target_db,$targettablename,$i,$numofrows,getlogger(__PACKAGE__));
-                }
-                $i++;
-            }
-        }
-        rowtransferdone($db,$tablename,$target_db,$targettablename,$numofrows,getlogger(__PACKAGE__));
-        return $rowstransferred;
-    }
-
-}
+#sub transfer_records {
+#
+#    my ($get_db,$tablename,$get_target_db,$targettablename,$allowdupes,$rows) = @_;
+#
+#    my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
+#    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
+#
+#    #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
+#    my $connectidentifier = $db->connectidentifier();
+#    my $tid = threadid();
+#
+#    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
+#    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
+#
+#    if (defined $expected_fieldnames and defined $rows and ref $rows eq 'ARRAY') { # and defined $getrecords_code and ref $getrecords_code eq 'CODE') {
+#        #get_local_db();
+#
+#        my $numofrows = scalar @$rows;
+#        rowtransferstarted($db,$tablename,$target_db,$targettablename,$numofrows,getlogger(__PACKAGE__));
+#
+#        my @fieldnames = @$expected_fieldnames;
+#
+#        my $setfieldnames = join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames);
+#        my $valueplaceholders = substr(',?' x scalar @fieldnames,1);
+#
+#        my $rowstransferred = 0;
+#
+#        if ($allowdupes) {
+#
+#            my @rows_array = ();
+#            $target_db->db_do_begin('INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . $setfieldnames . ') VALUES (' . $valueplaceholders . ')');
+#            foreach my $row (@$rows) {
+#                my @vals = ();
+#                foreach my $fieldname (@fieldnames) {
+#                    push @vals,$row->{$fieldname};
+#                }
+#                push @rows_array,\@vals;
+#            }
+#            $target_db->db_do_rowblock(\@rows_array);
+#            $target_db->db_finish();
+#            $rowstransferred = scalar @rows_array;
+#
+#        } else {
+#
+#            my $i = 1;
+#
+#            my @pk_fieldnames;
+#
+#            if (defined $primarykeys) {
+#                @pk_fieldnames = @$primarykeys;
+#                if (scalar @pk_fieldnames == 0) {
+#                    @pk_fieldnames = @fieldnames;
+#                }
+#            } else {
+#                @pk_fieldnames = @fieldnames;
+#            }
+#
+#            my $selectpk_fieldnames = join(' = ? AND ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @pk_fieldnames) . ' = ?';
+#
+#            foreach my $row (@$rows) {
+#
+#                my @vals = ();
+#
+#                foreach my $fieldname (@fieldnames) {
+#                    push @vals,$row->{$fieldname};
+#                }
+#
+#                my @pk_vals;
+#
+#                foreach my $fieldname (@pk_fieldnames) {
+#                    push @pk_vals,$row->{$fieldname};
+#                }
+#
+#                if ($target_db->db_get_value('SELECT COUNT(*) FROM ' . $target_db->tableidentifier($targettablename) . ' WHERE ' . $selectpk_fieldnames,@pk_vals) == 0) {
+#                    $target_db->db_do('INSERT INTO ' . $db->target_tableidentifier($targettablename) . ' (' . $setfieldnames . ') VALUES (' . $valueplaceholders . ')',@vals);
+#                    rowtransferred($db,$tablename,$target_db,$targettablename,$i,$numofrows,getlogger(__PACKAGE__));
+#                    $rowstransferred += 1;
+#                } else {
+#                    rowskipped($db,$tablename,$target_db,$targettablename,$i,$numofrows,getlogger(__PACKAGE__));
+#                }
+#                $i++;
+#            }
+#        }
+#        rowtransferdone($db,$tablename,$target_db,$targettablename,$numofrows,getlogger(__PACKAGE__));
+#        return $rowstransferred;
+#    }
+#
+#}
 
 sub insert_stmt {
 
@@ -732,7 +720,34 @@ sub insert_stmt {
 
 sub transfer_table {
 
-    my ($get_db,$tablename,$get_target_db,$targettablename,$truncate_targettable,$create_indexes,$texttable_engine,$fixtable_statements,$selectcount,$select,@values) = @_;
+    my %params = @_;
+    my ($get_db,
+        $tablename,
+        $get_target_db,
+        $targettablename,
+        $truncate_targettable,
+        $create_indexes,
+        $texttable_engine,
+        $fixtable_statements,
+        $multithreading,
+        $selectcount,
+        $select,
+        $values) = @params{qw/
+            get_db
+            tablename
+            get_target_db
+            targettablename
+            truncate_targettable
+            create_indexes
+            texttable_engine
+            fixtable_statements
+            multithreading
+            selectcount
+            select
+            values
+        /};
+
+    #my ($get_db,$tablename,$get_target_db,$targettablename,$truncate_targettable,$create_indexes,$texttable_engine,$fixtable_statements,$selectcount,$select,@values) = @_;
 
     if (ref $get_db eq 'CODE' and ref $get_target_db eq 'CODE') {
 
@@ -746,7 +761,7 @@ sub transfer_table {
             $countstatement = 'SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename);
         }
 
-        my $rowcount = $db->db_get_value($countstatement,@values);
+        my $rowcount = $db->db_get_value($countstatement,@$values);
 
         #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
 
@@ -783,7 +798,7 @@ sub transfer_table {
 
             my $blocksize;
 
-            if ($enablemultithreading and $db->multithreading_supported() and $target_db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
+            if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $target_db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
 
                 $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,1,$tabletransfer_threadqueuelength);
 
@@ -822,7 +837,7 @@ sub transfer_table {
                                             blocksize            => $blocksize,
                                             rowcount             => $rowcount,
                                             #logger               => $logger,
-                                            values_ref           => \@values,
+                                            values_ref           => $values,
                                           });
 
                 tablethreadingdebug('starting writer thread',getlogger(__PACKAGE__));
@@ -869,7 +884,7 @@ sub transfer_table {
                 #$target_db = &$get_target_db($writer_connection_name);
 
                 eval {
-                    $db->db_get_begin($selectstatement,@values); #$tablename
+                    $db->db_get_begin($selectstatement,@$values); #$tablename
 
                     my $i = 0;
                     while (1) {
@@ -983,7 +998,28 @@ sub transfer_table {
 
 sub process_table {
 
-    my ($get_db,$tablename,$process_code,$init_process_context_code,$uninit_process_context_code,$multithreading,$selectcount,$select,@values) = @_;
+    my %params = @_;
+    my ($get_db,
+        $tablename,
+        $process_code,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $selectcount,
+        $select,
+        $values) = @params{qw/
+            get_db
+            tablename
+            process_code
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            selectcount
+            select
+            values
+        /};
+
+    #my ($get_db,$tablename,$process_code,$init_process_context_code,$uninit_process_context_code,$multithreading,$selectcount,$select,@values) = @_;
 
     if (ref $get_db eq 'CODE') {
 
@@ -996,7 +1032,7 @@ sub process_table {
             $countstatement = 'SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename);
         }
 
-        my $rowcount = $db->db_get_value($countstatement,@values);
+        my $rowcount = $db->db_get_value($countstatement,@$values);
 
         if ($rowcount > 0) {
             tableprocessingstarted($db,$tablename,$rowcount,getlogger(__PACKAGE__));
@@ -1063,7 +1099,7 @@ sub process_table {
                                             blocksize            => $blocksize,
                                             rowcount             => $rowcount,
                                             #logger               => $logger,
-                                            values_ref           => \@values,
+                                            values_ref           => $values,
                                           });
 
             for (my $i = 0; $i < $tableprocessing_threads; $i++) {
@@ -1144,7 +1180,7 @@ sub process_table {
                     &$init_process_context_code($context);
                 }
 
-                $db->db_get_begin($selectstatement,@values); #$tablename
+                $db->db_get_begin($selectstatement,@$values); #$tablename
 
                 my $i = 0;
                 while (1) {
