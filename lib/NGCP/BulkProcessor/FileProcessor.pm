@@ -88,7 +88,19 @@ sub process {
 
     my $self = shift;
 
-    my ($file,$process_code,$init_process_context_code,$uninit_process_context_code,$multithreading) = @_;
+    my %params = @_;
+    my ($file,
+        $process_code,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading) = @params{qw/
+            file
+            process_code
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+        /};
+    #my ($file,$process_code,$init_process_context_code,$uninit_process_context_code,$multithreading) = @_;
 
     if (ref $process_code eq 'CODE') {
 

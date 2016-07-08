@@ -11,6 +11,56 @@ Package: ngcp-bulk-processor-pro
 Architecture: all
 Depends:
  perl,
+ libarchive-zip-perl,
+ libole-storage-lite-perl,
+ libxml-libxml-perl,
+ #'XML::LibXML::Reader'
+ libemail-mime-perl,
+ libemail-mime-attachment-stripper-perl,
+ liburi-find-perl,
+ libwww-perl,
+ libdatetime-perl,
+ libtime-warp-perl,
+ libdatetime-timezone-perl,
+ libdatetime-format-strptime-perl,
+ libdatetime-format-iso8601-perl,
+ libtie-ixhash-perl,
+ libyaml-tiny-perl,
+ liblog-log4perl-perl,
+ libmime-base64-perl,
+ libmime-lite-perl,
+ libnet-smtp-ssl-perl,
+ libjson-xs-perl,
+ libdata-dump-perl,
+ libyaml-libyaml-perl,
+ libxml-dumper-perl,
+ libphp-serialization-perl,
+ libgearman-client-perl,
+ libdigest-md5-perl,
+ libdata-uuid-perl,
+ libnet-address-ip-local-perl,
+ libdate-manip-perl,
+ libdate-calc-perl,
+ #'Sys::CpuAffinity'
+ libmarpa-r2-perl,
+ libdata-dumper-concise-perl,
+ libio-socket-ssl-perl,
+ libmail-imapclient-perl,
+ libdbd-csv-perl,
+ libintl-perl,
+ libspreadsheet-parseexcel-perl,
+ #libspreadsheet-xlsx-perl,
+ libtext-csv-xs-perl,
+ libmime-tools-perl,
+ libemail-mime-perl,
+ libhtml-parser-perl,
+ libio-compress-perl,
+ libdbd-mysql-perl,
+ #'DBD::Oracle'
+ #'DBD::Pg'
+ #'DBD::ODBC'
+ libdbd-sqlite3-perl,
  ${misc:Depends},
-Description: NGCP bulk-processor tool
- Tool for bulk process for NGCP.
+ ${perl:Depends}
+Description: NGCP bulk processor framework
+ Framework for parallel/distributed processing of record blocks.
