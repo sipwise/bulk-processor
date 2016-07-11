@@ -83,12 +83,17 @@ my $cleanup_all_task_opt = 'cleanup_all';
 push(@TASK_OPTS,$cleanup_all_task_opt);
 my $import_features_define_task_opt = 'import_features';
 push(@TASK_OPTS,$import_features_define_task_opt);
+my $import_truncate_features_task_opt = 'truncate_features';
+push(@TASK_OPTS,$import_truncate_features_task_opt);
 my $import_subscriber_define_task_opt = 'import_subscriber';
 push(@TASK_OPTS,$import_subscriber_define_task_opt);
 my $import_truncate_subscriber_task_opt = 'truncate_subscriber';
 push(@TASK_OPTS,$import_truncate_subscriber_task_opt);
 my $import_lnp_define_task_opt = 'import_lnp';
 push(@TASK_OPTS,$import_lnp_define_task_opt);
+my $import_truncate_lnp_task_opt = 'truncate_lnp';
+push(@TASK_OPTS,$import_truncate_lnp_task_opt);
+
 
 
 if (init()) {
@@ -137,12 +142,16 @@ sub main() {
                 $result = cleanup_task(\@messages,1) if taskinfo($cleanup_all_task_opt,$result);
             } elsif (lc($import_features_define_task_opt) eq lc($task)) {
                 $result = import_features_define_task(\@messages) if taskinfo($import_features_define_task_opt,$result);
+            } elsif (lc($import_truncate_features_task_opt) eq lc($task)) {
+                $result = import_truncate_features_task(\@messages) if taskinfo($import_truncate_features_task_opt,$result);
             } elsif (lc($import_subscriber_define_task_opt) eq lc($task)) {
                 $result = import_subscriber_define_task(\@messages) if taskinfo($import_subscriber_define_task_opt,$result);
             } elsif (lc($import_truncate_subscriber_task_opt) eq lc($task)) {
                 $result = import_truncate_subscriber_task(\@messages) if taskinfo($import_truncate_subscriber_task_opt,$result);
             } elsif (lc($import_lnp_define_task_opt) eq lc($task)) {
                 $result = import_lnp_define_task(\@messages) if taskinfo($import_lnp_define_task_opt,$result);
+            } elsif (lc($import_truncate_lnp_task_opt) eq lc($task)) {
+                $result = import_truncate_lnp_task(\@messages) if taskinfo($import_truncate_lnp_task_opt,$result);
             } elsif (lc('blah') eq lc($task)) {
                 if (taskinfo($cleanup_task_opt,$result)) {
                     next unless check_dry();
@@ -210,14 +219,40 @@ sub import_features_define_task {
     my $stats = '';
     eval {
         $stats .= "\n  total feature option records: " .
-            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber() . ' rows';
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber_option() . ' rows';
         $stats .= "\n  total feature set option item records: " .
-            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::countby_subscribernumber_option() . ' rows';
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::countby_subscribernumber_option_optionsetitem() . ' rows';
     };
     if ($err or !$result) {
         push(@$messages,"importing subscriber features incomplete$stats");
     } else {
         push(@$messages,"importing subscriber features completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+sub import_truncate_features_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::create_table(1);
+        $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::create_table(1);
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        $stats .= "\n  total feature option records: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber_option() . ' rows';
+        $stats .= "\n  total feature set option item records: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::countby_subscribernumber_option_optionsetitem() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"truncating imported subscriber features incomplete$stats");
+    } else {
+        push(@$messages,"truncating imported subscriber features completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
@@ -322,6 +357,29 @@ sub import_lnp_define_task {
         push(@$messages,"importing lnp numbers incomplete$stats");
     } else {
         push(@$messages,"importing lnp numbers$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+sub import_truncate_lnp_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::create_table(1);
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        $stats .= "\n  total lnp number records: " .
+            NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_lrncode_portednumber() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"truncating imported lnp numbers incomplete$stats");
+    } else {
+        push(@$messages,"truncating imported lnp numbers completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;

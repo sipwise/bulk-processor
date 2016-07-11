@@ -34,6 +34,14 @@ our @EXPORT_OK = qw(
     findby_lrncode_portednumber
     countby_lrncode_portednumber
     count_lrncodes
+
+    update_delta
+    findby_delta
+    countby_delta
+
+    $deleted_delta
+    $updated_delta
+    $added_delta
 );
 
 my $tablename = 'lnp';
@@ -45,12 +53,17 @@ my $expected_fieldnames = [
     'ported_number',
     'type',
     'lrn_code',
+    'delta',
 ];
 
 # table creation:
 my $primarykey_fieldnames = [ 'lrn_code', 'ported_number' ];
-my $indexes = {};
+my $indexes = { $tablename . '_delta' => [ 'delta(7)' ]};
 #my $fixtable_statements = [];
+
+our $deleted_delta = 'DELETED';
+our $updated_delta = 'UPDATED';
+our $added_delta = 'ADDED';
 
 sub new {
 
@@ -78,6 +91,27 @@ sub create_table {
 
 }
 
+sub findby_delta {
+
+    my ($delta,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    return [] unless defined $delta;
+
+    my $rows = $db->db_get_all_arrayref(
+        'SELECT * FROM ' .
+            $table .
+        ' WHERE ' .
+            $db->columnidentifier('delta') . ' = ?'
+    ,$delta);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
 sub findby_lrncode_portednumber {
 
     my ($lrncode,$portednumber,$load_recursive) = @_;
@@ -95,6 +129,30 @@ sub findby_lrncode_portednumber {
     ,$lrncode,$portednumber);
 
     return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub update_delta {
+
+    my ($lrncode,$portednumber,$delta) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'UPDATE ' . $table . ' SET delta = ?';
+    my @params = ();
+    push(@params,$delta);
+    if (defined $lrncode) {
+        $stmt .= ' WHERE ' . $db->columnidentifier('lrn_code') . ' = ?';
+        push(@params,$lrncode);
+        if (defined $portednumber) {
+            $stmt .= ' AND ' . $db->columnidentifier('ported_number') . ' = ?';
+            push(@params,$portednumber);
+        }
+    }
+
+    return $db->db_do($stmt,@params);
 
 }
 
@@ -129,6 +187,26 @@ sub count_lrncodes {
 
     return $db->db_get_value('SELECT COUNT(DISTINCT ' .
         $db->columnidentifier('lrn_code') . ') FROM ' . $table);
+
+}
+
+sub countby_delta {
+
+    my ($delta) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my @params = ();
+    if (defined $delta) {
+        $stmt .= ' WHERE ' .
+            $db->columnidentifier('delta') . ' = ?';
+        push(@params,$delta);
+    }
+
+    return $db->db_get_value($stmt,@params);
 
 }
 

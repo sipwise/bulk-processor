@@ -245,7 +245,7 @@ sub import_subscriber_define {
 sub _import_subscriber_define_referential_checks {
     my ($context,$record,$rownum) = @_;
     my $result = 0;
-    if (NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber($record->subscribernumber()) > 0) {
+    if (NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber_option($record->subscribernumber()) > 0) {
         $result = 1;
     } else {
         if ($dry) {
@@ -263,7 +263,7 @@ sub _import_subscriber_define_checks {
     my $result = 1;
     my $optioncount = 0;
     eval {
-        $optioncount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber();
+        $optioncount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber_option();
     };
     if ($@ or $optioncount == 0) {
         fileprocessingerror($file,'please import subscriber features first',getlogger(__PACKAGE__));

@@ -85,7 +85,7 @@ our $import_multithreading = $enablemultithreading;
 
 our $features_define_filename = undef;
 our $features_define_import_numofthreads = $cpucount;
-our $skip_duplicate_setoptionitems = 0;
+our $skip_duplicate_setoptionitems = 1;
 our $ignore_options_unique = 0;
 our $ignore_setoptionitems_unique = 0;
 

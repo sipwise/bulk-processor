@@ -219,8 +219,9 @@ sub buildrecords_fromrows {
 
             # transformations go here ...
             if ($load_recursive) {
-                $record->{_features} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::findby_subscribernumber(
+                $record->{_features} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::findby_subscribernumber_option(
                     $record->subscribernumber(),
+                    undef,
                     $load_recursive
                 );
             }
