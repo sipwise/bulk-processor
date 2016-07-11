@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch;
 use strict;
 
 ## no critic
@@ -23,7 +23,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -34,8 +34,8 @@ our @EXPORT_OK = qw(
     getinsertstatement
     getupsertstatement
 
-    findby_subscribernumber_option
-    countby_subscribernumber_option
+    findby_number
+    countby_number
 
     update_delta
     findby_delta
@@ -44,21 +44,21 @@ our @EXPORT_OK = qw(
     $deleted_delta
     $updated_delta
     $added_delta
+
 );
 
-my $tablename = 'feature_option';
+my $tablename = 'batch';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 
 my $expected_fieldnames = [
-    'subscribernumber',
-    'option',
+    'number',
     'delta',
 ];
 
 # table creation:
-my $primarykey_fieldnames = [ 'subscribernumber', 'option' ];
+my $primarykey_fieldnames = [ 'number' ];
 my $indexes = { $tablename . '_delta' => [ 'delta(7)' ]};
 #my $fixtable_statements = [];
 
@@ -113,22 +113,20 @@ sub findby_delta {
 
 }
 
-sub findby_subscribernumber_option {
+sub findby_number {
 
-    my ($subscribernumber,$option,$load_recursive) = @_;
+    my ($number,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('subscribernumber') . ' = ?';
-    my @params = ($subscribernumber);
-    if (defined $option) {
-        $stmt .= ' AND ' . $db->columnidentifier('option') . ' = ?';
-        push(@params,$option);
-    }
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
+    my $rows = $db->db_get_all_arrayref(
+        'SELECT * FROM ' .
+            $table .
+        ' WHERE ' .
+            $db->columnidentifier('number') . ' = ?'
+    ,$number);
 
     return buildrecords_fromrows($rows,$load_recursive);
 
@@ -136,7 +134,7 @@ sub findby_subscribernumber_option {
 
 sub update_delta {
 
-    my ($subscribernumber,$option,$delta) = @_;
+    my ($number,$delta) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -145,22 +143,18 @@ sub update_delta {
     my $stmt = 'UPDATE ' . $table . ' SET delta = ?';
     my @params = ();
     push(@params,$delta);
-    if (defined $subscribernumber) {
-        $stmt .= ' WHERE ' . $db->columnidentifier('subscribernumber') . ' = ?';
-        push(@params,$subscribernumber);
-        if (defined $option) {
-            $stmt .= ' AND ' . $db->columnidentifier('option') . ' = ?';
-            push(@params,$option);
-        }
+    if (defined $number) {
+        $stmt .= ' WHERE ' . $db->columnidentifier('number') . ' = ?';
+        push(@params,$number);
     }
 
     return $db->db_do($stmt,@params);
 
 }
 
-sub countby_subscribernumber_option {
+sub countby_number {
 
-    my ($subscribernumber,$option) = @_;
+    my ($number) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -168,13 +162,9 @@ sub countby_subscribernumber_option {
 
     my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @params = ();
-    if (defined $subscribernumber) {
-        $stmt .= ' WHERE ' . $db->columnidentifier('subscribernumber') . ' = ?';
-        push(@params,$subscribernumber);
-        if (defined $option) {
-            $stmt .= ' AND ' . $db->columnidentifier('option') . ' = ?';
-            push(@params,$option);
-        }
+    if (defined $number) {
+        $stmt .= ' WHERE ' . $db->columnidentifier('number') . ' = ?';
+        push(@params,$number);
     }
 
     return $db->db_get_value($stmt,@params);
@@ -214,13 +204,11 @@ sub buildrecords_fromrows {
 
             # transformations go here ...
             if ($load_recursive) {
-                $record->{_optionsetitems} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::findby_subscribernumber_option_optionsetitem(
-                    $record->{subscribernumber},
-                    $record->{option},
-                    undef,
-                    $load_recursive
+                $record->{_subscriber} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber(
+                    $record->{number},
+                    $load_recursive,
                 );
-            }
+            }            
 
             push @records,$record;
         }
@@ -250,8 +238,7 @@ sub getupsertstatement {
     foreach my $fieldname (@$expected_fieldnames) {
         if ('delta' eq $fieldname) {
             my $stmt = 'SELECT \'' . $exists_delta . '\' FROM ' . $table . ' WHERE ' .
-               $db->columnidentifier('subscribernumber') . ' = ?' .
-               ' AND ' . $db->columnidentifier('option') . ' = ?';
+                $db->columnidentifier('number') . ' = ?';
             push(@values,'COALESCE((' . $stmt . '), \'' . $new_delta . '\')');
         } else {
             push(@values,'?');
