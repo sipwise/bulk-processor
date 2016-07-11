@@ -23,6 +23,9 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -37,6 +40,8 @@ our @EXPORT_OK = qw(
     update_delta
     findby_delta
     countby_delta
+
+    split_subscribernumber
 
     $deleted_delta
     $updated_delta
@@ -219,9 +224,14 @@ sub buildrecords_fromrows {
 
             # transformations go here ...
             if ($load_recursive) {
-                $record->{_features} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::findby_subscribernumber(
+                $record->{_features} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::findby_subscribernumber_option(
                     $record->subscribernumber(),
-                    $load_recursive
+                    undef,
+                    $load_recursive,
+                );
+                $record->{_userpassword} = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::findby_fqdn(
+                    $record->subscribernumber(), #$record->{rgw_fqdn}
+                    $load_recursive,
                 );
             }
 

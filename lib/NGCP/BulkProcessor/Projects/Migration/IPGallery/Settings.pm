@@ -62,12 +62,16 @@ our @EXPORT_OK = qw(
     $subscribernumer_exclude_pattern
     $subscribernumer_exclude_exception_pattern
     $ignore_subscriber_unique
+    $skip_prepaid_subscribers
 
     $lnp_define_filename
     $lnp_define_import_numofthreads
     $ignore_lnp_unique
 
-    $stats_record_list_limit
+    $user_password_filename
+    $user_password_import_numofthreads
+    $ignore_user_password_unique
+
 );
 
 our $defaultconfig = 'config.cfg';
@@ -85,7 +89,7 @@ our $import_multithreading = $enablemultithreading;
 
 our $features_define_filename = undef;
 our $features_define_import_numofthreads = $cpucount;
-our $skip_duplicate_setoptionitems = 0;
+our $skip_duplicate_setoptionitems = 1;
 our $ignore_options_unique = 0;
 our $ignore_setoptionitems_unique = 0;
 
@@ -94,13 +98,15 @@ our $subscriber_define_import_numofthreads = $cpucount;
 our $subscribernumer_exclude_pattern = undef;
 our $subscribernumer_exclude_exception_pattern = undef;
 our $ignore_subscriber_unique = 0;
+our $skip_prepaid_subscribers = 1;
 
 our $lnp_define_filename = undef;
 our $lnp_define_import_numofthreads = $cpucount;
 our $ignore_lnp_unique = 1;
 
-
-our $stats_record_list_limit = 1000;
+our $user_password_filename = undef;
+our $user_password_import_numofthreads = $cpucount;
+our $ignore_user_password_unique = 0;
 
 sub update_settings {
 
@@ -133,6 +139,9 @@ sub update_settings {
 
         $lnp_define_filename = _get_import_filename($lnp_define_filename,$data,'lnp_define_filename');
         $lnp_define_import_numofthreads= _get_import_numofthreads($cpucount,$data,'lnp_define_import_numofthreads');
+
+        $user_password_filename = _get_import_filename($user_password_filename,$data,'user_password_filename');
+        $user_password_import_numofthreads= _get_import_numofthreads($cpucount,$data,'user_password_import_numofthreads');
 
         return $result;
 
