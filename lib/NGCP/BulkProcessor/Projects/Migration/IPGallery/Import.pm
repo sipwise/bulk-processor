@@ -7,9 +7,6 @@ use strict;
 #use Cwd;
 #use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../');
 
-use NGCP::BulkProcessor::Globals qw(
-    $cpucount
-);
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $import_multithreading
     $features_define_import_numofthreads

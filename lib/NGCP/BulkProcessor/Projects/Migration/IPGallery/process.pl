@@ -46,6 +46,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     load_config
     $SIMPLE_CONFIG_TYPE
     $YAML_CONFIG_TYPE
+    $ANY_CONFIG_TYPE
 );
 use NGCP::BulkProcessor::Array qw(removeduplicates);
 use NGCP::BulkProcessor::Utils qw(getscriptpath prompt cleanupdir);
