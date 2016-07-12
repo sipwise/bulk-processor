@@ -3,10 +3,6 @@ use strict;
 
 ## no critic
 
-#use File::Basename;
-#use Cwd;
-#use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../');
-
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
 
@@ -73,7 +69,7 @@ sub insert_row {
 
     my ($data,$insert_ignore) = @_;
     check_table();
-    return insert_record($get_db,$tablename,$data,$insert_ignore,$unique_fields) = @_;
+    #return insert_record($get_db,$tablename,$data,$insert_ignore,$unique_fields) = @_;
 
 }
 

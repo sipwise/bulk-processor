@@ -3,10 +3,6 @@ use strict;
 
 ## no critic
 
-#use File::Basename;
-#use Cwd;
-#use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../');
-
 use NGCP::BulkProcessor::Globals qw(
     $local_db_path
     $LongReadLen_limit);

@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings;
+package NGCP::BulkProcessor::RestRequests::Trunk::BillingProfiles;
 use strict;
 
 ## no critic

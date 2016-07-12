@@ -3,10 +3,6 @@ use strict;
 
 ## no critic
 
-#use File::Basename;
-#use Cwd;
-#use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../');
-
 use NGCP::BulkProcessor::Globals qw(
     $working_path
     $enablemultithreading
@@ -30,7 +26,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     split_tuple
     parse_regexp
 );
-use NGCP::BulkProcessor::Utils qw(format_number);
+use NGCP::BulkProcessor::Utils qw(format_number prompt);
 
 require Exporter;
 our @ISA = qw(Exporter);
