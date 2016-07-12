@@ -30,7 +30,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     split_tuple
     parse_regexp
 );
-use NGCP::BulkProcessor::Utils qw(format_number);
+use NGCP::BulkProcessor::Utils qw(format_number prompt);
 
 require Exporter;
 our @ISA = qw(Exporter);

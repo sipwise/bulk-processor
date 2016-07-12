@@ -27,6 +27,7 @@ my $builder = Module::Build->new(
 
         'Tie::IxHash'                                           => 0,
 
+        'Config::Any'                                           => 0,
         'YAML::Tiny'                                            => 0,
         'Log::Log4Perl'                                         => 0,
         'MIME::Base64'                                          => 0,

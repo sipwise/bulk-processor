@@ -93,7 +93,7 @@ our @EXPORT_OK = qw(
 
     $defaultconfig
 
-    update_mainconfig
+    update_masterconfig
     create_path
 
     $chmod_umask
@@ -160,6 +160,10 @@ our $ngcprestapi_realm = 'api_admin_http';
 our $working_path = tempdir(CLEANUP => 0) . '/'; #'/var/sipwise/';
 
 #our $input_path = $working_path . 'input/';
+
+
+our $provisioning_conf = undef;
+
 
 # csv
 our $csv_path = $working_path . 'csv/';
@@ -228,9 +232,11 @@ our $jobnamespace = $system_abbreviation . '-' . $system_version . '-' . $system
 our $defaultconfig = 'default.cfg';
 
 
-sub update_mainconfig {
+sub update_masterconfig {
 
-    my ($data,$configfile,
+    my %params = @_;
+    my ($data,
+        $configfile,
         $split_tuplecode,
         $format_numbercode,
         $parse_regexpcode,
@@ -238,24 +244,28 @@ sub update_mainconfig {
         $configurationwarncode,
         $configurationerrorcode,
         $fileerrorcode,
-        $configlogger) = @_;
+        $simpleconfigtype,
+        $yamlconfigtype,
+        $anyconfigtype,
+        $configlogger) = @params{qw/
+            data
+            configfile
+            split_tuplecode
+            format_numbercode
+            parse_regexpcode
+            configurationinfocode
+            configurationwarncode
+            configurationerrorcode
+            fileerrorcode
+            simpleconfigtype
+            yamlconfigtype
+            anyconfigtype
+            configlogger
+        /};
 
     if (defined $data) {
 
         my $result = 1;
-
-        # databases - dsp
-        $accounting_host = $data->{accounting_host} if exists $data->{accounting_host};
-        $accounting_port = $data->{accounting_port} if exists $data->{accounting_port};
-        $accounting_databasename = $data->{accounting_databasename} if exists $data->{accounting_databasename};
-        $accounting_username = $data->{accounting_username} if exists $data->{accounting_username};
-        $accounting_password = $data->{accounting_password} if exists $data->{accounting_password};
-
-        $billing_host = $data->{billing_host} if exists $data->{billing_host};
-        $billing_port = $data->{billing_port} if exists $data->{billing_port};
-        $billing_databasename = $data->{billing_databasename} if exists $data->{billing_databasename};
-        $billing_username = $data->{billing_username} if exists $data->{billing_username};
-        $billing_password = $data->{billing_password} if exists $data->{billing_password};
 
         $ngcprestapi_uri = $data->{ngcprestapi_uri} if exists $data->{ngcprestapi_uri};
         $ngcprestapi_username = $data->{ngcprestapi_username} if exists $data->{ngcprestapi_username};
@@ -304,8 +314,63 @@ sub update_mainconfig {
             $result &= _prepare_working_paths($working_path,1,$fileerrorcode,$configlogger);
         }
 
+        my @loadconfig_args = ();
+
+        $provisioning_conf = $data->{provisioning_conf} if exists $data->{provisioning_conf};
+
+        if (defined $provisioning_conf and length($provisioning_conf) > 0) {
+            push(@loadconfig_args,[
+                $provisioning_conf,
+                \&_update_provisioning_conf,
+                $anyconfigtype,
+                { force_plugins => [ 'Config::Any::XML' ] }
+            ]);
+        }
+
+        return ($result,\@loadconfig_args,\&_postprocess_masterconfig);
+
+    }
+    return (0,undef,\&_postprocess_masterconfig);
+
+}
+
+sub _update_provisioning_conf {
+
+    my ($data,$configfile) = @_;
+
+    if (defined $data) {
+
+        my $result = 1;
+
+
+
         return $result;
 
+    }
+    return 0;
+
+}
+
+sub _postprocess_masterconfig {
+
+    my %params = @_;
+    my ($data) = @params{qw/data/};
+
+    if (defined $data) {
+            # databases - dsp
+        $accounting_host = $data->{accounting_host} if exists $data->{accounting_host};
+        $accounting_port = $data->{accounting_port} if exists $data->{accounting_port};
+        $accounting_databasename = $data->{accounting_databasename} if exists $data->{accounting_databasename};
+        $accounting_username = $data->{accounting_username} if exists $data->{accounting_username};
+        $accounting_password = $data->{accounting_password} if exists $data->{accounting_password};
+
+        $billing_host = $data->{billing_host} if exists $data->{billing_host};
+        $billing_port = $data->{billing_port} if exists $data->{billing_port};
+        $billing_databasename = $data->{billing_databasename} if exists $data->{billing_databasename};
+        $billing_username = $data->{billing_username} if exists $data->{billing_username};
+        $billing_password = $data->{billing_password} if exists $data->{billing_password};
+
+        return 1;
     }
     return 0;
 
