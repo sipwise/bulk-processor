@@ -3,6 +3,9 @@ use strict;
 
 ## no critic
 
+use threads;
+use threads::shared;
+
 use NGCP::BulkProcessor::Globals qw($enablemultithreading);
 
 use NGCP::BulkProcessor::Logging qw(

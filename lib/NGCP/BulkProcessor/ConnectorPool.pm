@@ -57,6 +57,8 @@ our @EXPORT_OK = qw(
     get_billing_db
     billing_db_tableidentifier
 
+    get_ngcp_restapi
+
     destroy_dbs
     get_connectorinstancename
     get_cluster_db
@@ -128,7 +130,8 @@ sub get_ngcp_restapi {
     my ($instance_name) = @_;
     my $name = get_connectorinstancename($instance_name);
     if (!defined $ngcp_restapis->{$name}) {
-        $ngcp_restapis->{$name} = NGCP::BulkProcessor::RestConnectors::NGCPRestApi->new($instance_name,$ngcprestapi_uri,$ngcprestapi_username,$ngcprestapi_password,$ngcprestapi_realm);
+        $ngcp_restapis->{$name} = NGCP::BulkProcessor::RestConnectors::NGCPRestApi->new($instance_name);
+        $ngcp_restapis->{$name}->setup($ngcprestapi_uri,$ngcprestapi_username,$ngcprestapi_password,$ngcprestapi_realm);
     }
     return $ngcp_restapis->{$name};
 

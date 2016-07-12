@@ -3,6 +3,8 @@ use strict;
 
 ## no critic
 
+use Scalar::Util 'blessed';
+
 use URI;
 use LWP::UserAgent qw();
 
@@ -67,7 +69,7 @@ sub baseuri {
         if (($self->{netloc}) = ($uri =~ m!^https?://(.*)/?.*$!)) {
             $self->{uri} = URI->new($uri);
             $self->{uri}->path_query('');
-            $self->{uri}->fragment('');
+            $self->{uri}->fragment(undef);
             restdebug($self,"base URL set to '" . $self->{uri} . "'",getlogger(__PACKAGE__));
         } else {
             resterror($self,"'" . $uri . "' is not a valid URL",getlogger(__PACKAGE__));
@@ -130,8 +132,10 @@ sub _ua_request {
 
 sub _add_headers {
     my ($req,$headers) = @_;
-    foreach my $headername (keys %$headers) {
-        $req->header($headername => $headers->{$headername});
+    if (defined $headers) {
+        foreach my $headername (keys %$headers) {
+            $req->header($headername => $headers->{$headername});
+        }
     }
 }
 
@@ -171,7 +175,7 @@ sub _get_request_uri {
     if (!defined $self->{uri}) {
         resterror($self,'base URL not set',getlogger(__PACKAGE__));
     }
-    if ('URI' eq ref $path_query) {
+    if (blessed($path_query) and $path_query->isa('URI')) {
         $path_query = $path_query->path_query();
     }
     my $uri = $self->{uri}->clone();
@@ -195,7 +199,7 @@ sub _log_response() {
     }
 }
 
-sub post {
+sub _post {
 
     my $self = shift;
     my ($path_query,$data,$headers) = @_;
@@ -211,7 +215,7 @@ sub post {
         restrequesterror($self,'error encoding POST request content: ' . $@,$self->{req},$data,getlogger(__PACKAGE__));
     }
 	$self->{res} = $self->_ua_request($self->{req});
-	$self->_log_response($self->{req});
+	$self->_log_response($self->{res});
 	eval {
         $self->{responsedata} = $self->_decode_post_response($self->{res}->decoded_content());
     };
@@ -220,6 +224,11 @@ sub post {
     }
 	return $self->{res};
 
+}
+
+sub post {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
 sub _add_get_headers {
@@ -234,7 +243,7 @@ sub _decode_get_response {
     return $self->_decode_response_content($data);
 }
 
-sub get {
+sub _get {
 
     my $self = shift;
     my ($path_query,$headers) = @_;
@@ -243,7 +252,7 @@ sub get {
 	$self->_add_get_headers($self->{req},$headers);
 	$self->_log_request($self->{req});
 	$self->{res} = $self->_ua_request($self->{req});
-	$self->_log_response($self->{req});
+	$self->_log_response($self->{res});
 	eval {
         $self->{responsedata} = $self->_decode_get_response($self->{res}->decoded_content());
     };
@@ -252,6 +261,11 @@ sub get {
     }
 	return $self->{res};
 
+}
+
+sub get {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
 sub _add_patch_headers {
@@ -272,7 +286,7 @@ sub _decode_patch_response {
     return $self->_decode_response_content($data);
 }
 
-sub patch {
+sub _patch {
 
     my $self = shift;
     my ($path_query,$data,$headers) = @_;
@@ -288,7 +302,7 @@ sub patch {
         restrequesterror($self,'error encoding PATCH request content: ' . $@,$self->{req},$data,getlogger(__PACKAGE__));
     }
 	$self->{res} = $self->_ua_request($self->{req});
-	$self->_log_response($self->{req});
+	$self->_log_response($self->{res});
 	eval {
         $self->{responsedata} = $self->_decode_patch_response($self->{res}->decoded_content());
     };
@@ -297,6 +311,11 @@ sub patch {
     }
 	return $self->{res};
 
+}
+
+sub patch {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
 sub _add_put_headers {
@@ -317,7 +336,7 @@ sub _decode_put_response {
     return $self->_decode_response_content($data);
 }
 
-sub put {
+sub _put {
 
     my $self = shift;
     my ($path_query,$data,$headers) = @_;
@@ -333,7 +352,7 @@ sub put {
         restrequesterror($self,'error encoding PUT request content: ' . $@,$self->{req},$data,getlogger(__PACKAGE__));
     }
 	$self->{res} = $self->_ua_request($self->{req});
-	$self->_log_response($self->{req});
+	$self->_log_response($self->{res});
 	eval {
         $self->{responsedata} = $self->_decode_put_response($self->{res}->decoded_content());
     };
@@ -342,6 +361,11 @@ sub put {
     }
 	return $self->{res};
 
+}
+
+sub put {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
 sub _add_delete_headers {
@@ -356,7 +380,7 @@ sub _decode_delete_response {
     return $self->_decode_response_content($data);
 }
 
-sub delete {
+sub _delete {
 
     my $self = shift;
     my ($path_query,$headers) = @_;
@@ -365,7 +389,7 @@ sub delete {
 	$self->_add_delete_headers($self->{req},$headers);
 	$self->_log_request($self->{req});
 	$self->{res} = $self->_ua_request($self->{req});
-	$self->_log_response($self->{req});
+	$self->_log_response($self->{res});
 	eval {
         $self->{responsedata} = $self->_decode_delete_response($self->{res}->decoded_content());
     };
@@ -374,6 +398,51 @@ sub delete {
     }
 	return $self->{res};
 
+}
+
+sub delete {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub _get_page_num_query_param {
+    my $self = shift;
+    my ($page_num) = @_;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub _get_page_size_query_param {
+    my $self = shift;
+    my ($page_size) = @_;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub get_collection_page_query_uri {
+    my $self = shift;
+    my ($collection_path_query,$page_size,$page_num) = @_;
+    #if ($page_size <= 0) {
+    #    resterror($self,"positive collection page size required",getlogger(__PACKAGE__));
+    #}
+    #if ($page_size < 0) {
+    #    resterror($self,"positive collection page size required",getlogger(__PACKAGE__));
+    #}
+    my $page_uri = $self->_get_request_uri($collection_path_query);
+    my $page_size_query_param = $self->_get_page_size_query_param($page_size);
+    my $page_num_query_param = $self->_get_page_num_query_param($page_num);
+    my @query_params = ();
+    push(@query_params,$page_uri->query()) if $page_uri->query();
+    push(@query_params,$page_size_query_param) if defined $page_size_query_param && length($page_size_query_param) > 0;
+    push(@query_params,$page_num_query_param) if defined $page_num_query_param && length($page_num_query_param) > 0;
+
+    $page_uri->query(join('&',@query_params));
+
+    return $page_uri;
+}
+
+sub extract_collection_items {
+    my $self = shift;
+    my ($data,$page_size,$page_num,$params) = @_;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
 sub instanceidentifier {
@@ -404,6 +473,11 @@ sub responsedata {
     my $self = shift;
     $self->{responsedata} = shift if @_;
     return $self->{responsedata};
+}
+
+sub get_defaultcollectionpagesize {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
 1;

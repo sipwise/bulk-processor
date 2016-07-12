@@ -46,6 +46,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     load_config
     $SIMPLE_CONFIG_TYPE
     $YAML_CONFIG_TYPE
+    $ANY_CONFIG_TYPE
 );
 use NGCP::BulkProcessor::Array qw(removeduplicates);
 use NGCP::BulkProcessor::Utils qw(getscriptpath prompt cleanupdir);
@@ -57,6 +58,18 @@ use NGCP::BulkProcessor::SqlConnectors::SQLiteDB qw(cleanupdbfiles);
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw(destroy_all_dbs);
 
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch qw();
+
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Check qw(
+    check_billing_db_tables
+    check_import_db_tables
+);
+
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_features_define
     import_subscriber_define
@@ -65,42 +78,51 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_batch
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword qw();
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch qw();
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning qw(
+    test
+);
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
 
 my @TASK_OPTS = ();
 
 my $tasks = [];
+
+my $check_task_opt = 'check';
+push(@TASK_OPTS,$check_task_opt);
+
 my $cleanup_task_opt = 'cleanup';
 push(@TASK_OPTS,$cleanup_task_opt);
 my $cleanup_all_task_opt = 'cleanup_all';
 push(@TASK_OPTS,$cleanup_all_task_opt);
+
 my $import_features_define_task_opt = 'import_feature';
 push(@TASK_OPTS,$import_features_define_task_opt);
 my $import_truncate_features_task_opt = 'truncate_feature';
 push(@TASK_OPTS,$import_truncate_features_task_opt);
+
 my $import_subscriber_define_task_opt = 'import_subscriber';
 push(@TASK_OPTS,$import_subscriber_define_task_opt);
 my $import_truncate_subscriber_task_opt = 'truncate_subscriber';
 push(@TASK_OPTS,$import_truncate_subscriber_task_opt);
+
 my $import_lnp_define_task_opt = 'import_lnp';
 push(@TASK_OPTS,$import_lnp_define_task_opt);
 my $import_truncate_lnp_task_opt = 'truncate_lnp';
 push(@TASK_OPTS,$import_truncate_lnp_task_opt);
+
 my $import_user_password_task_opt = 'import_user_password';
 push(@TASK_OPTS,$import_user_password_task_opt);
 my $import_truncate_user_password_task_opt = 'truncate_user_password';
 push(@TASK_OPTS,$import_truncate_user_password_task_opt);
+
 my $import_batch_task_opt = 'import_batch';
 push(@TASK_OPTS,$import_batch_task_opt);
 my $import_truncate_batch_task_opt = 'truncate_batch';
 push(@TASK_OPTS,$import_truncate_batch_task_opt);
+
+my $provision_subscriber_task_opt = 'provision_subscriber';
+push(@TASK_OPTS,$provision_subscriber_task_opt);
 
 
 if (init()) {
@@ -144,7 +166,10 @@ sub main() {
     if ('ARRAY' eq ref $tasks and (scalar @$tasks) > 0) {
         foreach my $task (@$tasks) {
 
-            if (lc($cleanup_task_opt) eq lc($task)) {
+            if (lc($check_task_opt) eq lc($task)) {
+                $result = check_task(\@messages) if taskinfo($check_task_opt,$result);
+
+            } elsif (lc($cleanup_task_opt) eq lc($task)) {
                 $result = cleanup_task(\@messages,0) if taskinfo($cleanup_task_opt,$result);
             } elsif (lc($cleanup_all_task_opt) eq lc($task)) {
                 $result = cleanup_task(\@messages,1) if taskinfo($cleanup_all_task_opt,$result);
@@ -174,12 +199,13 @@ sub main() {
             } elsif (lc($import_truncate_batch_task_opt) eq lc($task)) {
                 $result = import_truncate_batch_task(\@messages) if taskinfo($import_truncate_batch_task_opt,$result);
 
-            } elsif (lc('blah') eq lc($task)) {
-                if (taskinfo($cleanup_task_opt,$result)) {
+            } elsif (lc($provision_subscriber_task_opt) eq lc($task)) {
+                if (taskinfo($provision_subscriber_task_opt,$result)) {
                     next unless check_dry();
-                    $result = import_features_define_task(\@messages);
+                    $result = provision_subscriber_task(\@messages);
                     $completion |= 1;
                 }
+
             } else {
                 $result = 0;
                 scripterror("unknow task option '" . $task . "', must be one of " . join(', ',@TASK_OPTS),getlogger(getscriptpath()));
@@ -204,6 +230,24 @@ sub main() {
 sub taskinfo {
     my ($task,$result) = @_;
     scriptinfo($result ? "starting task: '$task'" : "skipping task '$task' due to previous problems",getlogger(getscriptpath()));
+    return $result;
+}
+
+sub check_task {
+    my ($messages) = @_;
+    my @check_messages = ();
+    my $result = check_billing_db_tables(\@check_messages);
+    #$result &= ..
+    push(@$messages,join("\n",@check_messages));
+
+
+    @check_messages = ();
+    $result = check_import_db_tables(\@check_messages);
+    #$result &= ..
+    push(@$messages,join("\n",@check_messages));
+
+
+    destroy_all_dbs();
     return $result;
 }
 
@@ -540,6 +584,31 @@ sub import_truncate_batch_task {
         push(@$messages,"truncating imported batch records INCOMPLETE$stats");
     } else {
         push(@$messages,"truncating imported batch records completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
+
+sub provision_subscriber_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = test();
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        #$stats .= "\n  total batch records: " .
+        #    NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::countby_number() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"provisioning subscribers INCOMPLETE$stats");
+    } else {
+        push(@$messages,"provisioning subscribers completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;

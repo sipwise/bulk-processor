@@ -4,7 +4,7 @@ use strict;
 ## no critic
 
 use threads qw(yield);
-use threads::shared;
+use threads::shared qw(shared_clone);
 use Thread::Queue;
 
 use Time::HiRes qw(sleep);
@@ -114,7 +114,7 @@ sub process {
         my $errorstate = $RUNNING;
         my $tid = threadid();
 
-        if ($enablemultithreading and $multithreading and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
+        if ($enablemultithreading and $multithreading and $cpucount > 1) {
 
             my $reader;
             my %processors = ();

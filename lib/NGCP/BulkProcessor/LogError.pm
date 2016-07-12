@@ -66,6 +66,8 @@ our @EXPORT_OK = qw(
     fileprocessingerror
     fileprocessingwarn
 
+    restprocessingfailed
+
     emailwarn
     configurationwarn
     configurationerror
@@ -526,6 +528,17 @@ sub fileprocessingwarn {
 
 }
 
+sub restprocessingfailed {
+
+    my ($restapi,$path_query,$logger) = @_;
+    my $message = 'collection processing failed: [' . $restapi->connectidentifier() . '] ' . $path_query;
+    if (defined $logger) {
+        $logger->error($message);
+    }
+    terminate($message, $logger);
+
+}
+
 sub xls2csverror {
 
     my ($message, $logger) = @_;
@@ -743,10 +756,6 @@ sub _getrestconnectorinstanceprefix {
 sub _getrestconnectidentifiermessage {
     my ($restapi,$message) = @_;
     my $result = $restapi->connectidentifier();
-    my $connectidentifier = $restapi->_connectidentifier();
-    if (length($result) > 0 and length($connectidentifier) > 0) {
-    $result .= '->' . $connectidentifier;
-    }
     if (length($result) > 0) {
     $result .= ' - ';
     }
