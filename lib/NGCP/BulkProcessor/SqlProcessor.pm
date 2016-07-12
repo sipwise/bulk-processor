@@ -94,7 +94,7 @@ my $maxblocksize = 100000;
 my $minnumberofchunks = 10;
 
 my $tableprocessing_threadqueuelength = 10;
-my $tableprocessing_threads = $cpucount; #3;
+#my $tableprocessing_threads = $cpucount; #3;
 
 my $reader_connection_name = 'reader';
 #my $writer_connection_name = 'writer';
@@ -759,6 +759,8 @@ sub transfer_table {
         $texttable_engine,
         $fixtable_statements,
         $multithreading,
+        $destroy_source_dbs_code,
+        $destroy_target_dbs_code,
         $selectcount,
         $select,
         $values) = @params{qw/
@@ -771,6 +773,8 @@ sub transfer_table {
             texttable_engine
             fixtable_statements
             multithreading
+            destroy_source_dbs_code
+            destroy_target_dbs_code
             selectcount
             select
             values
@@ -867,6 +871,7 @@ sub transfer_table {
                                             rowcount             => $rowcount,
                                             #logger               => $logger,
                                             values_ref           => $values,
+                                            destroy_dbs_code   => $destroy_source_dbs_code,
                                           });
 
                 tablethreadingdebug('starting writer thread',getlogger(__PACKAGE__));
@@ -883,6 +888,7 @@ sub transfer_table {
                                             blocksize            => $blocksize,
                                             rowcount             => $rowcount,
                                             #logger               => $logger,
+                                            destroy_dbs_code   => $destroy_target_dbs_code,
                                           });
 
                 $reader->join();
@@ -1034,6 +1040,8 @@ sub process_table {
         $init_process_context_code,
         $uninit_process_context_code,
         $multithreading,
+        $tableprocessing_threads,
+        $destroy_reader_dbs_code,
         $selectcount,
         $select,
         $values) = @params{qw/
@@ -1043,6 +1051,8 @@ sub process_table {
             init_process_context_code
             uninit_process_context_code
             multithreading
+            tableprocessing_threads
+            destroy_reader_dbs_code
             selectcount
             select
             values
@@ -1092,6 +1102,7 @@ sub process_table {
 
         if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
 
+            $tableprocessing_threads //= $cpucount;
             $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,1,$tableprocessing_threadqueuelength);
 
             my $reader;
@@ -1129,6 +1140,7 @@ sub process_table {
                                             rowcount             => $rowcount,
                                             #logger               => $logger,
                                             values_ref           => $values,
+                                            destroy_dbs_code => $destroy_reader_dbs_code,
                                           });
 
             for (my $i = 0; $i < $tableprocessing_threads; $i++) {
@@ -1421,13 +1433,16 @@ sub _reader {
         }
         $reader_db->db_finish();
     };
+    tablethreadingdebug($@ ? '[' . $tid . '] reader thread error: ' . $@ : '[' . $tid . '] reader thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     # stop the consumer:
     # $context->{queue}->enqueue(undef);
     if (defined $reader_db) {
         # if thread cleanup has a problem...
         $reader_db->db_disconnect();
     }
-    tablethreadingdebug($@ ? '[' . $tid . '] reader thread error: ' . $@ : '[' . $tid . '] reader thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
+    if ('CODE' eq ref $context->{destroy_dbs_code}) {
+        &{$context->{destroy_dbs_code}}();
+    }
     lock $context->{errorstates};
     if ($@) {
         $context->{errorstates}->{$tid} = $ERROR;
@@ -1475,11 +1490,14 @@ sub _writer {
             }
         }
     };
+    tablethreadingdebug($@ ? '[' . $tid . '] writer thread error: ' . $@ : '[' . $tid . '] writer thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     if (defined $writer_db) {
         # if thread cleanup has a problem...
         $writer_db->db_disconnect();
     }
-    tablethreadingdebug($@ ? '[' . $tid . '] writer thread error: ' . $@ : '[' . $tid . '] writer thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
+    if ('CODE' eq ref $context->{destroy_dbs_code}) {
+        &{$context->{destroy_dbs_code}}();
+    }
     lock $context->{errorstates};
     if ($@) {
         $context->{errorstates}->{$tid} = $ERROR;

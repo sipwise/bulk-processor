@@ -3,10 +3,6 @@ use strict;
 
 ## no critic
 
-#use File::Basename;
-#use Cwd;
-#use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../');
-
 use NGCP::BulkProcessor::Logging qw(getlogger servicedebug);
 
 use NGCP::BulkProcessor::Service;

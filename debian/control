@@ -32,6 +32,7 @@ Depends:
  libjson-xs-perl,
  libdata-dump-perl,
  libyaml-libyaml-perl,
+ libconfig-any-perl,
  libxml-dumper-perl,
  libphp-serialization-perl,
  libgearman-client-perl,

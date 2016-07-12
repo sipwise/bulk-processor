@@ -3,13 +3,9 @@ use strict;
 
 ## no critic
 
-#use File::Basename;
-#use Cwd;
-#use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../../');
-
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw(
     get_import_db
-
+    destroy_all_dbs
 );
 #import_db_tableidentifier
 
@@ -20,6 +16,8 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     copy_row
 
     insert_stmt
+
+    process_table
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -46,6 +44,8 @@ our @EXPORT_OK = qw(
     $deleted_delta
     $updated_delta
     $added_delta
+
+    process_records
 );
 
 my $tablename = 'subscriber';
@@ -241,6 +241,40 @@ sub buildrecords_fromrows {
 
     return \@records;
 
+}
+
+sub process_records {
+
+    my %params = @_;
+    my ($process_code,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads,
+        $load_recursive) = @params{qw/
+            process_code
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+            load_recursive
+        /};
+
+    check_table();
+
+    return process_table(
+        get_db                      => $get_db,
+        tablename                   => $tablename,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,buildrecords_fromrows($rowblock,$load_recursive),$row_offset);
+            },
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_all_dbs,
+        multithreading              => $multithreading,
+        tableprocessing_threads     => $numofthreads,
+    );
 }
 
 sub getinsertstatement {

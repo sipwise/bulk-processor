@@ -3,9 +3,8 @@ use strict;
 
 ## no critic
 
-#use File::Basename;
-#use Cwd;
-#use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../');
+use threads qw();
+use threads::shared qw(shared_clone);
 
 use JSON qw();
 
@@ -31,6 +30,9 @@ my $defaulturi = 'https://127.0.0.1:443';
 my $defaultusername = 'administrator';
 my $defaultpassword = 'administrator';
 my $defaultrealm = 'api_admin_http';
+
+my $default_collection_page_size = 10;
+my $first_page_num = 1;
 
 my $contenttype = 'application/json';
 my $patchcontenttype = 'application/json-patch+json';
@@ -136,6 +138,41 @@ sub _add_delete_headers {
     my $self = shift;
     my ($req,$headers) = @_;
     $self->SUPER::_add_delete_headers($req,$headers);
+}
+
+sub _get_page_num_query_param {
+    my $self = shift;
+    my ($page_num) = @_;
+    if (defined $page_num) {
+        $page_num += $first_page_num;
+    } else {
+        $page_num = $first_page_num;
+    }
+    return 'page=' . $page_size;
+}
+
+sub _get_page_size_query_param {
+    my $self = shift;
+    my ($page_size) = @_;
+    $page_size //= $default_collection_page_size;
+    return 'size=' . $page_size;
+}
+
+sub extract_collection_items {
+    my $self = shift;
+    my ($data,$page_size,$page_num,$params) = @_;
+    my $result = undef;
+    if ('HASH' eq ref $data
+        and 'HASH' eq ref $data->{_embedded}) {
+        $result = $data->{'_embedded'}->{$params->{item_rel}};
+    }
+    $result //= [];
+    return shared_clone($result);
+}
+
+sub get_defaultcollectionpagesize {
+    my $self = shift;
+    return $default_collection_page_size;
 }
 
 1;

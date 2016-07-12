@@ -66,6 +66,8 @@ our @EXPORT_OK = qw(
     fileprocessingerror
     fileprocessingwarn
 
+    restprocessingfailed
+
     emailwarn
     configurationwarn
     configurationerror
@@ -523,6 +525,17 @@ sub fileprocessingwarn {
         $logger->warn($message);
     }
     warning($message, $logger);
+
+}
+
+sub restprocessingfailed {
+
+    my ($restapi,$path_query,$logger) = @_;
+    my $message = 'collection processing failed: [' . $restapi->connectidentifier() . '] ' . $path_query;
+    if (defined $logger) {
+        $logger->error($message);
+    }
+    terminate($message, $logger);
 
 }
 

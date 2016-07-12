@@ -79,7 +79,14 @@ our @EXPORT_OK = qw(
     fileprocessingdone
     fetching_lines
     processing_lines
+
     processing_info
+
+    restthreadingdebug
+    restprocessingstarted
+    restprocessingdone
+    fetching_items
+    processing_items
 
     tablefixed
     servicedebug
@@ -630,6 +637,52 @@ sub processing_info {
     my ($tid, $message, $logger) = @_;
     if (defined $logger) {
         $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
+    }
+
+}
+
+
+sub restthreadingdebug {
+
+    my ($message,$logger) = @_;
+    if (defined $logger) {
+        $logger->debug($message);
+    }
+
+}
+
+sub fetching_items {
+
+    my ($restapi,$path_query,$start,$blocksize,$logger) = @_;
+    if (defined $logger) {
+        $logger->info(_getrestconnectorinstanceprefix($restatpi) . _getrestconnectidentifiermessage($restatpi,'fetching ' . $path_query . ' collection page: ' . ($start + 1) . '-' . ($start + $blocksize)));
+    }
+
+}
+
+sub processing_items {
+
+    my ($tid, $start,$blocksize,$logger) = @_;
+    if (defined $logger) {
+        $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing items: ' . ($start + 1) . '-' . ($start + $blocksize));
+    }
+
+}
+
+sub restprocessingstarted {
+
+    my ($restatpi,$path_query,$logger) = @_;
+    if (defined $logger) {
+        $logger->info('collection processing started: [' . $restatpi->connectidentifier() . '] ' . $path_query);
+    }
+
+}
+
+sub restprocessingdone {
+
+    my ($restatpi,$path_query,$logger) = @_;
+    if (defined $logger) {
+        $logger->info('collection processing done: [' . $restatpi->connectidentifier() . '] ' . $path_query);
     }
 
 }

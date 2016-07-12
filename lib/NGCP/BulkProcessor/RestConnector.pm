@@ -130,8 +130,10 @@ sub _ua_request {
 
 sub _add_headers {
     my ($req,$headers) = @_;
-    foreach my $headername (keys %$headers) {
-        $req->header($headername => $headers->{$headername});
+    if (defined $headers) {
+        foreach my $headername (keys %$headers) {
+            $req->header($headername => $headers->{$headername});
+        }
     }
 }
 
@@ -376,6 +378,46 @@ sub delete {
 
 }
 
+sub _get_page_num_query_param {
+    my $self = shift;
+    my ($page_num) = @_;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub _get_page_size_query_param {
+    my $self = shift;
+    my ($page_size) = @_;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub get_collection_page_query_uri {
+    my $self = shift;
+    my ($collection_path_query,$page_size,$page_num) = @_;
+    #if ($page_size <= 0) {
+    #    resterror($self,"positive collection page size required",getlogger(__PACKAGE__));
+    #}
+    #if ($page_size < 0) {
+    #    resterror($self,"positive collection page size required",getlogger(__PACKAGE__));
+    #}
+    my $page_uri = $self->_get_request_uri($collection_path_query);
+    my $page_size_query_param = $self->_get_page_size_query_param($page_size);
+    my $page_num_query_param = $self->_get_page_num_query_param($page_num);
+    my @query_params = ();
+    push(@query_params,$page_uri->query()) if $page_uri->query();
+    push(@query_params,$page_size_query_param) if defined $page_size_query_param && length($page_size_query_param) > 0;
+    push(@query_params,$page_num_query_param) if defined $page_num_query_param && length($page_num_query_param) > 0;
+
+    $page_uri->query(join('&',@query_params));
+
+    return $page_uri;
+}
+
+sub extract_collection_items {
+    my $self = shift;
+    my ($data,$page_size,$page_num,$params) = @_;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
 sub instanceidentifier {
     my $self = shift;
 
@@ -404,6 +446,11 @@ sub responsedata {
     my $self = shift;
     $self->{responsedata} = shift if @_;
     return $self->{responsedata};
+}
+
+sub get_defaultcollectionpagesize {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
 1;

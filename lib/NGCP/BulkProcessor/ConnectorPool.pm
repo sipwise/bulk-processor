@@ -57,6 +57,8 @@ our @EXPORT_OK = qw(
     get_billing_db
     billing_db_tableidentifier
 
+    get_ngcp_restapi
+
     destroy_dbs
     get_connectorinstancename
     get_cluster_db
