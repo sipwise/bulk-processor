@@ -9,14 +9,15 @@ use threads;
 use POSIX qw(strtod locale_h);
 setlocale(LC_NUMERIC, 'C');
 
-use Data::UUID;
+use Data::UUID qw();
+use UUID qw();
 
-use Net::Address::IP::Local;
+use Net::Address::IP::Local qw();
 #use FindBin qw($Bin);
 #use File::Spec::Functions qw(splitdir catdir);
 use Net::Domain qw(hostname hostfqdn hostdomain);
 
-use Cwd 'abs_path';
+use Cwd qw(abs_path);
 #use File::Basename qw(fileparse);
 
 use Date::Manip qw(Date_Init ParseDate UnixDate);
@@ -26,9 +27,9 @@ Date_Init('DateFormat=US');
 
 use Date::Calc qw(Normalize_DHMS Add_Delta_DHMS);
 
-use Text::Wrap;
+use Text::Wrap qw();
 #use FindBin qw($Bin);
-use Digest::MD5; #qw(md5 md5_hex md5_base64);
+use Digest::MD5 qw(); #qw(md5 md5_hex md5_base64);
 use File::Temp qw(tempfile tempdir);
 use File::Path qw(remove_tree make_path);
 
@@ -62,6 +63,7 @@ our @EXPORT_OK = qw(
     cat_file
     wrap_text
     create_guid
+    create_uuid
     urlencode
     urldecode
     timestamp
@@ -366,6 +368,13 @@ sub create_guid {
   my $uuid = $ug->create();
   return $ug->to_string( $uuid );
 
+}
+
+sub create_uuid {
+    my ($bin, $str);
+    UUID::generate($bin);
+    UUID::unparse($bin, $str);
+    return $str;
 }
 
 sub urlencode {

@@ -18,6 +18,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $defaultsettings
     $defaultconfig
     $dry
+    $skip_errors
     $force
     $run_id
     $features_define_filename
@@ -78,7 +79,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_batch
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning qw(
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::SubscriberProvisioning qw(
     test
 );
 
@@ -143,6 +144,7 @@ sub init {
         "task=s" => $tasks,
         "run=s" => \$run_id,
         "dry" => \$dry,
+        "skip-errors" => \$skip_errors,
         "force" => \$force,
     ); # or scripterror('error in command line arguments',getlogger(getscriptpath()));
 
@@ -163,7 +165,8 @@ sub main() {
     my $result = 1;
     my $completion = 0;
 
-    if ('ARRAY' eq ref $tasks and (scalar @$tasks) > 0) {
+    if (defined $tasks and 'ARRAY' eq ref $tasks and (scalar @$tasks) > 0) {
+        scriptinfo('skip-errors: processing won\'t stop upon errors',getlogger(__PACKAGE__)) if $skip_errors;
         foreach my $task (@$tasks) {
 
             if (lc($check_task_opt) eq lc($task)) {
@@ -489,10 +492,14 @@ sub import_user_password_task {
             $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::added_delta
         );
         $stats .= "\n    new: $added_count rows";
-        my $existing_count = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::countby_delta(
+        my $unchanged_count = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::unchanged_delta
+        );
+        $stats .= "\n    unchanged: $unchanged_count rows";
+        my $updated_count = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::countby_delta(
             $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::updated_delta
         );
-        $stats .= "\n    existing: $existing_count rows";
+        $stats .= "\n    updated: $updated_count rows";
         my $deleted_count = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::countby_delta(
             $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::deleted_delta
         );

@@ -487,7 +487,7 @@ sub insert_record {
 
         my @unique_fields = ();
         my @unique_vals = ();
-        if ('ARRAY' eq ref $unique_count_fields) {
+        if (defined $unique_count_fields and 'ARRAY' eq ref $unique_count_fields) {
             foreach my $fieldname (@$unique_count_fields) {
                 push(@unique_fields,$fieldname);
                 if (exists $row->{$fieldname}) {
@@ -1217,7 +1217,7 @@ sub process_table {
             my $context = { tid => $tid };
             my $rowblock_result = 1;
             eval {
-                if ('CODE' eq ref $init_process_context_code) {
+                if (defined $init_process_context_code and 'CODE' eq ref $init_process_context_code) {
                     &$init_process_context_code($context);
                 }
 
@@ -1256,7 +1256,7 @@ sub process_table {
             }
 
             eval {
-                if ('CODE' eq ref $uninit_process_context_code) {
+                if (defined $uninit_process_context_code and 'CODE' eq ref $uninit_process_context_code) {
                     &$uninit_process_context_code($context);
                 }
             };
@@ -1440,7 +1440,7 @@ sub _reader {
         # if thread cleanup has a problem...
         $reader_db->db_disconnect();
     }
-    if ('CODE' eq ref $context->{destroy_dbs_code}) {
+    if (defined $context->{destroy_dbs_code} and 'CODE' eq ref $context->{destroy_dbs_code}) {
         &{$context->{destroy_dbs_code}}();
     }
     lock $context->{errorstates};
@@ -1495,7 +1495,7 @@ sub _writer {
         # if thread cleanup has a problem...
         $writer_db->db_disconnect();
     }
-    if ('CODE' eq ref $context->{destroy_dbs_code}) {
+    if (defined $context->{destroy_dbs_code} and 'CODE' eq ref $context->{destroy_dbs_code}) {
         &{$context->{destroy_dbs_code}}();
     }
     lock $context->{errorstates};
@@ -1524,7 +1524,7 @@ sub _process {
 
     my $blockcount = 0;
     eval {
-        if ('CODE' eq ref $context->{init_process_context_code}) {
+        if (defined $context->{init_process_context_code} and 'CODE' eq ref $context->{init_process_context_code}) {
             &{$context->{init_process_context_code}}($context);
         }
         #$writer_db = &{$context->{get_target_db}}($writer_connection_name);
@@ -1568,7 +1568,7 @@ sub _process {
     my $err = $@;
     tablethreadingdebug($err ? '[' . $tid . '] processor thread error: ' . $err : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     eval {
-        if ('CODE' eq ref $context->{uninit_process_context_code}) {
+        if (defined $context->{uninit_process_context_code} and 'CODE' eq ref $context->{uninit_process_context_code}) {
             &{$context->{uninit_process_context_code}}($context);
         }
     };

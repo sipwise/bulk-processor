@@ -181,9 +181,10 @@ sub extract_collection_items {
     my $self = shift;
     my ($data,$page_size,$page_num,$params) = @_;
     my $result = undef;
-    if ('HASH' eq ref $data
-        and 'HASH' eq ref $data->{'_embedded'}) {
+    if (defined $data and 'HASH' eq ref $data
+        and defined $data->{'_embedded'} and 'HASH' eq ref $data->{'_embedded'}) {
         $result = $data->{'_embedded'}->{$params->{$ITEM_REL_PARAM}};
+        undef $result unless ref $result;
     }
     $result //= [];
     return shared_clone($result);

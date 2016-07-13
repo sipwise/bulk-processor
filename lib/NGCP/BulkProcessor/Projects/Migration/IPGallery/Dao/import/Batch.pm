@@ -224,7 +224,6 @@ sub getinsertstatement {
 
 sub getupsertstatement {
 
-    my ($exists_delta,$new_delta) = @_;
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
@@ -233,9 +232,9 @@ sub getupsertstatement {
     my @values = ();
     foreach my $fieldname (@$expected_fieldnames) {
         if ('delta' eq $fieldname) {
-            my $stmt = 'SELECT \'' . $exists_delta . '\' FROM ' . $table . ' WHERE ' .
+            my $stmt = 'SELECT \'' . $updated_delta . '\' FROM ' . $table . ' WHERE ' .
                 $db->columnidentifier('number') . ' = ?';
-            push(@values,'COALESCE((' . $stmt . '), \'' . $new_delta . '\')');
+            push(@values,'COALESCE((' . $stmt . '), \'' . $added_delta . '\')');
         } else {
             push(@values,'?');
         }

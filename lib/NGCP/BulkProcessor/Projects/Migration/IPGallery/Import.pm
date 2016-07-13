@@ -18,9 +18,11 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $ignore_lnp_unique
     $user_password_import_numofthreads
     $ignore_user_password_unique
+    $username_prefix
     $batch_import_numofthreads
     $ignore_batch_unique
-    $dry
+    $subscribernumber_pattern
+    $skip_errors
 );
 use NGCP::BulkProcessor::Logging qw (
     getlogger
@@ -75,7 +77,7 @@ sub import_features_define {
 
     # prepare parse:
     my $importer = NGCP::BulkProcessor::Projects::Migration::IPGallery::FileProcessors::FeaturesDefineFile->new($features_define_import_numofthreads);
-    $importer->stoponparseerrors(!$dry);
+    $importer->stoponparseerrors(!$skip_errors);
 
     my $upsert = _import_features_define_reset_delta();
 
@@ -105,8 +107,9 @@ sub import_features_define {
                 }
                 next unless defined $row;
                 foreach my $subscriber_number (keys %$row) {
+                    next unless _check_subscribernumber($context,$subscriber_number,$rownum);
                     foreach my $option (@{$row->{$subscriber_number}}) {
-                        if ('HASH' eq ref $option) {
+                        if (defined $option and 'HASH' eq ref $option) {
                             foreach my $setoption (keys %$option) {
                                 foreach my $setoptionitem (@{$skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption}}) {
                                     if ($context->{upsert}) {
@@ -139,14 +142,14 @@ sub import_features_define {
             }
 
             if ((scalar @featureoption_rows) > 0) {
-                if ($dry) {
+                if ($skip_errors) {
                     eval { _insert_featureoption_rows($context,\@featureoption_rows); };
                 } else {
                     _insert_featureoption_rows($context,\@featureoption_rows);
                 }
             }
             if ((scalar @featureoptionsetitem_rows) > 0) {
-                if ($dry) {
+                if ($skip_errors) {
                     eval { _insert_featureoptionsetitem_rows($context,\@featureoptionsetitem_rows); };
                 } else {
                     _insert_featureoptionsetitem_rows($context,\@featureoptionsetitem_rows);
@@ -200,10 +203,8 @@ sub _insert_featureoption_rows {
     my ($context,$featureoption_rows) = @_;
     $context->{db}->db_do_begin(
         ($context->{upsert} ?
-         NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::getupsertstatement(
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::updated_delta,
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::added_delta
-         ) : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::getinsertstatement($ignore_options_unique)),
+           NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::getupsertstatement()
+         : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::getinsertstatement($ignore_options_unique)),
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::gettablename(),
         #lock - $import_multithreading
     );
@@ -215,10 +216,8 @@ sub _insert_featureoptionsetitem_rows {
     my ($context,$featureoptionsetitem_rows) = @_;
     $context->{db}->db_do_begin(
         ($context->{upsert} ?
-         NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::getupsertstatement(
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::updated_delta,
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::added_delta
-         ) : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::getinsertstatement($ignore_setoptionitems_unique)),
+           NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::getupsertstatement()
+         : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::getinsertstatement($ignore_setoptionitems_unique)),
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::gettablename(),
         #lock
     );
@@ -252,12 +251,14 @@ sub import_subscriber_define {
                 if ($record->{dial_number} =~ $subscribernumer_exclude_pattern) {
                     if ($record->{dial_number} =~ $subscribernumer_exclude_exception_pattern) {
                         processing_info($context->{tid},'record ' . $rownum . ' - exclude exception pattern match: ' . $record->{dial_number},getlogger(__PACKAGE__));
+                        next unless _check_subscribernumber($context,$record->{dial_number},$rownum);
                         next unless _import_subscriber_define_referential_checks($context,$record,$rownum);
                     } else {
                         processing_info($context->{tid},'record ' . $rownum . ' - skipped, exclude pattern match: ' . $record->{dial_number},getlogger(__PACKAGE__));
                         next;
                     }
                 } else {
+                    next unless _check_subscribernumber($context,$record->{dial_number},$rownum);
                     next unless _import_subscriber_define_referential_checks($context,$record,$rownum);
                 }
                 my @subscriber_row = @$row;
@@ -270,7 +271,7 @@ sub import_subscriber_define {
             }
 
             if ((scalar @subscriber_rows) > 0) {
-                if ($dry) {
+                if ($skip_errors) {
                     eval { _insert_subscriber_rows($context,\@subscriber_rows); };
                 } else {
                     _insert_subscriber_rows($context,\@subscriber_rows);
@@ -310,10 +311,10 @@ sub _import_subscriber_define_referential_checks {
             }
         }
     } else {
-        $result &= 0;
-        if ($dry) {
+        if ($skip_errors) {
             fileprocessingwarn($context->{filename},'record ' . $rownum . ' - no features records for subscriber found: ' . $record->{dial_number},getlogger(__PACKAGE__));
         } else {
+            $result &= 0;
             fileprocessingerror($context->{filename},'record ' . $rownum . ' - no features records for subscriber found: ' . $record->{dial_number},getlogger(__PACKAGE__));
         }
     }
@@ -321,10 +322,10 @@ sub _import_subscriber_define_referential_checks {
     if (NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::countby_fqdn($record->subscribernumber()) > 0) {
 
     } else {
-        $result &= 0;
-        if ($dry) {
+        if ($skip_errors) {
             fileprocessingwarn($context->{filename},'record ' . $rownum . ' - no username password record for subscriber found: ' . $record->{dial_number},getlogger(__PACKAGE__));
         } else {
+            $result &= 0;
             fileprocessingerror($context->{filename},'record ' . $rownum . ' - no username password record for subscriber found: ' . $record->{dial_number},getlogger(__PACKAGE__));
         }
     }
@@ -342,7 +343,7 @@ sub _import_subscriber_define_checks {
     };
     if ($@ or $optioncount == 0) {
         fileprocessingerror($file,'please import subscriber features first',getlogger(__PACKAGE__));
-        $result = 0; #even in dry mode..
+        $result = 0; #even in skip-error mode..
     }
     my $userpasswordcount = 0;
     eval {
@@ -350,7 +351,7 @@ sub _import_subscriber_define_checks {
     };
     if ($@ or $userpasswordcount == 0) {
         fileprocessingerror($file,'please import user passwords first',getlogger(__PACKAGE__));
-        $result = 0; #even in dry mode..
+        $result = 0; #even in skip-error mode..
     }
     return $result;
 }
@@ -371,10 +372,7 @@ sub _insert_subscriber_rows {
     my ($context,$subscriber_rows) = @_;
     $context->{db}->db_do_begin(
         ($context->{upsert} ?
-         NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::getupsertstatement(
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::updated_delta,
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::added_delta
-         )
+           NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::getupsertstatement()
          : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::getinsertstatement($ignore_subscriber_unique)),
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::gettablename(),
         #lock
@@ -417,7 +415,7 @@ sub import_lnp_define {
             }
 
             if ((scalar @lnp_rows) > 0) {
-                if ($dry) {
+                if ($skip_errors) {
                     eval { _insert_lnp_rows($context,\@lnp_rows); };
                 } else {
                     _insert_lnp_rows($context,\@lnp_rows);
@@ -457,10 +455,7 @@ sub _insert_lnp_rows {
     my ($context,$lnp_rows) = @_;
     $context->{db}->db_do_begin(
         ($context->{upsert} ?
-         NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::getupsertstatement(
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::updated_delta,
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::added_delta
-         )
+           NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::getupsertstatement()
          : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::getinsertstatement($ignore_lnp_unique)),
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::gettablename(),
         #lock
@@ -495,9 +490,12 @@ sub import_user_password {
             foreach my $row (@$rows) {
                 $rownum++;
                 my @usernamepassword_row = @$row;
+                shift @usernamepassword_row;
+                unshift(@usernamepassword_row,($username_prefix // '') . $usernamepassword_row[0]);
                 my $record = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword->new(\@usernamepassword_row);
+                next unless _check_subscribernumber($context,$record->{fqdn},$rownum);
                 if ($context->{upsert}) {
-                    push(@usernamepassword_row,$record->{fqdn});
+                    push(@usernamepassword_row,$record->{fqdn},$record->{password},$record->{fqdn});
                 } else {
                     push(@usernamepassword_row,$NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::added_delta);
                 }
@@ -505,7 +503,7 @@ sub import_user_password {
             }
 
             if ((scalar @usernamepassword_rows) > 0) {
-                if ($dry) {
+                if ($skip_errors) {
                     eval { _insert_usernamepassword_rows($context,\@usernamepassword_rows); };
                 } else {
                     _insert_usernamepassword_rows($context,\@usernamepassword_rows);
@@ -545,10 +543,8 @@ sub _insert_usernamepassword_rows {
     my ($context,$usernamepassword_rows) = @_;
     $context->{db}->db_do_begin(
         ($context->{upsert} ?
-         NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::getupsertstatement(
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::updated_delta,
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::added_delta
-         ) : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::getinsertstatement($ignore_user_password_unique)),
+           NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::getupsertstatement()
+         : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::getinsertstatement($ignore_user_password_unique)),
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::gettablename(),
         #lock - $import_multithreading
     );
@@ -578,6 +574,7 @@ sub import_batch {
             foreach my $row (@$rows) {
                 $rownum++;
                 my $record = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch->new($row);
+                next unless _check_subscribernumber($context,$record->{number},$rownum);
                 next unless _import_batch_referential_checks($context,$record,$rownum);
                 my @batch_row = @$row;
                 if ($context->{upsert}) {
@@ -589,7 +586,7 @@ sub import_batch {
             }
 
             if ((scalar @batch_rows) > 0) {
-                if ($dry) {
+                if ($skip_errors) {
                     eval { _insert_batch_rows($context,\@batch_rows); };
                 } else {
                     _insert_batch_rows($context,\@batch_rows);
@@ -619,10 +616,10 @@ sub _import_batch_referential_checks {
     if (NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_subscribernumber($record->{number}) > 0) {
 
     } else {
-        $result &= 0;
-        if ($dry) {
+        if ($skip_errors) {
             fileprocessingwarn($context->{filename},'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number},getlogger(__PACKAGE__));
         } else {
+            $result &= 0;
             fileprocessingerror($context->{filename},'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number},getlogger(__PACKAGE__));
         }
     }
@@ -640,7 +637,7 @@ sub _import_batch_checks {
     };
     if ($@ or $subscribercount == 0) {
         fileprocessingerror($file,'please import subscribers first',getlogger(__PACKAGE__));
-        $result = 0; #even in dry mode..
+        $result = 0; #even in skip-error mode..
     }
     return $result;
 }
@@ -661,16 +658,29 @@ sub _insert_batch_rows {
     my ($context,$batch_rows) = @_;
     $context->{db}->db_do_begin(
         ($context->{upsert} ?
-         NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::getupsertstatement(
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::updated_delta,
-            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::added_delta
-         )
+           NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::getupsertstatement()
          : NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::getinsertstatement($ignore_batch_unique)),
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::gettablename(),
         #lock
     );
     $context->{db}->db_do_rowblock($batch_rows);
     $context->{db}->db_finish();
+}
+
+sub _check_subscribernumber {
+    my ($context,$subscribernumber,$rownum) = @_;
+    my $result = 1;
+    if (defined $subscribernumber_pattern) {
+        if ($subscribernumber !~ $subscribernumber_pattern) {
+            if ($skip_errors) {
+                fileprocessingwarn($context->{filename},'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber,getlogger(__PACKAGE__));
+            } else {
+                $result &= 0;
+                fileprocessingerror($context->{filename},'record ' . $rownum . ' - no features records for subscriber found: ' . $subscribernumber,getlogger(__PACKAGE__));
+            }
+        }
+    }
+    return $result;
 }
 
 1;
