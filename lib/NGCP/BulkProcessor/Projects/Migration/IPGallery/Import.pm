@@ -20,6 +20,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $ignore_user_password_unique
     $batch_import_numofthreads
     $ignore_batch_unique
+    $subscribernumber_pattern
     $dry
 );
 use NGCP::BulkProcessor::Logging qw (
@@ -105,8 +106,9 @@ sub import_features_define {
                 }
                 next unless defined $row;
                 foreach my $subscriber_number (keys %$row) {
+                    next unless _check_subscribernumber($context,$subscriber_number,$rownum);
                     foreach my $option (@{$row->{$subscriber_number}}) {
-                        if ('HASH' eq ref $option) {
+                        if (defined $option and 'HASH' eq ref $option) {
                             foreach my $setoption (keys %$option) {
                                 foreach my $setoptionitem (@{$skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption}}) {
                                     if ($context->{upsert}) {
@@ -252,12 +254,14 @@ sub import_subscriber_define {
                 if ($record->{dial_number} =~ $subscribernumer_exclude_pattern) {
                     if ($record->{dial_number} =~ $subscribernumer_exclude_exception_pattern) {
                         processing_info($context->{tid},'record ' . $rownum . ' - exclude exception pattern match: ' . $record->{dial_number},getlogger(__PACKAGE__));
+                        next unless _check_subscribernumber($context,$record->{dial_number},$rownum);
                         next unless _import_subscriber_define_referential_checks($context,$record,$rownum);
                     } else {
                         processing_info($context->{tid},'record ' . $rownum . ' - skipped, exclude pattern match: ' . $record->{dial_number},getlogger(__PACKAGE__));
                         next;
                     }
                 } else {
+                    next unless _check_subscribernumber($context,$record->{dial_number},$rownum);
                     next unless _import_subscriber_define_referential_checks($context,$record,$rownum);
                 }
                 my @subscriber_row = @$row;
@@ -496,6 +500,7 @@ sub import_user_password {
                 $rownum++;
                 my @usernamepassword_row = @$row;
                 my $record = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword->new(\@usernamepassword_row);
+                next unless _check_subscribernumber($context,$record->{fqdn},$rownum);
                 if ($context->{upsert}) {
                     push(@usernamepassword_row,$record->{fqdn});
                 } else {
@@ -578,6 +583,7 @@ sub import_batch {
             foreach my $row (@$rows) {
                 $rownum++;
                 my $record = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch->new($row);
+                next unless _check_subscribernumber($context,$record->{number},$rownum);
                 next unless _import_batch_referential_checks($context,$record,$rownum);
                 my @batch_row = @$row;
                 if ($context->{upsert}) {
@@ -671,6 +677,22 @@ sub _insert_batch_rows {
     );
     $context->{db}->db_do_rowblock($batch_rows);
     $context->{db}->db_finish();
+}
+
+sub _check_subscribernumber {
+    my ($context,$subscribernumber,$rownum) = @_;
+    my $result = 1;
+    if (defined $subscribernumber_pattern) {
+        if ($subscribernumber !~ $subscribernumber_pattern) {
+            $result = 0;
+            if ($dry) {
+                fileprocessingwarn($context->{filename},'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber,getlogger(__PACKAGE__));
+            } else {
+                fileprocessingerror($context->{filename},'record ' . $rownum . ' - no features records for subscriber found: ' . $subscribernumber,getlogger(__PACKAGE__));
+            }
+        }
+    }
+    return $result;
 }
 
 1;

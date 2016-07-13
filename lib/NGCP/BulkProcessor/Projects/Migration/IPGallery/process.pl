@@ -78,7 +78,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_batch
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning qw(
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::SubscriberProvisioning qw(
     test
 );
 
@@ -163,7 +163,7 @@ sub main() {
     my $result = 1;
     my $completion = 0;
 
-    if ('ARRAY' eq ref $tasks and (scalar @$tasks) > 0) {
+    if (defined $tasks and 'ARRAY' eq ref $tasks and (scalar @$tasks) > 0) {
         foreach my $task (@$tasks) {
 
             if (lc($check_task_opt) eq lc($task)) {
