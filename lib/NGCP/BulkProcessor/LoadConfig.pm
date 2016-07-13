@@ -102,12 +102,12 @@ sub load_config {
         );
         my ($result,$loadconfig_args,$postprocesscode) = update_masterconfig(%context);
         _splashinfo($configfile);
-        if ('ARRAY' eq ref $loadconfig_args) {
+        if (defined $loadconfig_args and 'ARRAY' eq ref $loadconfig_args) {
             foreach my $loadconfig_arg (@$loadconfig_args) {
                 $result &= load_config(@$loadconfig_arg);
             }
         }
-        if ('CODE' eq ref $postprocesscode) {
+        if (defined $postprocesscode and 'CODE' eq ref $postprocesscode) {
             $result &= &$postprocesscode(%context);
         }
         return $result;

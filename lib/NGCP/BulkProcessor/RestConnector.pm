@@ -23,7 +23,9 @@ use NGCP::BulkProcessor::Utils qw(threadid);
 
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw();
+our @EXPORT_OK = qw(
+    _add_headers
+);
 
 #my $logger = getlogger(__PACKAGE__);
 

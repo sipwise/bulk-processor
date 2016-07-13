@@ -44,6 +44,7 @@ our @EXPORT_OK = qw(
     $import_multithreading
     $run_id
     $dry
+    $skip_errors
     $force
     $import_db_file
 
@@ -67,10 +68,13 @@ our @EXPORT_OK = qw(
     $user_password_filename
     $user_password_import_numofthreads
     $ignore_user_password_unique
+    $username_prefix
 
     $batch_filename
     $batch_import_numofthreads
     $ignore_batch_unique
+
+    $subscribernumber_pattern
 
 );
 
@@ -83,6 +87,7 @@ our $rollback_path = $working_path . 'rollback/';
 
 our $force = 0;
 our $dry = 0;
+our $skip_errors = 0;
 our $run_id = '';
 our $import_db_file = _get_import_db_file($run_id,'import');
 our $import_multithreading = $enablemultithreading;
@@ -107,10 +112,13 @@ our $ignore_lnp_unique = 1;
 our $user_password_filename = undef;
 our $user_password_import_numofthreads = $cpucount;
 our $ignore_user_password_unique = 0;
+our $username_prefix = undef;
 
 our $batch_filename = undef;
 our $batch_import_numofthreads = $cpucount;
 our $ignore_batch_unique = 0;
+
+our $subscribernumber_pattern = undef;
 
 sub update_settings {
 
@@ -125,6 +133,7 @@ sub update_settings {
         $result &= _prepare_working_paths(1);
 
         $dry = $data->{dry} if exists $data->{dry};
+        $skip_errors = $data->{skip_errors} if exists $data->{skip_errors};
         $import_db_file = _get_import_db_file($run_id,'import');
         $import_multithreading = $data->{import_multithreading} if exists $data->{import_multithreading};
 
@@ -141,11 +150,17 @@ sub update_settings {
         (my $regexp_result,$subscribernumer_exclude_exception_pattern) = parse_regexp($subscribernumer_exclude_exception_pattern,$configfile);
         $result &= $regexp_result;
 
+        $subscribernumber_pattern = $data->{subscribernumber_pattern} if exists $data->{subscribernumber_pattern};
+        (my $regexp_result,$subscribernumber_pattern) = parse_regexp($subscribernumber_pattern,$configfile);
+        $result &= $regexp_result;
+
         $lnp_define_filename = _get_import_filename($lnp_define_filename,$data,'lnp_define_filename');
         $lnp_define_import_numofthreads = _get_import_numofthreads($cpucount,$data,'lnp_define_import_numofthreads');
 
         $user_password_filename = _get_import_filename($user_password_filename,$data,'user_password_filename');
         $user_password_import_numofthreads = _get_import_numofthreads($cpucount,$data,'user_password_import_numofthreads');
+
+        $username_prefix = $data->{username_prefix} if exists $data->{username_prefix};
 
         $batch_filename = _get_import_filename($batch_filename,$data,'batch_filename');
         $batch_import_numofthreads = _get_import_numofthreads($cpucount,$data,'batch_import_numofthreads');
