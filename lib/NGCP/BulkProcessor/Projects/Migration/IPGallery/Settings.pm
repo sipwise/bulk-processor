@@ -72,6 +72,8 @@ our @EXPORT_OK = qw(
     $batch_import_numofthreads
     $ignore_batch_unique
 
+    $subscribernumber_pattern
+
 );
 
 our $defaultconfig = 'config.cfg';
@@ -112,6 +114,8 @@ our $batch_filename = undef;
 our $batch_import_numofthreads = $cpucount;
 our $ignore_batch_unique = 0;
 
+our $subscribernumber_pattern = undef;
+
 sub update_settings {
 
     my ($data,$configfile) = @_;
@@ -139,6 +143,10 @@ sub update_settings {
         $result &= $regexp_result;
         $subscribernumer_exclude_exception_pattern = $data->{subscribernumer_exclude_exception_pattern} if exists $data->{subscribernumer_exclude_exception_pattern};
         (my $regexp_result,$subscribernumer_exclude_exception_pattern) = parse_regexp($subscribernumer_exclude_exception_pattern,$configfile);
+        $result &= $regexp_result;
+
+        $subscribernumber_pattern = $data->{subscribernumber_pattern} if exists $data->{subscribernumber_pattern};
+        (my $regexp_result,$subscribernumber_pattern) = parse_regexp($subscribernumber_pattern,$configfile);
         $result &= $regexp_result;
 
         $lnp_define_filename = _get_import_filename($lnp_define_filename,$data,'lnp_define_filename');
