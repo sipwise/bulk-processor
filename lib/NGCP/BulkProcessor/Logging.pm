@@ -82,6 +82,9 @@ our @EXPORT_OK = qw(
 
     processing_info
 
+    faketimeinfo
+    faketimedebug
+
     restthreadingdebug
     restprocessingstarted
     restprocessingdone
@@ -706,6 +709,23 @@ sub configurationinfo {
 
 }
 
+sub faketimeinfo {
+
+    my ($message, $logger) = @_;
+    if (defined $logger) {
+        $logger->info($message);
+    }
+
+}
+
+sub faketimedebug {
+
+    my ($message, $logger) = @_;
+    if (defined $logger) {
+        $logger->debug($message);
+    }
+
+}
 
 
 sub scriptinfo {

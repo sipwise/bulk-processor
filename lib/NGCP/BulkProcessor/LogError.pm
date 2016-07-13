@@ -43,6 +43,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     notimplementederror
+    faketimeerror
     dberror
     dbwarn
     fieldnamesdiffer
@@ -266,6 +267,17 @@ sub notimplementederror {
     terminate($message, $logger);
     #terminatethreads();
     #die();
+
+}
+
+sub faketimeerror {
+
+    my ($message, $logger) = @_;
+    if (defined $logger) {
+        $logger->error($message);
+    }
+
+    terminate($message, $logger);
 
 }
 

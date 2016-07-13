@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::RestRequests::Trunk::BillingProfiles;
+package NGCP::BulkProcessor::RestRequests::Trunk::Contracts;
 use strict;
 
 ## no critic
@@ -9,7 +9,6 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 );
 
 use NGCP::BulkProcessor::RestProcessor qw(
-    process_collection
     copy_row
 );
 
@@ -21,11 +20,12 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::RestItem);
 our @EXPORT_OK = qw(
     get_item
     create_item
-    process_items
+    set_item
+    update_item
 );
 
 my $get_restapi = \&get_ngcp_restapi;
-my $resource = 'billingprofiles';
+my $resource = 'contracts';
 my $item_relation = 'ngcp:' . $resource;
 my $get_item_path_query = sub {
     my ($id) = @_;
@@ -34,23 +34,13 @@ my $get_item_path_query = sub {
 my $collection_path_query = 'api/' . $resource . '/';
 
 my $fieldnames = [
-    'currency',
-    'fraud_daily_limit',
-    'fraud_daily_lock',
-    'fraud_daily_notify',
-    'fraud_interval_limit',
-    'fraud_interval_lock',
-    'fraud_interval_notify',
-    'fraud_use_reseller_rates',
-    'handle',
-    'interval_charge',
-    'interval_free_cash',
-    'interval_free_time',
-    'name',
-    'peaktime_special',
-    'peaktime_weekdays',
-    'prepaid',
-    'reseller_id',
+    'billing_profile_definition',
+    'billing_profile_id',
+    'billing_profiles',
+    'contact_id',
+    'external_id',
+    'status',
+    'type',
 ];
 
 sub new {
@@ -87,6 +77,22 @@ sub create_item {
 
 }
 
+sub set_item {
+
+    my ($id,$data,$load_recursive,$headers) = @_;
+    my $restapi = &$get_restapi();
+    return builditems_fromrows($restapi->put(&$get_item_path_query($id),$data,$headers),$load_recursive);
+
+}
+
+sub update_item {
+
+    my ($id,$data,$load_recursive,$headers) = @_;
+    my $restapi = &$get_restapi();
+    return builditems_fromrows($restapi->patch(&$get_item_path_query($id),$data,$headers),$load_recursive);
+
+}
+
 sub builditems_fromrows {
 
     my ($rows,$load_recursive) = @_;
@@ -109,42 +115,6 @@ sub builditems_fromrows {
     }
     return undef;
 
-}
-
-sub process_items {
-
-    my %params = @_;
-    my ($process_code,
-        $blocksize,
-        $init_process_context_code,
-        $uninit_process_context_code,
-        $multithreading,
-        $numofthreads,
-        $load_recursive) = @params{qw/
-            process_code
-            blocksize
-            init_process_context_code
-            uninit_process_context_code
-            multithreading
-            numofthreads
-            load_recursive
-        /};
-
-    return process_collection(
-        get_restapi                     => $get_restapi,
-        path_query                      => $collection_path_query,
-        headers                         => undef, #faketime,..
-        extract_collection_items_params => { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation },
-        process_code                    => sub {
-                my ($context,$rowblock,$row_offset) = @_;
-                return &$process_code($context,builditems_fromrows($rowblock,$load_recursive),$row_offset);
-            },
-        blocksize                       => $blocksize,
-        init_process_context_code       => $init_process_context_code,
-        uninit_process_context_code     => $uninit_process_context_code,
-        multithreading                  => $multithreading,
-        collectionprocessing_threads    => $numofthreads,
-    );
 }
 
 1;

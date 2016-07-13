@@ -38,6 +38,7 @@ Depends:
  libgearman-client-perl,
  libdigest-md5-perl,
  libdata-uuid-perl,
+ libuuid-perl,
  libnet-address-ip-local-perl,
  libdate-manip-perl,
  libdate-calc-perl,

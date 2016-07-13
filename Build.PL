@@ -43,6 +43,7 @@ my $builder = Module::Build->new(
         #'Gearman::Task'                                         => 0,
         'Digest::MD5'                                           => 0,
         'Data::UUID'                                            => 0,
+        'UUID'                                                  => 0,
         'Net::Address::IP::Local'                               => 0,
         'Date::Manip'                                           => 0,
         'Date::Calc'                                            => 0,

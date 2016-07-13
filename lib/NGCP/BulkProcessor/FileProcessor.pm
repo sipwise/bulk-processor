@@ -176,7 +176,7 @@ sub process {
                 if (defined $init_reader_context_code) {
                     &$init_reader_context_code($self,$context);
                 }
-                if ('CODE' eq ref $init_process_context_code) {
+                if (defined $init_process_context_code and 'CODE' eq ref $init_process_context_code) {
                     &$init_process_context_code($context);
                 }
                 my $extractlines_code = (ref $self)->can('extractlines');
@@ -260,7 +260,7 @@ sub process {
             }
 
             eval {
-                if ('CODE' eq ref $uninit_process_context_code) {
+                if (defined $uninit_process_context_code and 'CODE' eq ref $uninit_process_context_code) {
                     &$uninit_process_context_code($context);
                 }
             };
@@ -422,7 +422,7 @@ sub _process {
 
     my $blockcount = 0;
     eval {
-        if ('CODE' eq ref $context->{init_process_context_code}) {
+        if (defined $context->{init_process_context_code} and 'CODE' eq ref $context->{init_process_context_code}) {
             &{$context->{init_process_context_code}}($context);
         }
         while (not _get_stop_consumer_thread($context,$tid)) {
@@ -454,7 +454,7 @@ sub _process {
     my $err = $@;
     filethreadingdebug($err ? '[' . $tid . '] processor thread error: ' . $err : '[' . $tid . '] processor thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     eval {
-        if ('CODE' eq ref $context->{uninit_process_context_code}) {
+        if (defined $context->{uninit_process_context_code} and 'CODE' eq ref $context->{uninit_process_context_code}) {
             &{$context->{uninit_process_context_code}}($context);
         }
     };
