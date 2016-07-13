@@ -36,6 +36,7 @@ our @EXPORT_OK = qw(
     countby_delta
 
     $deleted_delta
+    $unchanged_delta
     $updated_delta
     $added_delta
 
@@ -50,16 +51,20 @@ my $expected_fieldnames = [
     'fqdn',
     'username',
     'password',
-    'auth_level',
+    #'auth_level',
     'delta',
 ];
 
 # table creation:
 my $primarykey_fieldnames = [ 'fqdn' ];
-my $indexes = { $tablename . '_delta' => [ 'delta(7)' ]};
+my $indexes = {
+    $tablename . '_username_password' => [ 'username(11)', 'password(32)' ],
+    $tablename . '_delta' => [ 'delta(7)' ],
+};
 #my $fixtable_statements = [];
 
 our $deleted_delta = 'DELETED';
+our $unchanged_delta = 'UNCHANGED';
 our $updated_delta = 'UPDATED';
 our $added_delta = 'ADDED';
 
@@ -219,7 +224,6 @@ sub getinsertstatement {
 
 sub getupsertstatement {
 
-    my ($exists_delta,$new_delta) = @_;
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
@@ -228,9 +232,11 @@ sub getupsertstatement {
     my @values = ();
     foreach my $fieldname (@$expected_fieldnames) {
         if ('delta' eq $fieldname) {
-            my $stmt = 'SELECT \'' . $exists_delta . '\' FROM ' . $table . ' WHERE ' .
+            my $unchanged_stmt = 'SELECT \'' . $unchanged_delta . '\' FROM ' . $table . ' WHERE ' .
+                $db->columnidentifier('fqdn') . ' = ? AND ' . $db->columnidentifier('password') . ' = ?';
+            my $updated_stmt = 'SELECT \'' . $updated_delta . '\' FROM ' . $table . ' WHERE ' .
                 $db->columnidentifier('fqdn') . ' = ?';
-            push(@values,'COALESCE((' . $stmt . '), \'' . $new_delta . '\')');
+            push(@values,'COALESCE((' . $unchanged_stmt . '), (' . $updated_stmt . '), \'' . $added_delta . '\')');
         } else {
             push(@values,'?');
         }

@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning;
+package NGCP::BulkProcessor::Projects::Migration::IPGallery::SubscriberProvisioning;
 use strict;
 
 ## no critic
@@ -18,30 +18,6 @@ our @EXPORT_OK = qw(
 );
 
 sub test {
-
-    my $result = 1;
-
-    return $result && NGCP::BulkProcessor::RestRequests::Trunk::BillingProfiles::process_items(
-        process_code => sub {
-            my ($context,$records,$row_offset) = @_;
-            my $rownum = $row_offset;
-            print "!!!!!!$row_offset!!!!!!!\n";
-            return 1;
-        },
-        init_process_context_code => sub {
-            my ($context)= @_;
-        },
-        uninit_process_context_code => sub {
-            my ($context)= @_;
-            destroy_all_dbs();
-        },
-        load_recursive => 1,
-        multithreading => 1,
-        numofthreads => 4,
-    );
-}
-
-sub test1 {
 
     my $result = 1;
 

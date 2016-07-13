@@ -17,25 +17,24 @@ use NGCP::BulkProcessor::Logging qw(
 
 use NGCP::BulkProcessor::LogError qw(
     faketimeerror
-    restwarn);
+);
 
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-    set_time
-    get_now
-    current_unix
+    set_fake_time
+    get_fake_now
+    get_fake_now_string
+    fake_current_unix
     infinite_future
     is_infinite_future
     datetime_to_string
     datetime_from_string
-    );
-
-#my $logger = getlogger(__PACKAGE__);
+);
 
 my $is_fake_time = 0;
 
-sub set_time {
+sub set_fake_time {
 	my ($o) = @_;
 	if (defined $o) {
 		_set_fake_time($o);
@@ -48,15 +47,15 @@ sub set_time {
 	}
 }
 
-sub _get_fake_clienttime_now {
+sub get_fake_now_string {
 	return datetime_to_string(_current_local());
 }
 
-sub get_now {
+sub get_fake_now {
 	return _current_local();
 }
 
-sub current_unix {
+sub fake_current_unix {
 	if ($is_fake_time) {
 		return Time::Warp::time;
 	} else {

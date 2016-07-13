@@ -23,7 +23,9 @@ use NGCP::BulkProcessor::Utils qw(threadid);
 
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw();
+our @EXPORT_OK = qw(
+    _add_headers
+);
 
 #my $logger = getlogger(__PACKAGE__);
 
@@ -95,6 +97,7 @@ sub _create_ua {
         resterror($self,'base URL not set',getlogger(__PACKAGE__));
     }
     my $ua = LWP::UserAgent->new();
+    restdebug($self,"ua created",getlogger(__PACKAGE__));
     $self->_setup_ua($ua,$self->{netloc});
     return $ua;
 
