@@ -40,6 +40,12 @@ our @EXPORT_OK = qw(
     $added_delta
 
     $PRE_PAID_SERVICE_OPTION_SET
+    $WEB_PASSWORD_OPTION_SET
+
+    $FORWARD_ON_BUSY_OPTION_SET
+    $FORWARD_ON_NO_ANSWER_OPTION_SET
+    $FORWARD_ALL_CALLS_OPTION_SET
+    $FORWARD_UNAVAILABLE_OPTION_SET
 );
 
 my $tablename = 'feature_option_set_item';
@@ -66,6 +72,12 @@ our $updated_delta = 'UPDATED';
 our $added_delta = 'ADDED';
 
 our $PRE_PAID_SERVICE_OPTION_SET = 'Pre_Paid_Service';
+our $WEB_PASSWORD_OPTION_SET = 'Web_Password';
+
+our $FORWARD_ON_BUSY_OPTION_SET = 'Forward_On_Busy';
+our $FORWARD_ON_NO_ANSWER_OPTION_SET = 'Forward_On_No_Answer';
+our $FORWARD_ALL_CALLS_OPTION_SET = 'Forward_All_Calls';
+our $FORWARD_UNAVAILABLE_OPTION_SET = 'Forward_Unavailable';
 
 sub new {
 
@@ -194,18 +206,23 @@ sub countby_subscribernumber_option_optionsetitem {
 
 sub countby_delta {
 
-    my ($delta) = @_;
+    my ($deltas) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table . ' WHERE 1=1';
     my @params = ();
-    if (defined $delta) {
-        $stmt .= ' WHERE ' .
-            $db->columnidentifier('delta') . ' = ?';
-        push(@params,$delta);
+    if (defined $deltas and 'HASH' eq ref $deltas) {
+        foreach my $in (keys %$deltas) {
+            my @values = (defined $deltas->{$in} and 'ARRAY' eq ref $deltas->{$in} ? @{$deltas->{$in}} : ($deltas->{$in}));
+            $stmt .= ' AND ' . $db->columnidentifier('delta') . ' ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+            push(@params,@values);
+        }
+    } elsif (defined $deltas and length($deltas) > 0) {
+        $stmt .= ' AND ' . $db->columnidentifier('delta') . ' = ?';
+        push(@params,$deltas);
     }
 
     return $db->db_get_value($stmt,@params);
