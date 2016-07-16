@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contracts;
+package NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers;
 use strict;
 
 ## no critic
@@ -26,43 +26,24 @@ our @EXPORT_OK = qw(
     check_table
     insert_row
 
-    countby_status_resellerid
-
-    $ACTIVE_STATE
-    $TERMINATED_STATE
+    findby_lnpproviderid_number
 );
 
-my $tablename = 'contracts';
+my $tablename = 'lnp_numbers';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'customer_id',
-    'contact_id',
-    'order_id',
-    'profile_package_id',
-    'status',
-    'external_id',
-    'modify_timestamp',
-    'create_timestamp',
-    'activate_timestamp',
-    'terminate_timestamp',
-    'max_subscribers',
-    'send_invoice',
-    'subscriber_email_template_id',
-    'passreset_email_template_id',
-    'invoice_email_template_id',
-    'invoice_template_id',
-    'vat_rate',
-    'add_vat',
+    'number',
+    'routing_number',
+    'lnp_provider_id',
+    'start',
+    'end',
 ];
 
 my $indexes = {};
 
 my $insert_unique_fields = [];
-
-our $ACTIVE_STATE = 'active';
-our $TERMINATED_STATE = 'terminated';
 
 sub new {
 
@@ -79,31 +60,21 @@ sub new {
 
 }
 
-sub countby_status_resellerid {
+sub findby_lnpproviderid_number {
 
-    my ($status,$reseller_id) = @_;
+    my ($lnp_provider_id,$number,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT COUNT(*) FROM ' . $table . ' AS contract' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
-    my @params = ();
-    my @terms = ();
-    if ($status) {
-        push(@terms,'contract.status = ?');
-        push(@params,$status);
-    }
-    if ($reseller_id) {
-        push(@terms,'contact.reseller_id = ?');
-        push(@params,$reseller_id);
-    }
-    if ((scalar @terms) > 0) {
-        $stmt .= ' WHERE ' . join(' AND ',@terms);
-    }
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('lnp_provider_id') . ' = ?' .
+            ' AND ' . $db->columnidentifier('number') . ' = ?';
+    my @params = ($lnp_provider_id,$number);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
 
-    return $db->db_get_value($stmt,@params);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 
@@ -119,20 +90,23 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($contact_id) = @params{qw/
-                contact_id
+        my ($email,
+            $reseller_id) = @params{qw/
+                email
+                reseller_id
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('contact_id') . ', ' .
                 $db->columnidentifier('create_timestamp') . ', ' .
+                $db->columnidentifier('email') . ', ' .
                 $db->columnidentifier('modify_timestamp') . ', ' .
-                $db->columnidentifier('status') . ') VALUES (' .
+                $db->columnidentifier('reseller_id') . ') VALUES (' .
+                'NOW(), ' .
                 '?, ' .
                 'NOW(), ' .
-                'NOW(), ' .
-                '\'' . $ACTIVE_STATE . '\')',
-                $contact_id,
+                '?)',
+                $email,
+                $reseller_id,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();

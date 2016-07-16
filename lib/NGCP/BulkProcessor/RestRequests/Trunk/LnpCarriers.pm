@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::RestRequests::Trunk::BillingZones;
+package NGCP::BulkProcessor::RestRequests::Trunk::LnpCarriers;
 use strict;
 
 ## no critic
@@ -9,7 +9,9 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 );
 
 use NGCP::BulkProcessor::RestProcessor qw(
+    process_collection
     copy_row
+    get_query_string
 );
 
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw();
@@ -20,11 +22,14 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::RestItem);
 our @EXPORT_OK = qw(
     get_item
     create_item
+
+    get_items_filtered
     get_item_path
+    get_item_filter_path
 );
 
 my $get_restapi = \&get_ngcp_restapi;
-my $resource = 'billingzones';
+my $resource = 'lnpcarriers';
 my $item_relation = 'ngcp:' . $resource;
 my $get_item_path_query = sub {
     my ($id) = @_;
@@ -33,10 +38,16 @@ my $get_item_path_query = sub {
 my $collection_path_query = 'api/' . $resource . '/';
 
 my $fieldnames = [
-    'billing_profile_id',
-    'detail',
-    'zone',
+    'authorative',
+    'name',
+    'prefix',
+    'skip_rewrite',
 ];
+
+my $get_item_filter_path_query = sub {
+    my ($filters) = @_;
+    return 'api/' . $resource . '/' . get_query_string($filters);
+};
 
 sub new {
 
@@ -56,6 +67,15 @@ sub get_item {
     my ($id,$load_recursive,$headers) = @_;
     my $restapi = &$get_restapi();
     return builditems_fromrows($restapi->get(&$get_item_path_query($id),$headers),$load_recursive);
+
+}
+
+sub get_items_filtered {
+
+    my ($filters,$load_recursive,$headers) = @_;
+    my $restapi = &$get_restapi();
+    return builditems_fromrows($restapi->extract_collection_items($restapi->get(&$get_item_filter_path_query($filters),$headers),undef,undef,
+        { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation }),$load_recursive);
 
 }
 
@@ -100,6 +120,13 @@ sub get_item_path {
 
     my ($id) = @_;
     return &$get_item_path_query($id);
+
+}
+
+sub get_item_filter_path {
+
+    my ($filters) = @_;
+    return &$get_item_filter_path_query($filters);
 
 }
 

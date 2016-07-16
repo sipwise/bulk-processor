@@ -67,6 +67,7 @@ sub init_reader_context {
             $context->{grammar} = create_grammar();
         };
         if ($@) {
+            $context->{error_count} = $context->{error_count} + 1;
             fileprocessingerror($context->{filename},$@,getlogger(__PACKAGE__));
         }
     }
@@ -86,8 +87,10 @@ sub extractfields {
         };
         if ($@) {
             if ($context->{instance}->{stoponparseerrors}) {
+                $context->{error_count} = $context->{error_count} + 1;
                 fileprocessingerror($context->{filename},'record ' . $context->{linesread} . ' - ' . $@,getlogger(__PACKAGE__));
             } else {
+                $context->{warning_count} = $context->{warning_count} + 1;
                 fileprocessingwarn($context->{filename},'record ' . $context->{linesread} . ' - ' . $@,getlogger(__PACKAGE__));
             }
         }

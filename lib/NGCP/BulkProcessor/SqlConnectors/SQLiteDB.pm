@@ -51,9 +51,9 @@ our $temporarydbfilemode = 2; #cleaned on shutdown
 our $memorydbfilemode = 3; #never on disk
 our $privatedbfilemode = 4; #somewhere on disk, cleaned on shutdown
 
-my $cachesize = 16384; #40000;
-my $pagesize = 2048; #8192;
-my $busytimeout = 60000; #20000; #msecs
+my $cachesize = 40000; #16384; #40000;
+my $pagesize = 4096; #2048; #8192;
+my $busytimeout = 2*60000; #20000; #msecs
 
 my $dbextension = '.db';
 my $journalpostfix = '-journal';
@@ -610,8 +610,9 @@ sub db_finish {
 
     my $self = shift;
     #my $unlock = shift;
+    my $rollback = shift;
 
-    $self->SUPER::db_finish($rowblock_transactional);
+    $self->SUPER::db_finish($rowblock_transactional,$rollback);
 
 }
 
