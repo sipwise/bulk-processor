@@ -24,6 +24,7 @@ Depends:
  libdatetime-format-strptime-perl,
  libdatetime-format-iso8601-perl,
  libtie-ixhash-perl,
+ libany-uri-escape-perl,
  libyaml-tiny-perl,
  liblog-log4perl-perl,
  libmime-base64-perl,

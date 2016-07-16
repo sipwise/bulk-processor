@@ -8,6 +8,7 @@ use threads::shared;
 use Thread::Queue;
 
 use Time::HiRes qw(sleep);
+use URI::Escape qw();
 
 use NGCP::BulkProcessor::Globals qw(
     $enablemultithreading
@@ -34,6 +35,7 @@ our @EXPORT_OK = qw(
     init_item
     copy_row
     process_collection
+    get_query_string
 );
 
 my $collectionprocessing_threadqueuelength = 10;
@@ -43,6 +45,20 @@ my $thread_sleep_secs = 0.1;
 my $RUNNING = 1;
 my $COMPLETED = 2;
 my $ERROR = 4;
+
+sub get_query_string {
+    my ($filters) = @_;
+    my $query = '';
+    foreach my $param (keys %$filters) {
+        if (length($query) == 0) {
+            $query .= '?';
+        } else {
+            $query .= '&';
+        }
+        $query .= URI::Escape::uri_escape($param) . '=' . URI::Escape::uri_escape($filters->{$param});
+    }
+    return $query;
+};
 
 sub init_item {
 

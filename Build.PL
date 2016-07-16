@@ -27,6 +27,8 @@ my $builder = Module::Build->new(
 
         'Tie::IxHash'                                           => 0,
 
+        'URI::Escape'                                           => 0,
+
         'Config::Any'                                           => 0,
         'YAML::Tiny'                                            => 0,
         'Log::Log4Perl'                                         => 0,
@@ -73,4 +75,6 @@ my $builder = Module::Build->new(
     },
     add_to_cleanup => ['NGCP-BulkProcessor-*', 'Excel-Reader-*'],
 );
+$builder->add_build_element('pl');
+$builder->add_build_element('cfg');
 $builder->create_build_script;

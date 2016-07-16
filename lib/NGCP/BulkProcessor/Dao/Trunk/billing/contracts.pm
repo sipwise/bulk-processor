@@ -25,6 +25,11 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
     insert_row
+
+    countby_status_resellerid
+
+    $ACTIVE_STATE
+    $TERMINATED_STATE
 );
 
 my $tablename = 'contracts';
@@ -56,6 +61,9 @@ my $indexes = {};
 
 my $insert_unique_fields = [];
 
+our $ACTIVE_STATE = 'active';
+our $TERMINATED_STATE = 'terminated';
+
 sub new {
 
     my $class = shift;
@@ -71,6 +79,34 @@ sub new {
 
 }
 
+sub countby_status_resellerid {
+
+    my ($status,$reseller_id) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table . ' AS contract' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
+    my @params = ();
+    my @terms = ();
+    if ($status) {
+        push(@terms,'contract.status = ?');
+        push(@params,$status);
+    }
+    if ($reseller_id) {
+        push(@terms,'contact.reseller_id = ?');
+        push(@params,$reseller_id);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
+    }
+
+    return $db->db_get_value($stmt,@params);
+
+}
+
 sub insert_row {
 
     my $db = &$get_db();
@@ -83,10 +119,8 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($contact_id,
-            $status) = @params{qw/
+        my ($contact_id) = @params{qw/
                 contact_id
-                status
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
@@ -97,9 +131,8 @@ sub insert_row {
                 '?, ' .
                 'NOW(), ' .
                 'NOW(), ' .
-                '?)',
+                '\'' . $ACTIVE_STATE . '\')',
                 $contact_id,
-                $status,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();

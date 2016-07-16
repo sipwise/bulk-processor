@@ -30,7 +30,6 @@ use NGCP::BulkProcessor::Logging qw(
 
     rowtransferstarted
     rowtransferred
-    rowskipped
     rowinserted
     rowupdated
     rowsdeleted
@@ -74,6 +73,7 @@ our @EXPORT_OK = qw(
     create_targettable
     insert_record
     update_record
+    delete_record
     delete_records
 
     insert_stmt
@@ -528,6 +528,79 @@ sub insert_record {
 
 }
 
+sub delete_record {
+
+    my ($get_db,$get_xa_db,$tablename,$row) = @_;
+
+    my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
+    my $xa_db = (defined $get_xa_db ? (ref $get_xa_db eq 'CODE') ? &$get_xa_db() : $get_xa_db : $db);
+
+    #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
+    my $connectidentifier = $db->connectidentifier();
+    my $tid = threadid();
+
+    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
+    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
+
+    if (defined $expected_fieldnames and defined $row) {
+
+        my @pk_fields = ();
+        my @pk_vals = ();
+
+        my $full_pk = 0;
+        if (defined $primarykeys) {
+            $full_pk = ((scalar @$primarykeys) > 0 ? 1 : 0);
+            foreach my $fieldname (@$primarykeys) {
+                if (exists $row->{$fieldname}) {
+                    push(@pk_fields,$fieldname);
+                    push(@pk_vals,delete $row->{$fieldname});
+                } else {
+                    $full_pk &= 0;
+                }
+            }
+
+        }
+
+        if ((scalar @pk_fields) == 0) {
+            foreach my $fieldname (@$expected_fieldnames) {
+                if (exists $row->{$fieldname}) {
+                    push @pk_fields,$fieldname;
+                    push @pk_vals,$row->{$fieldname};
+                }
+            }
+        }
+
+        my $selectpk_fieldnames = join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @pk_fields);
+        my $stmt = 'DELETE FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?';
+        if ($full_pk) {
+            if ($xa_db->db_do($stmt,@pk_vals)) {
+                rowsdeleted($db,$tablename,1,1,getlogger(__PACKAGE__));
+                return 1;
+            } else {
+                rowsdeleted($db,$tablename,0,0,getlogger(__PACKAGE__));
+                return 0;
+            }
+        } else {
+            my $count = $xa_db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?',@pk_vals);
+            if ($count == 1) {
+                my $affected;
+                if ($affected = $xa_db->db_do($stmt,@pk_vals)) {
+                    rowsdeleted($db,$tablename,$affected,$count,getlogger(__PACKAGE__));
+                    return 1;
+                } else {
+                    rowsdeleted($db,$tablename,0,$count,getlogger(__PACKAGE__));
+                    return 0;
+                }
+            } else {
+                rowsdeleted($db,$tablename,0,$count,getlogger(__PACKAGE__));
+                return 0;
+            }
+        }
+
+    }
+
+}
+
 sub update_record {
 
     my ($get_db,$get_xa_db,$tablename,$row) = @_;
@@ -544,49 +617,64 @@ sub update_record {
 
     if (defined $expected_fieldnames and defined $row) {
 
-        my @fields = ();
-        my @vals = ();
-
-        foreach my $fieldname (@$expected_fieldnames) {
-            if (exists $row->{$fieldname}) {
-                push @fields,$fieldname;
-                push @vals,$row->{$fieldname};
-            }
-        }
+        my %data = %$row;
 
         my @pk_fields = ();
         my @pk_vals = ();
 
+        my $full_pk = 0;
         if (defined $primarykeys) {
-            if (scalar @$primarykeys > 0) {
-                foreach my $fieldname (@$primarykeys) {
-                    if (exists $row->{$fieldname}) {
-                        push @pk_fields,$fieldname;
-                        push @pk_vals,$row->{$fieldname};
-                    #} else {
-                    #    'insert error: pk field not foun din row';
-                    #    push @pk_vals,undef;
-                    }
+            $full_pk = ((scalar @$primarykeys) > 0 ? 1 : 0);
+            foreach my $fieldname (@$primarykeys) {
+                if (exists $data{$fieldname}) {
+                    push(@pk_fields,$fieldname);
+                    push(@pk_vals,delete $data{$fieldname});
+                } else {
+                    $full_pk &= 0;
                 }
-            } else {
-                @pk_fields = @fields;
-                @pk_vals = @vals;
             }
-        } else {
+
+        }
+
+        my @fields = ();
+        my @vals = ();
+
+        foreach my $fieldname (@$expected_fieldnames) {
+            if (exists $data{$fieldname}) {
+                push @fields,$fieldname;
+                push @vals,$data{$fieldname};
+            }
+        }
+
+        if ((scalar @pk_fields) == 0) {
             @pk_fields = @fields;
             @pk_vals = @vals;
         }
 
         my $selectpk_fieldnames = join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @pk_fields);
-
-        my $count = $xa_db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?',@pk_vals);
-        if ($count == 1) {
-            $xa_db->db_do('UPDATE ' . $db->tableidentifier($tablename) . ' SET ' . join(' = ?, ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ' = ? WHERE ' . $selectpk_fieldnames . ' = ?',@vals,@pk_vals);
-            rowupdated($db,$tablename,getlogger(__PACKAGE__));
-            return 1;
+        my $stmt = 'UPDATE ' . $db->tableidentifier($tablename) . ' SET ' . join(' = ?, ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ' = ? WHERE ' . $selectpk_fieldnames . ' = ?';
+        if ($full_pk) {
+            if ($xa_db->db_do($stmt,@vals,@pk_vals)) {
+                rowupdated($db,$tablename,getlogger(__PACKAGE__));
+                return 1;
+            } else {
+                rowupdateskipped($db,$tablename,0,getlogger(__PACKAGE__));
+                return 0;
+            }
         } else {
-            rowupdateskipped($db,$tablename,$count,getlogger(__PACKAGE__));
-            return 0;
+            my $count = $xa_db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?',@pk_vals);
+            if ($count == 1) {
+                if ($xa_db->db_do($stmt,@vals,@pk_vals)) {
+                    rowupdated($db,$tablename,getlogger(__PACKAGE__));
+                    return 1;
+                } else {
+                    rowupdateskipped($db,$tablename,0,getlogger(__PACKAGE__));
+                    return 0;
+                }
+            } else {
+                rowupdateskipped($db,$tablename,$count,getlogger(__PACKAGE__));
+                return 0;
+            }
         }
 
     }
