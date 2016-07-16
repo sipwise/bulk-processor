@@ -111,7 +111,8 @@ sub import_features_define {
                     foreach my $option (@{$row->{$subscriber_number}}) {
                         if (defined $option and 'HASH' eq ref $option) {
                             foreach my $setoption (keys %$option) {
-                                foreach my $setoptionitem (@{$skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption}}) {
+                                my $setoptionitems = $skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption};
+                                foreach my $setoptionitem (@$setoptionitems) {
                                     if ($context->{upsert}) {
                                         push(@featureoptionsetitem_rows,[ $subscriber_number, $setoption, $setoptionitem,
                                             $subscriber_number, $setoption, $setoptionitem ]);
@@ -120,12 +121,14 @@ sub import_features_define {
                                             $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::added_delta ]);
                                     }
                                 }
-                                if ($context->{upsert}) {
-                                    push(@featureoption_rows,[ $subscriber_number, $setoption,
-                                        $subscriber_number, $setoption ]);
-                                } else {
-                                    push(@featureoption_rows,[ $subscriber_number, $setoption,
-                                        $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::added_delta ]);
+                                if ((scalar @$setoptionitems) > 0) {
+                                    if ($context->{upsert}) {
+                                        push(@featureoption_rows,[ $subscriber_number, $setoption,
+                                            $subscriber_number, $setoption ]);
+                                    } else {
+                                        push(@featureoption_rows,[ $subscriber_number, $setoption,
+                                            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::added_delta ]);
+                                    }
                                 }
                             }
                         } else {

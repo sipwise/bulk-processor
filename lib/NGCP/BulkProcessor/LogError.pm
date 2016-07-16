@@ -50,6 +50,8 @@ our @EXPORT_OK = qw(
     transferzerorowcount
     processzerorowcount
     deleterowserror
+    rowprocessingwarn
+    rowprocessingerror
 
     tabletransferfailed
     tableprocessingfailed
@@ -431,17 +433,23 @@ sub processzerorowcount {
 
 }
 
-sub deleterowserror {
+sub rowprocessingerror {
 
-    my ($db,$tablename,$message,$logger) = @_;
-    $message = _getsqlconnectorinstanceprefix($db) . '[' . $db->connectidentifier() . '].' . $tablename . ' - ' . $message;
+    my ($tid, $message, $logger) = @_;
     if (defined $logger) {
-        $logger->error($message);
+        $logger->error(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
     }
-
     terminate($message, $logger);
-    #terminatethreads();
-    #die();
+
+}
+
+sub rowprocessingwarn {
+
+    my ($tid, $message, $logger) = @_;
+    if (defined $logger) {
+        $logger->error(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
+    }
+    warning($message, $logger);
 
 }
 
@@ -466,6 +474,21 @@ sub tableprocessingfailed {
     terminate($message, $logger);
 
 }
+
+sub deleterowserror {
+
+    my ($db,$tablename,$message,$logger) = @_;
+    $message = _getsqlconnectorinstanceprefix($db) . '[' . $db->connectidentifier() . '].' . $tablename . ' - ' . $message;
+    if (defined $logger) {
+        $logger->error($message);
+    }
+
+    terminate($message, $logger);
+    #terminatethreads();
+    #die();
+
+}
+
 
 sub fileerror {
 
