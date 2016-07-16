@@ -19,6 +19,8 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
+
+    findby_domain
 );
 
 my $tablename = 'voip_domains';
@@ -46,6 +48,22 @@ sub new {
 
 }
 
+sub findby_domain {
+
+    my ($domain,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('domain') . ' = ?';
+    my @params = ($domain);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
 
 sub buildrecords_fromrows {
 

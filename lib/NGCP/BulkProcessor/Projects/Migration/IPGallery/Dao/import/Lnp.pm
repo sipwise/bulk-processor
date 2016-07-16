@@ -129,7 +129,7 @@ sub findby_lrncode_portednumber {
             ' AND ' . $db->columnidentifier('ported_number') . ' = ?'
     ,$lrncode,$portednumber);
 
-    return buildrecords_fromrows($rows,$load_recursive);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 
