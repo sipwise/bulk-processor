@@ -25,6 +25,8 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
     insert_row
+
+    $ACTIVE_STATE
 );
 
 my $tablename = 'contracts';
@@ -56,6 +58,8 @@ my $indexes = {};
 
 my $insert_unique_fields = [];
 
+our $ACTIVE_STATE = 'active';
+
 sub new {
 
     my $class = shift;
@@ -83,10 +87,8 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($contact_id,
-            $status) = @params{qw/
+        my ($contact_id) = @params{qw/
                 contact_id
-                status
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
@@ -97,9 +99,8 @@ sub insert_row {
                 '?, ' .
                 'NOW(), ' .
                 'NOW(), ' .
-                '?)',
+                '\'' . $ACTIVE_STATE . '\')',
                 $contact_id,
-                $status,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();
