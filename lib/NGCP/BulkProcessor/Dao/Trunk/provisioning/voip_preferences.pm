@@ -18,6 +18,23 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
+
+    findby_attribute
+
+    $ALLOWED_CLIS_ATTRIBUTE
+    $CLI_ATTRIBUTE
+    $AC_ATTRIBUTE
+    $CC_ATTRIBUTE
+    $ACCOUNT_ID_ATTRIBUTE
+
+    $ADM_NCOS_ID_ATTRIBUTE
+
+    $PEER_AUTH_USER
+    $PEER_AUTH_PASS
+    $PEER_AUTH_REALM
+    $PEER_AUTH_REGISTER
+    $FORCE_INBOUND_CALLS_TO_PEER
+    $FORCE_OUTBOUND_CALLS_TO_PEER
 );
 
 my $tablename = 'voip_preferences';
@@ -46,6 +63,21 @@ my $expected_fieldnames = [
 
 my $indexes = {};
 
+our $ALLOWED_CLIS_ATTRIBUTE = 'allowed_clis';
+our $CLI_ATTRIBUTE = 'cli';
+our $AC_ATTRIBUTE = 'ac';
+our $CC_ATTRIBUTE = 'cc';
+our $ACCOUNT_ID_ATTRIBUTE = 'account_id';
+
+our $ADM_NCOS_ID_ATTRIBUTE = 'adm_ncos_id';
+
+our $PEER_AUTH_USER = 'peer_auth_user';
+our $PEER_AUTH_PASS = 'peer_auth_pass';
+our $PEER_AUTH_REALM = 'peer_auth_realm';
+our $PEER_AUTH_REGISTER = 'peer_auth_register';
+our $FORCE_INBOUND_CALLS_TO_PEER = 'force_inbound_calls_to_peer';
+our $FORCE_OUTBOUND_CALLS_TO_PEER = 'force_outbound_calls_to_peer';
+
 sub new {
 
     my $class = shift;
@@ -58,6 +90,23 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_attribute {
+
+    my ($attribute,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('attribute') . ' = ?';
+    my @params = ($attribute);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 
