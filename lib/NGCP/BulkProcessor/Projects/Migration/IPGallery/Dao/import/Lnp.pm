@@ -5,9 +5,8 @@ use strict;
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw(
     get_import_db
-
+    destroy_all_dbs
 );
-#import_db_tableidentifier
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     registertableinfo
@@ -16,8 +15,12 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     copy_row
 
     insert_stmt
+
+    process_table
 );
 use NGCP::BulkProcessor::SqlRecord qw();
+
+use NGCP::BulkProcessor::Array qw(contains);
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -29,6 +32,8 @@ our @EXPORT_OK = qw(
     getupsertstatement
 
     findby_lrncode_portednumber
+    list_lrncodes
+    list_lrncodes_delta
     countby_lrncode_portednumber
     count_lrncodes
 
@@ -39,6 +44,8 @@ our @EXPORT_OK = qw(
     $deleted_delta
     $updated_delta
     $added_delta
+
+    process_records
 
     $IN_TYPE
 );
@@ -129,7 +136,68 @@ sub findby_lrncode_portednumber {
             ' AND ' . $db->columnidentifier('ported_number') . ' = ?'
     ,$lrncode,$portednumber);
 
-    return buildrecords_fromrows($rows,$load_recursive);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub list_lrncodes {
+
+    my ($deltas) = @_;
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT DISTINCT(' .
+        $db->columnidentifier('lrn_code') . ') FROM ' . $table . ' WHERE 1=1';
+    my @params = ();
+    if (defined $deltas and 'HASH' eq ref $deltas) {
+        foreach my $in (keys %$deltas) {
+            my @values = (defined $deltas->{$in} and 'ARRAY' eq ref $deltas->{$in} ? @{$deltas->{$in}} : ($deltas->{$in}));
+            $stmt .= ' AND ' . $db->columnidentifier('delta') . ' ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+            push(@params,@values);
+        }
+    } elsif (defined $deltas and length($deltas) > 0) {
+        $stmt .= ' AND ' . $db->columnidentifier('delta') . ' = ?';
+        push(@params,$deltas);
+    }
+
+    return $db->db_get_col($stmt,@params);
+
+}
+
+sub list_lrncodes_delta {
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT ' . $db->columnidentifier('lrn_code') .
+        ', ' . $db->columnidentifier('delta') . ' FROM ' . $table . ' GROUP BY ' .
+        $db->columnidentifier('lrn_code') . ', ' . $db->columnidentifier('delta');
+    my %lrn_codes = ();
+    foreach my $lrn_code (@{$db->db_get_all_arrayref($stmt)}) {
+        if (not exists $lrn_codes{$lrn_code->{'lrn_code'}}) {
+            $lrn_codes{$lrn_code->{'lrn_code'}} = [];
+        }
+        push(@{$lrn_codes{$lrn_code->{'lrn_code'}}},$lrn_code->{'delta'});
+    }
+    my @result = ();
+    foreach my $lrn_code (keys %lrn_codes) {
+        my $row = { lrn_code => $lrn_code, delta => undef, };
+        if (contains($updated_delta,$lrn_codes{$lrn_code})) {
+            $row->{delta} = $updated_delta;
+        } elsif (contains($added_delta,$lrn_codes{$lrn_code})) {
+            if ((scalar @{$lrn_codes{$lrn_code}}) == 1) {
+                $row->{delta} = $added_delta;
+            } else {
+                $row->{delta} = $updated_delta;
+            }
+        } elsif (contains($deleted_delta,$lrn_codes{$lrn_code})) {
+            $row->{delta} = $deleted_delta;
+        }
+        push(@result,$row);
+    }
+    return \@result;
 
 }
 
@@ -193,18 +261,23 @@ sub count_lrncodes {
 
 sub countby_delta {
 
-    my ($delta) = @_;
+    my ($deltas) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table . ' WHERE 1=1';
     my @params = ();
-    if (defined $delta) {
-        $stmt .= ' WHERE ' .
-            $db->columnidentifier('delta') . ' = ?';
-        push(@params,$delta);
+    if (defined $deltas and 'HASH' eq ref $deltas) {
+        foreach my $in (keys %$deltas) {
+            my @values = (defined $deltas->{$in} and 'ARRAY' eq ref $deltas->{$in} ? @{$deltas->{$in}} : ($deltas->{$in}));
+            $stmt .= ' AND ' . $db->columnidentifier('delta') . ' ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+            push(@params,@values);
+        }
+    } elsif (defined $deltas and length($deltas) > 0) {
+        $stmt .= ' AND ' . $db->columnidentifier('delta') . ' = ?';
+        push(@params,$deltas);
     }
 
     return $db->db_get_value($stmt,@params);
@@ -230,6 +303,43 @@ sub buildrecords_fromrows {
 
     return \@records;
 
+}
+
+sub process_records {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads,
+        $load_recursive) = @params{qw/
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+            load_recursive
+        /};
+
+    check_table();
+
+    return process_table(
+        get_db                      => $get_db,
+        tablename                   => $tablename,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,buildrecords_fromrows($rowblock,$load_recursive),$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_all_dbs,
+        multithreading              => $multithreading,
+        tableprocessing_threads     => $numofthreads,
+    );
 }
 
 sub getinsertstatement {

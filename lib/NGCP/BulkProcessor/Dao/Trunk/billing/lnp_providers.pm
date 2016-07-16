@@ -1,11 +1,14 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers;
 use strict;
 
 ## no critic
 
-use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+);
 
+use NGCP::BulkProcessor::ConnectorPool qw(
+    get_billing_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -20,18 +23,23 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_domain
+    findby_prefix
 );
 
-my $tablename = 'voip_domains';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'lnp_providers';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'domain',
+    'name',
+    'prefix',
+    'authoritative',
+    'skip_rewrite',
 ];
 
 my $indexes = {};
+
+my $insert_unique_fields = [];
 
 sub new {
 
@@ -48,20 +56,27 @@ sub new {
 
 }
 
-sub findby_domain {
+sub findby_prefix {
 
-    my ($domain,$load_recursive) = @_;
+    my ($prefix,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
+    my $stmt = 'SELECT * FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    if ($prefix) {
+        push(@terms,$db->columnidentifier('prefix') . ' = ?');
+        push(@params,$prefix);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
+    }
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
