@@ -384,9 +384,10 @@ sub create_targettable {
 
 sub delete_records {
 
-    my ($get_db,$tablename,$keyfields,$equal,$vals_table) = @_;
+    my ($get_db,$get_xa_db,$tablename,$keyfields,$equal,$vals_table) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
+    my $xa_db = (defined $get_xa_db ? (ref $get_xa_db eq 'CODE') ? &$get_xa_db() : $get_xa_db : $db);
 
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
@@ -405,7 +406,7 @@ sub delete_records {
 
         my $total_rowcount = 0;
 
-        my $initial_rowcount = $db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename));
+        my $initial_rowcount = $xa_db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename));
 
         if ($field_cnt > 0) {
             my $where_clause;
@@ -417,9 +418,9 @@ sub delete_records {
 
                 for (my $i = 0; $i < $vals_table->rowcount(); $i++) {
                     my @vals = $vals_table->getrow($i);
-                    my $new_initial_rowcount = $db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename));
-                    my $rowcount = $db->db_get_value($count_stmt,@vals);
-                    $db->db_do($delete_stmt,@vals);
+                    my $new_initial_rowcount = $xa_db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename));
+                    my $rowcount = $xa_db->db_get_value($count_stmt,@vals);
+                    $xa_db->db_do($delete_stmt,@vals);
                     rowsdeleted($db,$tablename,$rowcount,$new_initial_rowcount,getlogger(__PACKAGE__));
                     $total_rowcount += $rowcount;
                 }
@@ -429,8 +430,8 @@ sub delete_records {
                 $where_clause = ' WHERE ' . $db->columnidentifier($fields[0]) . ' NOT IN (' . substr(',?' x scalar @ne_vals,1) . ')';
                 my $count_stmt = 'SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . $where_clause;
                 my $delete_stmt = 'DELETE FROM ' . $db->tableidentifier($tablename) . $where_clause;
-                my $rowcount = $db->db_get_value($count_stmt,@ne_vals);
-                $db->db_do($delete_stmt,@ne_vals);
+                my $rowcount = $xa_db->db_get_value($count_stmt,@ne_vals);
+                $xa_db->db_do($delete_stmt,@ne_vals);
                 rowsdeleted($db,$tablename,$rowcount,$initial_rowcount,getlogger(__PACKAGE__));
                 $total_rowcount += $rowcount;
             } else {
@@ -442,13 +443,13 @@ sub delete_records {
         } else {
             my $delete_stmt = 'DELETE FROM ' . $db->tableidentifier($tablename);
             my $count_stmt = 'SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename);
-            my $rowcount = $db->db_get_value($count_stmt);
-            $db->db_do($delete_stmt);
+            my $rowcount = $xa_db->db_get_value($count_stmt);
+            $xa_db->db_do($delete_stmt);
             rowsdeleted($db,$tablename,$rowcount,$initial_rowcount,getlogger(__PACKAGE__));
             $total_rowcount += $rowcount;
         }
 
-        $db->vacuum($tablename);
+        $xa_db->vacuum($tablename);
 
         #if ($total_rowcount > 0) {
             totalrowsdeleted($db,$tablename,$total_rowcount,$initial_rowcount,getlogger(__PACKAGE__));
@@ -462,9 +463,10 @@ sub delete_records {
 
 sub insert_record {
 
-    my ($get_db,$tablename,$row,$insert_ignore,$unique_count_fields) = @_;
+    my ($get_db,$get_xa_db,$tablename,$row,$insert_ignore,$unique_count_fields) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
+    my $xa_db = (defined $get_xa_db ? (ref $get_xa_db eq 'CODE') ? &$get_xa_db() : $get_xa_db : $db);
 
     #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
     my $connectidentifier = $db->connectidentifier();
@@ -500,8 +502,8 @@ sub insert_record {
 
         my $stmt = 'INSERT ' . ($insert_ignore ? $db->insert_ignore_phrase() . ' ' : '') . 'INTO ' . $db->tableidentifier($tablename) . ' (' . join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ') VALUES (' . substr(',?' x scalar @fields,1) . ')';
         if ((scalar @unique_fields) > 0) {
-            if ($db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @unique_fields) . ' = ?',@unique_vals) == 0) {
-                if ($db->db_do($stmt,@vals)) {
+            if ($xa_db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @unique_fields) . ' = ?',@unique_vals) == 0) {
+                if ($xa_db->db_do($stmt,@vals)) {
                     rowinserted($db,$tablename,getlogger(__PACKAGE__));
                     return 1;
                 } else {
@@ -513,7 +515,7 @@ sub insert_record {
                 return 0;
             }
         } else {
-            if ($db->db_do($stmt,@vals)) {
+            if ($xa_db->db_do($stmt,@vals)) {
                 rowinserted($db,$tablename,getlogger(__PACKAGE__));
                 return 1;
             } else {
@@ -528,9 +530,10 @@ sub insert_record {
 
 sub update_record {
 
-    my ($get_db,$tablename,$row) = @_;
+    my ($get_db,$get_xa_db,$tablename,$row) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
+    my $xa_db = (defined $get_xa_db ? (ref $get_xa_db eq 'CODE') ? &$get_xa_db() : $get_xa_db : $db);
 
     #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
     my $connectidentifier = $db->connectidentifier();
@@ -576,9 +579,9 @@ sub update_record {
 
         my $selectpk_fieldnames = join(' = ? AND ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @pk_fields);
 
-        my $count = $db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?',@pk_vals);
+        my $count = $xa_db->db_get_value('SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename) . ' WHERE ' . $selectpk_fieldnames . ' = ?',@pk_vals);
         if ($count == 1) {
-            $db->db_do('UPDATE ' . $db->tableidentifier($tablename) . ' SET ' . join(' = ?, ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ' = ? WHERE ' . $selectpk_fieldnames . ' = ?',@vals,@pk_vals);
+            $xa_db->db_do('UPDATE ' . $db->tableidentifier($tablename) . ' SET ' . join(' = ?, ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fields) . ' = ? WHERE ' . $selectpk_fieldnames . ' = ?',@vals,@pk_vals);
             rowupdated($db,$tablename,getlogger(__PACKAGE__));
             return 1;
         } else {
@@ -589,150 +592,6 @@ sub update_record {
     }
 
 }
-
-#sub transfer_record {
-#
-#    #my $self = shift
-#    my ($get_db,$tablename,$get_target_db,$targettablename,$allowdupes,$row) = @_;
-#
-#    my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
-#    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
-#
-#    #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
-#    my $connectidentifier = $db->connectidentifier();
-#    my $tid = threadid();
-#
-#    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-#    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
-#
-#    if (defined $expected_fieldnames and defined $row) {
-#
-#        my @vals = ();
-#
-#        foreach my $fieldname (@$expected_fieldnames) {
-#            push @vals,$row->{$fieldname};
-#        }
-#
-#        my @pk_fieldnames;
-#        my @pk_vals = ();
-#
-#        if (not $allowdupes) {
-#            if (defined $primarykeys) {
-#                if (scalar @$primarykeys > 0) {
-#                    foreach my $fieldname (@$primarykeys) {
-#                        push @pk_vals,$row->{$fieldname};
-#                    }
-#                } else {
-#                    @pk_fieldnames = @fieldnames;
-#                    @pk_vals = @vals;
-#                }
-#            } else {
-#                @pk_fieldnames = @fieldnames;
-#                @pk_vals = @vals;
-#            }
-#        }
-#
-#        if ($allowdupes or $target_db->db_get_value('SELECT COUNT(*) FROM ' . $target_db->tableidentifier($targettablename) . ' WHERE ' . join(' = ? AND ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @pk_fieldnames) . ' = ?',@pk_vals) == 0) {
-#            $target_db->db_do('INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . substr(',?' x scalar @fieldnames,1) . ')',@vals);
-#            rowtransferred($db,$tablename,$target_db,$targettablename,1,1,getlogger(__PACKAGE__));
-#            return 1;
-#        } else {
-#            rowskipped($db,$tablename,$target_db,$targettablename,1,1,getlogger(__PACKAGE__));
-#            return 0;
-#        }
-#
-#    }
-#
-#}
-
-#sub transfer_records {
-#
-#    my ($get_db,$tablename,$get_target_db,$targettablename,$allowdupes,$rows) = @_;
-#
-#    my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
-#    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
-#
-#    #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
-#    my $connectidentifier = $db->connectidentifier();
-#    my $tid = threadid();
-#
-#    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-#    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
-#
-#    if (defined $expected_fieldnames and defined $rows and ref $rows eq 'ARRAY') { # and defined $getrecords_code and ref $getrecords_code eq 'CODE') {
-#        #get_local_db();
-#
-#        my $numofrows = scalar @$rows;
-#        rowtransferstarted($db,$tablename,$target_db,$targettablename,$numofrows,getlogger(__PACKAGE__));
-#
-#        my @fieldnames = @$expected_fieldnames;
-#
-#        my $setfieldnames = join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames);
-#        my $valueplaceholders = substr(',?' x scalar @fieldnames,1);
-#
-#        my $rowstransferred = 0;
-#
-#        if ($allowdupes) {
-#
-#            my @rows_array = ();
-#            $target_db->db_do_begin('INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . $setfieldnames . ') VALUES (' . $valueplaceholders . ')');
-#            foreach my $row (@$rows) {
-#                my @vals = ();
-#                foreach my $fieldname (@fieldnames) {
-#                    push @vals,$row->{$fieldname};
-#                }
-#                push @rows_array,\@vals;
-#            }
-#            $target_db->db_do_rowblock(\@rows_array);
-#            $target_db->db_finish();
-#            $rowstransferred = scalar @rows_array;
-#
-#        } else {
-#
-#            my $i = 1;
-#
-#            my @pk_fieldnames;
-#
-#            if (defined $primarykeys) {
-#                @pk_fieldnames = @$primarykeys;
-#                if (scalar @pk_fieldnames == 0) {
-#                    @pk_fieldnames = @fieldnames;
-#                }
-#            } else {
-#                @pk_fieldnames = @fieldnames;
-#            }
-#
-#            my $selectpk_fieldnames = join(' = ? AND ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @pk_fieldnames) . ' = ?';
-#
-#            foreach my $row (@$rows) {
-#
-#                my @vals = ();
-#
-#                foreach my $fieldname (@fieldnames) {
-#                    push @vals,$row->{$fieldname};
-#                }
-#
-#                my @pk_vals;
-#
-#                foreach my $fieldname (@pk_fieldnames) {
-#                    push @pk_vals,$row->{$fieldname};
-#                }
-#
-#                if ($target_db->db_get_value('SELECT COUNT(*) FROM ' . $target_db->tableidentifier($targettablename) . ' WHERE ' . $selectpk_fieldnames,@pk_vals) == 0) {
-#                    $target_db->db_do('INSERT INTO ' . $db->target_tableidentifier($targettablename) . ' (' . $setfieldnames . ') VALUES (' . $valueplaceholders . ')',@vals);
-#                    rowtransferred($db,$tablename,$target_db,$targettablename,$i,$numofrows,getlogger(__PACKAGE__));
-#                    $rowstransferred += 1;
-#                } else {
-#                    rowskipped($db,$tablename,$target_db,$targettablename,$i,$numofrows,getlogger(__PACKAGE__));
-#                }
-#                $i++;
-#            }
-#        }
-#        rowtransferdone($db,$tablename,$target_db,$targettablename,$numofrows,getlogger(__PACKAGE__));
-#        return $rowstransferred;
-#    }
-#
-#}
 
 sub insert_stmt {
 

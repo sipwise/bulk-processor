@@ -30,6 +30,8 @@ our @EXPORT_OK = qw(get_tableidentifier);
 
 #my $logger = getlogger(__PACKAGE__);
 
+my $log_db_operations = 0;
+
 my $temptable_randomstringlength = 4;
 
 sub new {
@@ -451,6 +453,27 @@ sub _fetch_error {
 
 }
 
+# "The data type is 'sticky' in that bind values passed to execute() are bound with
+# the data type specified by earlier bind_param() calls, if any."
+sub _bind_params {
+
+    my $self = shift;
+    my $sth = shift;
+    my @params = ();
+    my $p_num = 1;
+    foreach my $param (@_) {
+        if (defined $param and 'HASH' eq $param) {
+            push(@params, delete $param->{value});
+            $sth->bind_param($p_num, undef, $param);
+        } else {
+            push(@params,$param);
+        }
+        $p_num++;
+    }
+    return @params;
+
+}
+
 #sub db_autocommit {
 #
 #    my $self = shift;
@@ -479,9 +502,10 @@ sub db_do {
     my $result = 0;
 
     if (defined $self->{dbh}) {
-        dbdebug($self,'db_do: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
-        $result = $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
+        my @params = $self->_bind_params($sth,@_);
+        dbdebug($self,'db_do: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
+        $result = $sth->execute(@params) or $self->_execute_error($query,$sth,@params);
     }
 
     return $result;
@@ -499,12 +523,13 @@ sub db_get_value {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_value: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
-        $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
+        my @params = $self->_bind_params($sth,@_);
+        dbdebug($self,'db_get_value: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
+        $sth->execute(@params) or $self->_execute_error($query,$sth,@params);
 
         $row = $sth->fetchrow_arrayref();
-        $self->_fetch_error($query,$sth,'fetchrow_arrayref',undef,@_) if !defined $row and $sth->err();
+        $self->_fetch_error($query,$sth,'fetchrow_arrayref',undef,@params) if !defined $row and $sth->err();
         $sth->finish();
 
     }
@@ -524,12 +549,13 @@ sub db_get_row {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_row: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
-        $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
+        my @params = $self->_bind_params($sth,@_);
+        dbdebug($self,'db_get_row: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
+        $sth->execute(@params) or $self->_execute_error($query,$sth,@params);
 
         $row = $sth->fetchrow_hashref();
-        $self->_fetch_error($query,$sth,'fetchrow_hashref',undef,@_) if !defined $row and $sth->err();
+        $self->_fetch_error($query,$sth,'fetchrow_hashref',undef,@params) if !defined $row and $sth->err();
         $sth->finish();
 
     }
@@ -549,12 +575,13 @@ sub db_get_col {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_col: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
+        my @params = $self->_bind_params($sth,@_);
+        dbdebug($self,'db_get_col: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
 
-        $col = $self->{dbh}->selectcol_arrayref($sth, undef, @_);
+        $col = $self->{dbh}->selectcol_arrayref($sth, undef, @params);
         #die "Failed to selectcol_arrayref:\n$query\nDBI error:". $sth->errstr() if !defined $col and $sth->err();
-        $self->_fetch_error($query,$sth,'selectcol_arrayref',undef,@_) if !defined $col and $sth->err();
+        $self->_fetch_error($query,$sth,'selectcol_arrayref',undef,@params) if !defined $col and $sth->err();
         $sth->finish();
 
     }
@@ -574,12 +601,13 @@ sub db_get_all_arrayref {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_all_arrayref: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
-        $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
+        my @params = $self->_bind_params($sth,@_);
+        dbdebug($self,'db_get_all_arrayref: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
+        $sth->execute(@params) or $self->_execute_error($query,$sth,@params);
 
         while (my $row = $sth->fetchrow_hashref()) {
-            $self->_fetch_error($query,$sth,'fetchrow_hashref',undef,@_) if $sth->err();
+            $self->_fetch_error($query,$sth,'fetchrow_hashref',undef,@params) if $sth->err();
             push @rows, $row;
         }
         $sth->finish();
@@ -602,12 +630,13 @@ sub db_get_all_hashref {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_all_hashref: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
-        $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
+        my @params = $self->_bind_params($sth,@_);
+        dbdebug($self,'db_get_all_hashref: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
+        $sth->execute(@params) or $self->_execute_error($query,$sth,@params);
 
         $result = $sth->fetchall_hashref($index);
-        $self->_fetch_error($query,$sth,'fetchall_hashref',$index,@_) if $sth->err();
+        $self->_fetch_error($query,$sth,'fetchall_hashref',$index,@params) if $sth->err();
         $sth->finish();
 
     }
@@ -629,13 +658,14 @@ sub db_get_mapref {
 
     if (defined $self->{dbh}) {
 
-        dbdebug($self,'db_get_mapref: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
-        $sth->execute(@_) or $self->_execute_error($query,$sth,@_);
+        my @params = $self->_bind_params($sth,@_);
+        dbdebug($self,'db_get_mapref: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
+        $sth->execute(@_) or $self->_execute_error($query,$sth,@params);
 
         my $rows = $sth->fetchall_hashref($index);
         #die "Failed to fetchall_hashref:\n$query\nDBI error:". $sth->errstr() if $sth->err();
-        $self->_fetch_error($query,$sth,'fetchall_hashref',$index,@_) if $sth->err();
+        $self->_fetch_error($query,$sth,'fetchall_hashref',$index,@params) if $sth->err();
 
         foreach my $key (keys %$rows) {
             $result->{$key} = $$rows{$key}{$value};
@@ -682,6 +712,7 @@ sub db_rollback {
     if (defined $self->{dbh}) {
         dbdebug($self,'db_rollback',getlogger(__PACKAGE__));
         $self->{dbh}->rollback() or dberror($self, "failed to rollback changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
+        dbinfo($self,'transaction rolled back',getlogger(__PACKAGE__));
     }
 
 }
@@ -697,6 +728,13 @@ sub db_quote {
         $result = $self->{dbh}->quote($value) or dberror($self, "failed to quote value\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
     }
     return $result;
+
+}
+
+sub db_last_insert_id {
+
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 
 }
 
@@ -782,9 +820,10 @@ sub db_do_rowblock {
         #mysqldbdebug($self,"db_do_rowblock\nrows:\n" . (scalar @$rows),getlogger(__PACKAGE__));
         #mysqldbdebug($self,'db_do_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         foreach my $row (@$rows) {
-            dbdebug($self,'db_do_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @$row),getlogger(__PACKAGE__));
-            $self->{sth}->execute(@$row) or $self->_execute_error($self->{query},$self->{sth},@$row);
-            $self->{params} = $row;
+            my @params = $self->_bind_params($self->{sth},@$row);
+            dbdebug($self,'db_do_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
+            $self->{sth}->execute(@params) or $self->_execute_error($self->{query},$self->{sth},@params);
+            $self->{params} = \@params;
         }
 
     }
@@ -800,7 +839,6 @@ sub db_get_begin {
 
     if (defined $self->{dbh} and !defined $self->{sth}) { # and length($tablename) > 0) {
 
-        dbdebug($self,'db_get_begin: ' . $query . "\nparameters:\n" . join(', ', @_),getlogger(__PACKAGE__));
         #eval { $self->lock_tables({ $tablename => 'WRITE' }); };
         if ($transactional) {
             #$self->lock_tables({ $tablename => 'WRITE' });
@@ -808,9 +846,11 @@ sub db_get_begin {
         }
 
         $self->{sth} = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
-        $self->{sth}->execute(@_) or $self->_execute_error($query,$self->{sth},@_);
+        my @params = $self->_bind_params($self->{sth},@_);
+        dbdebug($self,'db_get_begin: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__));
+        $self->{sth}->execute(@params) or $self->_execute_error($query,$self->{sth},@params);
         $self->{query} = $query;
-        $self->{params} = \@_;
+        $self->{params} = \@params;
 
     }
 
@@ -837,7 +877,7 @@ sub db_get_rowblock {
 
         if (defined $self->{dbh} and defined $self->{sth}) {
 
-            dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),getlogger(__PACKAGE__));
+            dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),getlogger(__PACKAGE__)) if $log_db_operations;
 
             foreach (@{$self->{sth}->fetchall_arrayref(undef, $max_rows)}) {
                 my @row : shared = @{$_};
@@ -860,7 +900,7 @@ sub db_get_rowblock {
 
         if (defined $self->{dbh} and defined $self->{sth}) {
 
-            dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),getlogger(__PACKAGE__));
+            dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),getlogger(__PACKAGE__)) if $log_db_operations;
             $rows = $self->{sth}->fetchall_arrayref(undef, $max_rows);
             $self->_fetch_error($self->{query},$self->{sth},'db_get_rowblock',undef,@{$self->{params}}) if $self->{sth}->err();
 

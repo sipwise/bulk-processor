@@ -260,6 +260,16 @@ sub _db_disconnect {
 
 }
 
+sub db_last_insert_id {
+
+    my $self = shift;
+    if (defined $self->{dbh}) {
+        return $self->{dbh}->{'mysql_insertid'};
+    }
+    return undef;
+
+}
+
 sub getfieldnames {
 
     my $self = shift;

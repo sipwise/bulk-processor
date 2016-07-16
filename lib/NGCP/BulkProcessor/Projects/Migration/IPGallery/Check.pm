@@ -1,11 +1,24 @@
 package NGCP::BulkProcessor::Projects::Migration::IPGallery::Check;
 use strict;
+no strict 'refs';
 
 ## no critic
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::contacts qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::voip_numbers qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::products qw();
+
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
+
+use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem qw();
@@ -18,6 +31,8 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     check_billing_db_tables
+    check_provisioning_db_tables
+    check_kamailio_db_tables
     check_import_db_tables
 );
 
@@ -34,67 +49,30 @@ sub check_billing_db_tables {
 
     my $message_prefix = 'NGCP billing db tables - ';
 
-    ($check_result,$message) = _check_billing_contracts_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::products');
     $result &= $check_result; push(@$messages,$message);
 
-    ($check_result,$message) = _check_billing_contract_balances_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::contacts');
     $result &= $check_result; push(@$messages,$message);
 
-    ($check_result,$message) = _check_billing_billing_mappings_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::contracts');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::voip_numbers');
     $result &= $check_result; push(@$messages,$message);
 
     return $result;
 
 }
-
-sub _check_billing_contracts_table {
-
-    my ($message_prefix) = @_;
-    my $result = 1;
-    eval {
-        $result &= NGCP::BulkProcessor::Dao::Trunk::billing::contracts::check_table();
-    };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Dao::Trunk::billing::contracts::gettablename() . ': ';
-    if (@$ or not $result) {
-        return (0,$message . $NOK);
-    } else {
-        return (1,$message . $OK);
-    }
-
-}
-
-sub _check_billing_contract_balances_table {
-
-    my ($message_prefix) = @_;
-    my $result = 1;
-    eval {
-        $result &= NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances::check_table();
-    };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances::gettablename() . ': ';
-    if (@$ or not $result) {
-        return (0,$message . $NOK);
-    } else {
-        return (1,$message . $OK);
-    }
-
-}
-
-sub _check_billing_billing_mappings_table {
-
-    my ($message_prefix) = @_;
-    my $result = 1;
-    eval {
-        $result &= NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::check_table();
-    };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::gettablename() . ': ';
-    if (@$ or not $result) {
-        return (0,$message . $NOK);
-    } else {
-        return (1,$message . $OK);
-    }
-
-}
-
 
 sub check_import_db_tables {
 
@@ -106,36 +84,85 @@ sub check_import_db_tables {
 
     my $message_prefix = 'import db tables - ';
 
-    ($check_result,$message) = _check_import_feature_option_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption');
     $result &= $check_result; push(@$messages,$message);
 
-    ($check_result,$message) = _check_import_feature_option_set_item_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem');
     $result &= $check_result; push(@$messages,$message);
 
-    ($check_result,$message) = _check_import_user_password_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword');
     $result &= $check_result; push(@$messages,$message);
 
-    ($check_result,$message) = _check_import_subscriber_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber');
     $result &= $check_result; push(@$messages,$message);
 
-    ($check_result,$message) = _check_import_batch_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch');
     $result &= $check_result; push(@$messages,$message);
 
-    ($check_result,$message) = _check_import_lnp_table($message_prefix);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp');
     $result &= $check_result; push(@$messages,$message);
 
     return $result;
 
 }
 
-sub _check_import_subscriber_table {
+sub check_provisioning_db_tables {
 
-    my ($message_prefix) = @_;
+    my ($messages) = @_;
+
+    my $result = 1;
+    my $check_result;
+    my $message;
+
+    my $message_prefix = 'NGCP provisioning db tables - ';
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases');
+    $result &= $check_result; push(@$messages,$message);
+
+
+
+    return $result;
+
+}
+
+sub check_kamailio_db_tables {
+
+    my ($messages) = @_;
+
+    my $result = 1;
+    my $check_result;
+    my $message;
+
+    my $message_prefix = 'NGCP kamailio db tables - ';
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users');
+    $result &= $check_result; push(@$messages,$message);
+
+
+    return $result;
+
+}
+
+sub _check_table {
+
+    my ($message_prefix,$module) = @_;
     my $result = 1;
     eval {
-        $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::check_table();
+        $result &= &{$module . '::check_table'}();
     };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::gettablename() . ': ';
+    my $message = ($message_prefix // '') . &{$module . '::gettablename'}() . ': ';
     if (@$ or not $result) {
         return (0,$message . $NOK);
     } else {
@@ -144,84 +171,14 @@ sub _check_import_subscriber_table {
 
 }
 
-sub _check_import_feature_option_table {
 
-    my ($message_prefix) = @_;
-    my $result = 1;
-    eval {
-        $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::check_table();
-    };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::gettablename() . ': ';
-    if (@$ or not $result) {
-        return (0,$message . $NOK);
-    } else {
-        return (1,$message . $OK);
-    }
 
-}
 
-sub _check_import_feature_option_set_item_table {
 
-    my ($message_prefix) = @_;
-    my $result = 1;
-    eval {
-        $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::check_table();
-    };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::gettablename() . ': ';
-    if (@$ or not $result) {
-        return (0,$message . $NOK);
-    } else {
-        return (1,$message . $OK);
-    }
 
-}
 
-sub _check_import_lnp_table {
 
-    my ($message_prefix) = @_;
-    my $result = 1;
-    eval {
-        $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::check_table();
-    };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::gettablename() . ': ';
-    if (@$ or not $result) {
-        return (0,$message . $NOK);
-    } else {
-        return (1,$message . $OK);
-    }
 
-}
 
-sub _check_import_user_password_table {
-
-    my ($message_prefix) = @_;
-    my $result = 1;
-    eval {
-        $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::check_table();
-    };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::gettablename() . ': ';
-    if (@$ or not $result) {
-        return (0,$message . $NOK);
-    } else {
-        return (1,$message . $OK);
-    }
-
-}
-
-sub _check_import_batch_table {
-
-    my ($message_prefix) = @_;
-    my $result = 1;
-    eval {
-        $result &= NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::check_table();
-    };
-    my $message = ($message_prefix // '') . NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::gettablename() . ': ';
-    if (@$ or not $result) {
-        return (0,$message . $NOK);
-    } else {
-        return (1,$message . $OK);
-    }
-
-}
 
 1;
