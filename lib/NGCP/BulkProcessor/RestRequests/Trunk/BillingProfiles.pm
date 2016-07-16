@@ -22,6 +22,7 @@ our @EXPORT_OK = qw(
     get_item
     create_item
     process_items
+    get_item_path
 );
 
 my $get_restapi = \&get_ngcp_restapi;
@@ -145,6 +146,13 @@ sub process_items {
         multithreading                  => $multithreading,
         collectionprocessing_threads    => $numofthreads,
     );
+}
+
+sub get_item_path {
+
+    my ($id) = @_;
+    return &$get_item_path_query($id);
+
 }
 
 1;

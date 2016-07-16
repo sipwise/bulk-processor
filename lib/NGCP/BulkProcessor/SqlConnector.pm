@@ -6,7 +6,10 @@ use strict;
 use threads;
 use threads::shared;
 
-use NGCP::BulkProcessor::Globals qw($enablemultithreading);
+use NGCP::BulkProcessor::Globals qw(
+    $enablemultithreading
+    $is_perl_debug
+);
 
 use NGCP::BulkProcessor::Logging qw(
     getlogger
@@ -505,7 +508,14 @@ sub db_do {
         my $sth = $self->{dbh}->prepare($query) or $self->_prepare_error($query);
         my @params = $self->_bind_params($sth,@_);
         dbdebug($self,'db_do: ' . $query . "\nparameters:\n" . join(', ', @params),getlogger(__PACKAGE__)) if $log_db_operations;
-        $result = $sth->execute(@params) or $self->_execute_error($query,$sth,@params);
+        $result = $sth->execute(@params);
+        if (defined $result) {
+            if ('0E0' eq $result) {
+                return 0;
+            }
+        } else {
+            $self->_execute_error($query,$sth,@params);
+        }
     }
 
     return $result;
@@ -700,8 +710,16 @@ sub db_commit {
     my $self = shift;
     if (defined $self->{dbh}) {
         dbdebug($self,'db_commit',getlogger(__PACKAGE__));
-        #komodo workaround:
-        my @wa = $self->{dbh}->commit() or dberror($self, "failed to commit changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__)); #remove dberror for debugging
+        if ($is_perl_debug) { #https://rt.cpan.org/Public/Bug/Display.html?id=102791
+            # no context:
+            $self->{dbh}->commit();
+            if ($DBI::err) {
+                dberror($self, "failed to commit changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
+            }
+        } else {
+            #my @wa =
+            $self->{dbh}->commit() or dberror($self, "failed to commit changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
+        }
     }
 
 }
@@ -709,10 +727,18 @@ sub db_commit {
 sub db_rollback {
 
     my $self = shift;
+    my ($log) = @_;
     if (defined $self->{dbh}) {
         dbdebug($self,'db_rollback',getlogger(__PACKAGE__));
-        $self->{dbh}->rollback() or dberror($self, "failed to rollback changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
-        dbinfo($self,'transaction rolled back',getlogger(__PACKAGE__));
+        if ($is_perl_debug) {
+            $self->{dbh}->rollback();
+            if ($DBI::err) {
+                dberror($self, "failed to rollback changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
+            }
+        } else {
+            $self->{dbh}->rollback() or dberror($self, "failed to rollback changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
+        }
+        dbinfo($self,'transaction rolled back',getlogger(__PACKAGE__)) if $log;
     }
 
 }
@@ -916,6 +942,7 @@ sub db_finish {
 
     my $self = shift;
     my $transactional = shift;
+    my $rollback = shift;
 
     # since this is also called from DESTROY, no die() here!
 
@@ -928,7 +955,11 @@ sub db_finish {
 
         if ($transactional) {
             #$self->unlock_tables();
-            $self->db_commit();
+            if ($rollback) {
+                $self->db_rollback(1);
+            } else {
+                $self->db_commit();
+            }
         }
 
         $self->{query} = undef;

@@ -1,10 +1,11 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences;
+package NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+    get_billing_db
+
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -19,46 +20,38 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_attribute
-
-    $ALLOWED_CLIS_ATTRIBUTE
-    $CLI_ATTRIBUTE
-    $AC_ATTRIBUTE
-    $CC_ATTRIBUTE
-    $ACCOUNT_ID_ATTRIBUTE
+    findby_id
 );
 
-my $tablename = 'voip_preferences';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'billing_profiles';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'voip_preference_groups_id',
-    'attribute',
-    'label',
-    'type',
-    'max_occur',
-    'usr_pref',
-    'prof_pref',
-    'dom_pref',
-    'peer_pref',
-    'contract_pref',
-    'contract_location_pref',
+    'reseller_id',
+    'handle',
+    'name',
+    'prepaid',
+    'interval_charge',
+    'interval_free_time',
+    'interval_free_cash',
+    'interval_unit',
+    'interval_count',
+    'fraud_interval_limit',
+    'fraud_interval_lock',
+    'fraud_interval_notify',
+    'fraud_daily_limit',
+    'fraud_daily_lock',
+    'fraud_daily_notify',
+    'fraud_use_reseller_rates',
+    'currency',
+    'status',
     'modify_timestamp',
-    'internal',
-    'expose_to_customer',
-    'data_type',
-    'read_only',
-    'description',
+    'create_timestamp',
+    'terminate_timestamp',
 ];
 
 my $indexes = {};
-
-our $ALLOWED_CLIS_ATTRIBUTE = 'allowed_clis';
-our $CLI_ATTRIBUTE = 'cli';
-our $AC_ATTRIBUTE = 'ac';
-our $CC_ATTRIBUTE = 'cc';
-our $ACCOUNT_ID_ATTRIBUTE = 'account_id';
 
 sub new {
 
@@ -75,17 +68,17 @@ sub new {
 
 }
 
-sub findby_attribute {
+sub findby_id {
 
-    my ($attribute,$load_recursive) = @_;
+    my ($id,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('attribute') . ' = ?';
-    my @params = ($attribute);
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];

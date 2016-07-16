@@ -26,6 +26,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $lnp_define_filename
     $user_password_filename
     $batch_filename
+    $reseller_id
 );
 use NGCP::BulkProcessor::Logging qw(
     init_log
@@ -66,11 +67,15 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch qw();
 
+use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
+
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Check qw(
     check_billing_db_tables
     check_provisioning_db_tables
     check_kamailio_db_tables
     check_import_db_tables
+    check_rest_get_items
 );
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
@@ -81,8 +86,8 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_batch
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::SubscriberProvisioning qw(
-    test
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning qw(
+    provision_subscribers
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -254,7 +259,12 @@ sub check_task {
     $result = check_kamailio_db_tables(\@check_messages);
     #$result &= ..
     push(@$messages,join("\n",@check_messages));
-    
+
+    @check_messages = ();
+    $result = check_rest_get_items(\@check_messages);
+    #$result &= ..
+    push(@$messages,join("\n",@check_messages));
+
     @check_messages = ();
     $result = check_import_db_tables(\@check_messages);
     #$result &= ..
@@ -615,13 +625,36 @@ sub provision_subscriber_task {
     my ($messages) = @_;
     my $result = 0;
     eval {
-        $result = test();
+        $result = provision_subscribers();
     };
     my $err = $@;
     my $stats = '';
     eval {
-        #$stats .= "\n  total batch records: " .
-        #    NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::countby_number() . ' rows';
+        $stats .= "\n  total contracts: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(undef,$reseller_id) . ' rows';
+        my $active_count = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::contracts::ACTIVE_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    active: $active_count rows";
+        my $terminated_count = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::contracts::TERMINATED_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    terminated: $terminated_count rows";
+
+        $stats .= "\n  total subscribers: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(undef,$reseller_id) . ' rows';
+        $active_count = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::ACTIVE_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    active: $active_count rows";
+        $terminated_count = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::TERMINATED_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    terminated: $terminated_count rows";
     };
     if ($err or !$result) {
         push(@$messages,"provisioning subscribers INCOMPLETE$stats");
