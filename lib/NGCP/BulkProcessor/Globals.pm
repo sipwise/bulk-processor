@@ -39,6 +39,7 @@ our @EXPORT_OK = qw(
 	$application_path
 	$executable_path
 	$working_path
+    $is_perl_debug
 
     create_path
 	$appstartsecs
@@ -138,11 +139,16 @@ our $executable_path = $FindBin::Bin . '/';
 #my $remotefilesystem = "MSWin32";
 #our $system_username = 'system';
 
+our $is_perl_debug = defined &DB::DB;
+
 our $enablemultithreading;
 if ($^O eq 'MSWin32') {
     $enablemultithreading = 1; # tested ok with windows.
 } else {
     $enablemultithreading = 1; # oel 5.4 perl 5.8.8 obvoisly not ok.
+}
+if ($is_perl_debug) {
+    $enablemultithreading = 0;
 }
 
 our $cpucount = get_cpucount();
@@ -311,6 +317,9 @@ sub update_masterconfig {
 
         $cpucount = $data->{cpucount} if exists $data->{cpucount};
         $enablemultithreading = $data->{enablemultithreading} if exists $data->{enablemultithreading};
+        if ($is_perl_debug) {
+            $enablemultithreading = 0;
+        }
         $cells_transfer_memory_limit = $data->{cells_transfer_memory_limit} if exists $data->{cells_transfer_memory_limit};
         $transfer_defer_indexes = $data->{transfer_defer_indexes} if exists $data->{transfer_defer_indexes};
 

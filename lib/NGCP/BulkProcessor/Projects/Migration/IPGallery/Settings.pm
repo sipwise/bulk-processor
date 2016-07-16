@@ -32,6 +32,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     update_settings
+    update_barring_profiles
     check_dry
 
     $input_path
@@ -46,6 +47,7 @@ our @EXPORT_OK = qw(
     $dry
     $skip_errors
     $force
+    $batch
     $import_db_file
 
     $features_define_filename
@@ -69,6 +71,7 @@ our @EXPORT_OK = qw(
     $user_password_import_numofthreads
     $ignore_user_password_unique
     $username_prefix
+    $min_password_length
 
     $batch_filename
     $batch_import_numofthreads
@@ -76,6 +79,24 @@ our @EXPORT_OK = qw(
 
     $subscribernumber_pattern
 
+    $reseller_id
+    $domain_name
+    $billing_profile_id
+    $contact_email_format
+    $webpassword_length
+    $generate_webpassword
+
+    $provision_subscriber_multithreading
+    $provision_subscriber_numofthreads
+
+    $set_barring_profiles_multithreading
+    $set_barring_profiles_numofthreads
+    $barring_profiles_yml
+    $barring_profiles
+
+    $set_peer_auth_multithreading
+    $set_peer_auth_numofthreads
+    $peer_auth_realm
 );
 
 our $defaultconfig = 'config.cfg';
@@ -88,6 +109,7 @@ our $rollback_path = $working_path . 'rollback/';
 our $force = 0;
 our $dry = 0;
 our $skip_errors = 0;
+our $batch = 0;
 our $run_id = '';
 our $import_db_file = _get_import_db_file($run_id,'import');
 our $import_multithreading = $enablemultithreading;
@@ -113,12 +135,32 @@ our $user_password_filename = undef;
 our $user_password_import_numofthreads = $cpucount;
 our $ignore_user_password_unique = 0;
 our $username_prefix = undef;
+our $min_password_length = 3;
 
 our $batch_filename = undef;
 our $batch_import_numofthreads = $cpucount;
 our $ignore_batch_unique = 0;
 
 our $subscribernumber_pattern = undef;
+
+our $reseller_id = undef; #1
+our $domain_name = undef; #example.org
+our $billing_profile_id = undef; #1
+our $contact_email_format = undef; #%s@melita.mt
+our $webpassword_length = undef;
+our $generate_webpassword = 1;
+
+our $provision_subscriber_multithreading = $enablemultithreading;
+our $provision_subscriber_numofthreads = $cpucount;
+
+our $set_barring_profiles_multithreading = $enablemultithreading;
+our $set_barring_profiles_numofthreads = $cpucount;
+our $barring_profiles_yml = undef;
+our $barring_profiles = {};
+
+our $set_peer_auth_multithreading = $enablemultithreading;
+our $set_peer_auth_numofthreads = $cpucount;
+our $peer_auth_realm = undef;
 
 sub update_settings {
 
@@ -134,6 +176,7 @@ sub update_settings {
 
         $dry = $data->{dry} if exists $data->{dry};
         $skip_errors = $data->{skip_errors} if exists $data->{skip_errors};
+        $batch = $data->{batch} if exists $data->{batch};
         $import_db_file = _get_import_db_file($run_id,'import');
         $import_multithreading = $data->{import_multithreading} if exists $data->{import_multithreading};
 
@@ -161,13 +204,62 @@ sub update_settings {
         $user_password_import_numofthreads = _get_import_numofthreads($cpucount,$data,'user_password_import_numofthreads');
 
         $username_prefix = $data->{username_prefix} if exists $data->{username_prefix};
+        $min_password_length = $data->{min_password_length} if exists $data->{min_password_length};
 
         $batch_filename = _get_import_filename($batch_filename,$data,'batch_filename');
         $batch_import_numofthreads = _get_import_numofthreads($cpucount,$data,'batch_import_numofthreads');
 
+        $reseller_id = $data->{reseller_id} if exists $data->{reseller_id};
+        $domain_name = $data->{domain_name} if exists $data->{domain_name};
+        $billing_profile_id = $data->{billing_profile_id} if exists $data->{billing_profile_id};
+        $contact_email_format = $data->{contact_email_format} if exists $data->{contact_email_format};
+        if ($contact_email_format !~ /^[a-z0-9.]*%s[a-z0-9.]*\@[a-z0-9.-]+$/gi) {
+            configurationerror($configfile,'invalid contact email format',getlogger(__PACKAGE__));
+            $result = 0;
+        }
+        $webpassword_length = $data->{webpassword_length} if exists $data->{webpassword_length};
+        if (not defined $webpassword_length or $webpassword_length < 3) {
+            configurationerror($configfile,'minimum webpassword length of 3 required',getlogger(__PACKAGE__));
+            $result = 0;
+        }
+        $generate_webpassword = $data->{generate_webpassword} if exists $data->{generate_webpassword};
+
+        $provision_subscriber_multithreading = $data->{provision_subscriber_multithreading} if exists $data->{provision_subscriber_multithreading};
+        $provision_subscriber_numofthreads = _get_import_numofthreads($cpucount,$data,'provision_subscriber_numofthreads');
+
+        $set_barring_profiles_multithreading = $data->{set_barring_profiles_multithreading} if exists $data->{set_barring_profiles_multithreading};
+        $set_barring_profiles_numofthreads = _get_import_numofthreads($cpucount,$data,'set_barring_profiles_numofthreads');
+        $barring_profiles_yml = $data->{barring_profiles_yml} if exists $data->{barring_profiles_yml};
+
+        $set_peer_auth_multithreading = $data->{set_peer_auth_multithreading} if exists $data->{set_peer_auth_multithreading};
+        $set_peer_auth_numofthreads = _get_import_numofthreads($cpucount,$data,'set_peer_auth_numofthreads');
+        $peer_auth_realm = $data->{peer_auth_realm} if exists $data->{peer_auth_realm};
 
         return $result;
 
+    }
+    return 0;
+
+}
+
+sub update_barring_profiles {
+
+    my ($data,$configfile) = @_;
+
+    if (defined $data) {
+
+        my $result = 1;
+
+        eval {
+            $barring_profiles = $data->[0]->{'mapping'};
+        };
+        if ($@ or 'HASH' ne ref $barring_profiles or (scalar keys %$barring_profiles) == 0) {
+            $barring_profiles //= {};
+            configurationerror($configfile,'no barring profile mappings found',getlogger(__PACKAGE__));
+            $result = 0;
+        }
+
+        return $result;
     }
     return 0;
 
@@ -200,7 +292,7 @@ sub _get_import_numofthreads {
 
 sub _get_import_db_file {
     my ($run,$name) = @_;
-    return ((defined $run and length($run) > 0) ? '_' : '') . $name;
+    return ((defined $run and length($run) > 0) ? $run . '_' : '') . $name;
 }
 
 sub _get_import_filename {

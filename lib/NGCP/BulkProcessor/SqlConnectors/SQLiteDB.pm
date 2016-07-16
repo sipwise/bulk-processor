@@ -610,8 +610,9 @@ sub db_finish {
 
     my $self = shift;
     #my $unlock = shift;
+    my $rollback = shift;
 
-    $self->SUPER::db_finish($rowblock_transactional);
+    $self->SUPER::db_finish($rowblock_transactional,$rollback);
 
 }
 

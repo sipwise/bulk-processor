@@ -575,8 +575,9 @@ sub db_get_begin {
 sub db_finish {
 
     my $self = shift;
+    my $rollback = shift;
 
-    $self->SUPER::db_finish($rowblock_transactional);
+    $self->SUPER::db_finish($rowblock_transactional,$rollback);
 
 }
 
