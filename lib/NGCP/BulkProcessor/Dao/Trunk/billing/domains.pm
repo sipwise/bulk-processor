@@ -1,10 +1,11 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences;
+package NGCP::BulkProcessor::Dao::Trunk::billing::domains;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+    get_billing_db
+
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -19,40 +20,18 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_attribute
-
-    $ALLOWED_CLIS_ATTRIBUTE
-    $CLI_ATTRIBUTE
+    findby_domain
 );
 
-my $tablename = 'voip_preferences';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'domains';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'voip_preference_groups_id',
-    'attribute',
-    'label',
-    'type',
-    'max_occur',
-    'usr_pref',
-    'prof_pref',
-    'dom_pref',
-    'peer_pref',
-    'contract_pref',
-    'contract_location_pref',
-    'modify_timestamp',
-    'internal',
-    'expose_to_customer',
-    'data_type',
-    'read_only',
-    'description',
+    'domain',
 ];
 
 my $indexes = {};
-
-our $ALLOWED_CLIS_ATTRIBUTE = 'allowed_clis';
-our $CLI_ATTRIBUTE = 'cli';
 
 sub new {
 
@@ -69,17 +48,17 @@ sub new {
 
 }
 
-sub findby_attribute {
+sub findby_domain {
 
-    my ($attribute,$load_recursive) = @_;
+    my ($domain,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('attribute') . ' = ?';
-    my @params = ($attribute);
+            $db->columnidentifier('domain') . ' = ?';
+    my @params = ($domain);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
