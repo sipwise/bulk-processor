@@ -83,10 +83,8 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($contact_id,
-            $status) = @params{qw/
+        my ($contact_id) = @params{qw/
                 contact_id
-                status
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
@@ -97,9 +95,8 @@ sub insert_row {
                 '?, ' .
                 'NOW(), ' .
                 'NOW(), ' .
-                '?)',
+                '\'active\')',
                 $contact_id,
-                $status,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();

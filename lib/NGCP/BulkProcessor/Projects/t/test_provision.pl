@@ -20,6 +20,9 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::contacts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::domains qw();
+
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains qw();
 
 load_config('config.cfg');
 
@@ -30,7 +33,8 @@ my $db = &get_xa_db();
     my $contact_email_format = '%s@melita.mt';
     my $sip_account_product = NGCP::BulkProcessor::Dao::Trunk::billing::products::findby_resellerid_handle(undef,
         $NGCP::BulkProcessor::Dao::Trunk::billing::products::SIP_ACCOUNT_HANDLE)->[0];
-
+    my $billing_domain = NGCP::BulkProcessor::Dao::Trunk::billing::domains::findby_domain('example.org');
+    my $provisioning_voip_domain = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_domain('example.org');
 
     my $subscribernumber = { cc => '43', ac => '', sn => '12345678' };
     my $cli = $subscribernumber->{cc} . $subscribernumber->{ac} . $subscribernumber->{sn};
@@ -47,7 +51,7 @@ my $db = &get_xa_db();
         #});
         my $contract_id = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::insert_row($db,
             contact_id => $contact_id,
-            status => 'active',
+            #status => 'active',
         );
 
         my $billing_mapping_id = NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::insert_row($db,
