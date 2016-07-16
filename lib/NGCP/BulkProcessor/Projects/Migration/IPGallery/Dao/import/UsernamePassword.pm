@@ -130,7 +130,7 @@ sub findby_fqdn {
             $db->columnidentifier('fqdn') . ' = ?'
     ,$fqdn);
 
-    return buildrecords_fromrows($rows,$load_recursive);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 

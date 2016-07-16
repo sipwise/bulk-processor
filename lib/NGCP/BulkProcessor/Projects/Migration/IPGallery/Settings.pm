@@ -69,6 +69,7 @@ our @EXPORT_OK = qw(
     $user_password_import_numofthreads
     $ignore_user_password_unique
     $username_prefix
+    $min_password_length
 
     $batch_filename
     $batch_import_numofthreads
@@ -113,6 +114,7 @@ our $user_password_filename = undef;
 our $user_password_import_numofthreads = $cpucount;
 our $ignore_user_password_unique = 0;
 our $username_prefix = undef;
+our $min_password_length = 3;
 
 our $batch_filename = undef;
 our $batch_import_numofthreads = $cpucount;
@@ -161,6 +163,7 @@ sub update_settings {
         $user_password_import_numofthreads = _get_import_numofthreads($cpucount,$data,'user_password_import_numofthreads');
 
         $username_prefix = $data->{username_prefix} if exists $data->{username_prefix};
+        $min_password_length = $data->{min_password_length} if exists $data->{min_password_length};
 
         $batch_filename = _get_import_filename($batch_filename,$data,'batch_filename');
         $batch_import_numofthreads = _get_import_numofthreads($cpucount,$data,'batch_import_numofthreads');
