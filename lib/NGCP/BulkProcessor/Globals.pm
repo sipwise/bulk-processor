@@ -62,6 +62,24 @@ our @EXPORT_OK = qw(
 	$billing_host
 	$billing_port
 
+    $provisioning_databasename
+    $provisioning_username
+    $provisioning_password
+    $provisioning_host
+    $provisioning_port
+
+    $kamailio_databasename
+    $kamailio_username
+    $kamailio_password
+    $kamailio_host
+    $kamailio_port
+
+    $xa_databasename
+    $xa_username
+    $xa_password
+    $xa_host
+    $xa_port
+
     $ngcprestapi_uri
     $ngcprestapi_username
     $ngcprestapi_password
@@ -151,6 +169,25 @@ our $billing_username = 'root';
 our	$billing_password = '';
 our $billing_host = '127.0.0.1';
 our $billing_port = '3306';
+
+our	$provisioning_databasename = 'provisioning';
+our $provisioning_username = 'root';
+our	$provisioning_password = '';
+our $provisioning_host = '127.0.0.1';
+our $provisioning_port = '3306';
+
+our	$kamailio_databasename = 'kamailio';
+our $kamailio_username = 'root';
+our	$kamailio_password = '';
+our $kamailio_host = '127.0.0.1';
+our $kamailio_port = '3306';
+
+our	$xa_databasename = 'ngcp';
+our $xa_username = 'root';
+our	$xa_password = '';
+our $xa_host = '127.0.0.1';
+our $xa_port = '3306';
+
 
 our $ngcprestapi_uri = 'https://127.0.0.1:443';
 our $ngcprestapi_username = 'administrator';
@@ -369,6 +406,24 @@ sub _postprocess_masterconfig {
         $billing_databasename = $data->{billing_databasename} if exists $data->{billing_databasename};
         $billing_username = $data->{billing_username} if exists $data->{billing_username};
         $billing_password = $data->{billing_password} if exists $data->{billing_password};
+
+        $provisioning_host = $data->{provisioning_host} if exists $data->{provisioning_host};
+        $provisioning_port = $data->{provisioning_port} if exists $data->{provisioning_port};
+        $provisioning_databasename = $data->{provisioning_databasename} if exists $data->{provisioning_databasename};
+        $provisioning_username = $data->{provisioning_username} if exists $data->{provisioning_username};
+        $provisioning_password = $data->{provisioning_password} if exists $data->{provisioning_password};
+
+        $kamailio_host = $data->{kamailio_host} if exists $data->{kamailio_host};
+        $kamailio_port = $data->{kamailio_port} if exists $data->{kamailio_port};
+        $kamailio_databasename = $data->{kamailio_databasename} if exists $data->{kamailio_databasename};
+        $kamailio_username = $data->{kamailio_username} if exists $data->{kamailio_username};
+        $kamailio_password = $data->{kamailio_password} if exists $data->{kamailio_password};
+
+        $xa_host = $data->{xa_host} if exists $data->{xa_host};
+        $xa_port = $data->{xa_port} if exists $data->{xa_port};
+        $xa_databasename = $data->{xa_databasename} if exists $data->{xa_databasename};
+        $xa_username = $data->{xa_username} if exists $data->{xa_username};
+        $xa_password = $data->{xa_password} if exists $data->{xa_password};
 
         return 1;
     }
