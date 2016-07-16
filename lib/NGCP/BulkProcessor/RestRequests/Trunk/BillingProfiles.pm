@@ -22,6 +22,7 @@ our @EXPORT_OK = qw(
     get_item
     create_item
     process_items
+    get_item_path
 );
 
 my $get_restapi = \&get_ngcp_restapi;
@@ -115,6 +116,7 @@ sub process_items {
 
     my %params = @_;
     my ($process_code,
+        $static_context,
         $blocksize,
         $init_process_context_code,
         $uninit_process_context_code,
@@ -122,6 +124,7 @@ sub process_items {
         $numofthreads,
         $load_recursive) = @params{qw/
             process_code
+            static_context
             blocksize
             init_process_context_code
             uninit_process_context_code
@@ -139,12 +142,20 @@ sub process_items {
                 my ($context,$rowblock,$row_offset) = @_;
                 return &$process_code($context,builditems_fromrows($rowblock,$load_recursive),$row_offset);
             },
+        static_context                  => $static_context,
         blocksize                       => $blocksize,
         init_process_context_code       => $init_process_context_code,
         uninit_process_context_code     => $uninit_process_context_code,
         multithreading                  => $multithreading,
         collectionprocessing_threads    => $numofthreads,
     );
+}
+
+sub get_item_path {
+
+    my ($id) = @_;
+    return &$get_item_path_query($id);
+
 }
 
 1;

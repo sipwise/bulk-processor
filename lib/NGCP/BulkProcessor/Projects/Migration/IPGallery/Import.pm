@@ -3,6 +3,8 @@ use strict;
 
 ## no critic
 
+use threads::shared qw();
+
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $import_multithreading
     $features_define_import_numofthreads
@@ -19,6 +21,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $user_password_import_numofthreads
     $ignore_user_password_unique
     $username_prefix
+    $min_password_length
     $batch_import_numofthreads
     $ignore_batch_unique
     $subscribernumber_pattern
@@ -27,6 +30,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
 use NGCP::BulkProcessor::Logging qw (
     getlogger
     processing_info
+    processing_debug
 );
 use NGCP::BulkProcessor::LogError qw(
     fileprocessingwarn
@@ -83,7 +87,9 @@ sub import_features_define {
 
     # launch:
     destroy_all_dbs(); #close all db connections before forking..
-    return $result && $importer->process(
+    my $error_count :shared = 0;
+    my $warning_count :shared = 0;
+    return ($result && $importer->process(
         file => $file,
         process_code => sub {
             my ($context,$rows,$row_offset) = @_;
@@ -99,9 +105,9 @@ sub import_features_define {
                     };
                     if ($@) {
                         if ($importer->stoponparseerrors()) {
-                            fileprocessingerror($context->{filename},'record ' . $rownum . ' - ' . $@,getlogger(__PACKAGE__));
+                            _error($context,'record ' . $rownum . ' - ' . $@);
                         } else {
-                            fileprocessingwarn($context->{filename},'record ' . $rownum . ' - ' . $@,getlogger(__PACKAGE__));
+                            _warn($context,'record ' . $rownum . ' - ' . $@);
                         }
                     }
                 }
@@ -111,7 +117,8 @@ sub import_features_define {
                     foreach my $option (@{$row->{$subscriber_number}}) {
                         if (defined $option and 'HASH' eq ref $option) {
                             foreach my $setoption (keys %$option) {
-                                foreach my $setoptionitem (@{$skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption}}) {
+                                my $setoptionitems = $skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption};
+                                foreach my $setoptionitem (@$setoptionitems) {
                                     if ($context->{upsert}) {
                                         push(@featureoptionsetitem_rows,[ $subscriber_number, $setoption, $setoptionitem,
                                             $subscriber_number, $setoption, $setoptionitem ]);
@@ -120,12 +127,14 @@ sub import_features_define {
                                             $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::added_delta ]);
                                     }
                                 }
-                                if ($context->{upsert}) {
-                                    push(@featureoption_rows,[ $subscriber_number, $setoption,
-                                        $subscriber_number, $setoption ]);
-                                } else {
-                                    push(@featureoption_rows,[ $subscriber_number, $setoption,
-                                        $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::added_delta ]);
+                                if ((scalar @$setoptionitems) > 0) {
+                                    if ($context->{upsert}) {
+                                        push(@featureoption_rows,[ $subscriber_number, $setoption,
+                                            $subscriber_number, $setoption ]);
+                                    } else {
+                                        push(@featureoption_rows,[ $subscriber_number, $setoption,
+                                            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::added_delta ]);
+                                    }
                                 }
                             }
                         } else {
@@ -164,19 +173,26 @@ sub import_features_define {
                     $context->{grammar} = NGCP::BulkProcessor::Projects::Migration::IPGallery::FeaturesDefineParser::create_grammar();
                 };
                 if ($@) {
-                    fileprocessingerror($context->{filename},$@,getlogger(__PACKAGE__));
+                    _error($context,$@);
                 }
             }
             $context->{db} = &get_import_db(); # keep ref count low..
             $context->{upsert} = $upsert;
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
         },
         uninit_process_context_code => sub {
             my ($context)= @_;
             undef $context->{db};
             destroy_all_dbs();
+            {
+                lock $error_count;
+                $error_count += $context->{error_count};
+                $warning_count += $context->{warning_count};
+            }
         },
         multithreading => $import_multithreading
-    );
+    ),$error_count,$warning_count);
 
 }
 
@@ -215,7 +231,7 @@ sub _insert_featureoption_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_finish(1);
         };
         die($err);
     }
@@ -237,7 +253,7 @@ sub _insert_featureoptionsetitem_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_finish(1);
         };
         die($err);
     }
@@ -256,7 +272,9 @@ sub import_subscriber_define {
     my $upsert = _import_subscriber_define_reset_delta();
 
     destroy_all_dbs(); #close all db connections before forking..
-    return $result && $importer->process(
+    my $error_count :shared = 0;
+    my $warning_count :shared = 0;
+    return ($result && $importer->process(
         file => $file,
         process_code => sub {
             my ($context,$rows,$row_offset) = @_;
@@ -268,11 +286,11 @@ sub import_subscriber_define {
                 next if 'None' eq $record->{rgw_fqdn};
                 if ($record->{dial_number} =~ $subscribernumer_exclude_pattern) {
                     if ($record->{dial_number} =~ $subscribernumer_exclude_exception_pattern) {
-                        processing_info($context->{tid},'record ' . $rownum . ' - exclude exception pattern match: ' . $record->{dial_number},getlogger(__PACKAGE__));
+                        _info($context,'record ' . $rownum . ' - exclude exception pattern match: ' . $record->{dial_number});
                         next unless _check_subscribernumber($context,$record->{dial_number},$rownum);
                         next unless _import_subscriber_define_referential_checks($context,$record,$rownum);
                     } else {
-                        processing_info($context->{tid},'record ' . $rownum . ' - skipped, exclude pattern match: ' . $record->{dial_number},getlogger(__PACKAGE__));
+                        _info($context,'record ' . $rownum . ' - skipped, exclude pattern match: ' . $record->{dial_number});
                         next;
                     }
                 } else {
@@ -302,14 +320,21 @@ sub import_subscriber_define {
             my ($context)= @_;
             $context->{db} = &get_import_db(); # keep ref count low..
             $context->{upsert} = $upsert;
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
         },
         uninit_process_context_code => sub {
             my ($context)= @_;
             undef $context->{db};
             destroy_all_dbs();
+            {
+                lock $error_count;
+                $error_count += $context->{error_count};
+                $warning_count += $context->{warning_count};
+            }
         },
         multithreading => $import_multithreading
-    );
+    ),$error_count,$warning_count);
 
 }
 
@@ -324,16 +349,16 @@ sub _import_subscriber_define_referential_checks {
                 )->[0];
             if (defined $prepaid_option_set_item and $prepaid_option_set_item->{delta} ne
                 $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::deleted_delta) {
-                processing_info($context->{tid},'record ' . $rownum . ' - skipped, ' . $prepaid_option_set_item->{optionsetitem} . ': ' . $record->{dial_number},getlogger(__PACKAGE__));
+                _info($context,'record ' . $rownum . ' - skipped, ' . $prepaid_option_set_item->{optionsetitem} . ': ' . $record->{dial_number});
                 $result &= 0;
             }
         }
     } else {
         if ($skip_errors) {
-            fileprocessingwarn($context->{filename},'record ' . $rownum . ' - no features records for subscriber found: ' . $record->{dial_number},getlogger(__PACKAGE__));
+            _warn($context,'record ' . $rownum . ' - no features records for subscriber found: ' . $record->{dial_number});
         } else {
             $result &= 0;
-            fileprocessingerror($context->{filename},'record ' . $rownum . ' - no features records for subscriber found: ' . $record->{dial_number},getlogger(__PACKAGE__));
+            _error($context,'record ' . $rownum . ' - no features records for subscriber found: ' . $record->{dial_number});
         }
     }
 
@@ -341,10 +366,10 @@ sub _import_subscriber_define_referential_checks {
 
     } else {
         if ($skip_errors) {
-            fileprocessingwarn($context->{filename},'record ' . $rownum . ' - no username password record for subscriber found: ' . $record->{dial_number},getlogger(__PACKAGE__));
+            _warn($context,'record ' . $rownum . ' - no username password record for subscriber found: ' . $record->{dial_number});
         } else {
             $result &= 0;
-            fileprocessingerror($context->{filename},'record ' . $rownum . ' - no username password record for subscriber found: ' . $record->{dial_number},getlogger(__PACKAGE__));
+            _error($context,'record ' . $rownum . ' - no username password record for subscriber found: ' . $record->{dial_number});
         }
     }
 
@@ -402,7 +427,7 @@ sub _insert_subscriber_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_finish(1);
         };
         die($err);
     }
@@ -419,7 +444,9 @@ sub import_lnp_define {
     my $upsert = _import_lnp_define_reset_delta();
 
     destroy_all_dbs(); #close all db connections before forking..
-    return $result && $importer->process(
+    my $error_count :shared = 0;
+    my $warning_count :shared = 0;
+    return ($result && $importer->process(
         file => $file,
         process_code => sub {
             my ($context,$rows,$row_offset) = @_;
@@ -455,14 +482,21 @@ sub import_lnp_define {
             my ($context)= @_;
             $context->{db} = &get_import_db(); # keep ref count low..
             $context->{upsert} = $upsert;
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
         },
         uninit_process_context_code => sub {
             my ($context)= @_;
             undef $context->{db};
             destroy_all_dbs();
+            {
+                lock $error_count;
+                $error_count += $context->{error_count};
+                $warning_count += $context->{warning_count};
+            }
         },
         multithreading => $import_multithreading
-    );
+    ),$error_count,$warning_count);
 
 }
 
@@ -494,7 +528,7 @@ sub _insert_lnp_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_finish(1);
         };
         die($err);
     }
@@ -517,7 +551,9 @@ sub import_user_password {
 
     # launch:
     destroy_all_dbs(); #close all db connections before forking..
-    return $result && $importer->process(
+    my $error_count :shared = 0;
+    my $warning_count :shared = 0;
+    return ($result && $importer->process(
         file => $file,
         process_code => sub {
             my ($context,$rows,$row_offset) = @_;
@@ -530,6 +566,14 @@ sub import_user_password {
                 unshift(@usernamepassword_row,($username_prefix // '') . $usernamepassword_row[0]);
                 my $record = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword->new(\@usernamepassword_row);
                 next unless _check_subscribernumber($context,$record->{fqdn},$rownum);
+                if (not defined $record->{password} or ($min_password_length and length($record->{password}) < $min_password_length)) {
+                    if ($skip_errors) {
+                        _warn($context,"record $rownum - no password or length less than $min_password_length: " . $record->{fqdn});
+                        next;
+                    } else {
+                        _error($context,"record $rownum - no password or length less than $min_password_length: " . $record->{fqdn});
+                    }
+                }
                 if ($context->{upsert}) {
                     push(@usernamepassword_row,$record->{fqdn},$record->{password},$record->{fqdn});
                 } else {
@@ -552,14 +596,21 @@ sub import_user_password {
             my ($context)= @_;
             $context->{db} = &get_import_db(); # keep ref count low..
             $context->{upsert} = $upsert;
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
         },
         uninit_process_context_code => sub {
             my ($context)= @_;
             undef $context->{db};
             destroy_all_dbs();
+            {
+                lock $error_count;
+                $error_count += $context->{error_count};
+                $warning_count += $context->{warning_count};
+            }
         },
         multithreading => $import_multithreading
-    );
+    ),$error_count,$warning_count);
 
 }
 
@@ -591,7 +642,7 @@ sub _insert_usernamepassword_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_finish(1);
         };
         die($err);
     }
@@ -610,7 +661,9 @@ sub import_batch {
     my $upsert = _import_batch_reset_delta();
 
     destroy_all_dbs(); #close all db connections before forking..
-    return $result && $importer->process(
+    my $error_count :shared = 0;
+    my $warning_count :shared = 0;
+    return ($result && $importer->process(
         file => $file,
         process_code => sub {
             my ($context,$rows,$row_offset) = @_;
@@ -644,14 +697,21 @@ sub import_batch {
             my ($context)= @_;
             $context->{db} = &get_import_db(); # keep ref count low..
             $context->{upsert} = $upsert;
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
         },
         uninit_process_context_code => sub {
             my ($context)= @_;
             undef $context->{db};
             destroy_all_dbs();
+            {
+                lock $error_count;
+                $error_count += $context->{error_count};
+                $warning_count += $context->{warning_count};
+            }
         },
         multithreading => $import_multithreading
-    );
+    ),$error_count,$warning_count);
 
 }
 
@@ -662,10 +722,10 @@ sub _import_batch_referential_checks {
 
     } else {
         if ($skip_errors) {
-            fileprocessingwarn($context->{filename},'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number},getlogger(__PACKAGE__));
+            _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
         } else {
             $result &= 0;
-            fileprocessingerror($context->{filename},'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number},getlogger(__PACKAGE__));
+            _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
         }
     }
 
@@ -715,7 +775,7 @@ sub _insert_batch_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_finish(1);
         };
         die($err);
     }
@@ -726,15 +786,41 @@ sub _check_subscribernumber {
     my $result = 1;
     if (defined $subscribernumber_pattern) {
         if ($subscribernumber !~ $subscribernumber_pattern) {
+            $result &= 0;
             if ($skip_errors) {
-                fileprocessingwarn($context->{filename},'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber,getlogger(__PACKAGE__));
+                _warn($context,'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber);
             } else {
-                $result &= 0;
-                fileprocessingerror($context->{filename},'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber,getlogger(__PACKAGE__));
+                _error($context,'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber);
             }
         }
     }
     return $result;
+}
+
+sub _error {
+
+    my ($context,$message) = @_;
+    $context->{error_count} = $context->{error_count} + 1;
+    fileprocessingerror($context->{filename},$message,getlogger(__PACKAGE__));
+
+}
+
+sub _warn {
+
+    my ($context,$message) = @_;
+    $context->{warning_count} = $context->{warning_count} + 1;
+    fileprocessingwarn($context->{filename},$message,getlogger(__PACKAGE__));
+
+}
+
+sub _info {
+
+    my ($context,$message,$debug) = @_;
+    if ($debug) {
+        processing_debug($context->{tid},$message,getlogger(__PACKAGE__));
+    } else {
+        processing_info($context->{tid},$message,getlogger(__PACKAGE__));
+    }
 }
 
 1;
