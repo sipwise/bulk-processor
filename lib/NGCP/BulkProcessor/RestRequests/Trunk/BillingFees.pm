@@ -21,6 +21,7 @@ our @EXPORT_OK = qw(
     get_item
     create_item
     delete_item
+    get_item_path
 );
 
 my $get_restapi = \&get_ngcp_restapi;
@@ -113,6 +114,13 @@ sub builditems_fromrows {
         return $item;
     }
     return undef;
+
+}
+
+sub get_item_path {
+
+    my ($id) = @_;
+    return &$get_item_path_query($id);
 
 }
 

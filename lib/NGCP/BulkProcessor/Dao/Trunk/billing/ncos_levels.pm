@@ -1,11 +1,10 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
-
+    get_billing_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -20,15 +19,19 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_domain
+    findby_resellerid_level
 );
 
-my $tablename = 'voip_domains';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'ncos_levels';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'domain',
+    'reseller_id',
+    'level',
+    'mode',
+    'local_ac',
+    'description',
 ];
 
 my $indexes = {};
@@ -48,17 +51,18 @@ sub new {
 
 }
 
-sub findby_domain {
+sub findby_resellerid_level {
 
-    my ($domain,$load_recursive) = @_;
+    my ($reseller_id,$level,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
+            $db->columnidentifier('reseller_id') . ' = ?' .
+            ' AND ' . $db->columnidentifier('level') . ' = ?';
+    my @params = ($reseller_id,$level);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
