@@ -142,7 +142,7 @@ sub findby_subscribernumber {
             ' AND ' . $db->columnidentifier('dial_number') . ' = ?'
     ,split_subscribernumber($subscribernumber));
 
-    return buildrecords_fromrows($rows,$load_recursive);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 

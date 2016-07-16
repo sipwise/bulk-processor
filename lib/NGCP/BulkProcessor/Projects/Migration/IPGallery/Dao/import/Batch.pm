@@ -124,7 +124,7 @@ sub findby_number {
             $db->columnidentifier('number') . ' = ?'
     ,$number);
 
-    return buildrecords_fromrows($rows,$load_recursive);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 

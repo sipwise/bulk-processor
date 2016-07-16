@@ -40,6 +40,7 @@ our @EXPORT_OK = qw(
     $added_delta
 
     $PRE_PAID_SERVICE_OPTION_SET
+    $WEB_PASSWORD_OPTION_SET
 );
 
 my $tablename = 'feature_option_set_item';
@@ -66,6 +67,7 @@ our $updated_delta = 'UPDATED';
 our $added_delta = 'ADDED';
 
 our $PRE_PAID_SERVICE_OPTION_SET = 'Pre_Paid_Service';
+our $WEB_PASSWORD_OPTION_SET = 'Web_Password';
 
 sub new {
 
