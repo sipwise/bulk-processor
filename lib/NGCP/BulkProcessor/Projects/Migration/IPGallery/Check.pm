@@ -11,6 +11,7 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::contacts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_numbers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::products qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::domains qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
@@ -50,6 +51,9 @@ sub check_billing_db_tables {
     my $message_prefix = 'NGCP billing db tables - ';
 
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::products');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::domains');
     $result &= $check_result; push(@$messages,$message);
 
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::contacts');

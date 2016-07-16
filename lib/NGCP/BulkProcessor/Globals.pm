@@ -39,6 +39,7 @@ our @EXPORT_OK = qw(
 	$application_path
 	$executable_path
 	$working_path
+    $is_perl_debug
 
     create_path
 	$appstartsecs
@@ -144,6 +145,8 @@ if ($^O eq 'MSWin32') {
 } else {
     $enablemultithreading = 1; # oel 5.4 perl 5.8.8 obvoisly not ok.
 }
+
+our $is_perl_debug = defined &DB::DB;
 
 our $cpucount = get_cpucount();
 
