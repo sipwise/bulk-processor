@@ -91,11 +91,13 @@ sub process {
     my %params = @_;
     my ($file,
         $process_code,
+        $static_context,
         $init_process_context_code,
         $uninit_process_context_code,
         $multithreading) = @params{qw/
             file
             process_code
+            static_context
             init_process_context_code
             uninit_process_context_code
             multithreading
@@ -133,6 +135,7 @@ sub process {
             for (my $i = 0; $i < $self->{numofthreads}; $i++) {
                 filethreadingdebug('starting processor thread ' . ($i + 1) . ' of ' . $self->{numofthreads},getlogger(__PACKAGE__));
                 my $processor = threads->create(\&_process,
+                                              _create_process_context($static_context,
                                               { queue                => $queue,
                                                 errorstates          => \%errorstates,
                                                 readertid              => $reader->tid(),
@@ -141,7 +144,7 @@ sub process {
                                                 init_process_context_code => $init_process_context_code,
                                                 uninit_process_context_code => $uninit_process_context_code,
                                                 instance             => $self,
-                                              });
+                                              }));
                 if (!defined $processor) {
                     filethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $self->{numofthreads} . ' NOT started',getlogger(__PACKAGE__));
                 }
@@ -165,10 +168,10 @@ sub process {
 
         } else {
 
-            my $context = { instance => $self,
+            my $context = _create_process_context($static_context,{ instance => $self,
                             filename => $file,
                             tid      => $tid,
-                            };
+                            });
             my $rowblock_result = 1;
             eval {
 
@@ -511,6 +514,21 @@ sub _get_stop_consumer_thread {
     }
 
     return $result;
+
+}
+
+sub _create_process_context {
+
+    my $context = {};
+    foreach my $ctx (@_) {
+        if (defined $ctx and 'HASH' eq ref $ctx) {
+            foreach my $key (keys %$ctx) {
+                $context->{$key} = $ctx->{$key};
+                #delete $ctx->{$key};
+            }
+        }
+    }
+    return $context;
 
 }
 

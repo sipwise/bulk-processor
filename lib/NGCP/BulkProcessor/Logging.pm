@@ -50,7 +50,7 @@ our @EXPORT_OK = qw(
     tabletruncated
     tabledropped
     rowtransferred
-    rowskipped
+
     rowinserted
     rowupdated
     rowsdeleted
@@ -81,6 +81,7 @@ our @EXPORT_OK = qw(
     processing_lines
 
     processing_info
+    processing_debug
 
     faketimeinfo
     faketimedebug
@@ -95,6 +96,7 @@ our @EXPORT_OK = qw(
     servicedebug
     serviceinfo
 );
+#rowskipped
 
 my $logfileextension = '.log';
 
@@ -459,14 +461,14 @@ sub rowtransferred {
 
 }
 
-sub rowskipped {
-
-    my ($db,$tablename,$target_db,$targettablename,$i,$numofrows,$logger) = @_;
-    if (defined $logger) {
-        $logger->info(_getsqlconnectorinstanceprefix($db) . 'row ' . $i . '/' . $numofrows . ' skipped');
-    }
-
-}
+#sub rowskipped {
+#
+#    my ($db,$tablename,$target_db,$targettablename,$i,$numofrows,$logger) = @_;
+#    if (defined $logger) {
+#        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row ' . $i . '/' . $numofrows . ' skipped');
+#    }
+#
+#}
 
 sub rowinserted {
 
@@ -512,7 +514,7 @@ sub rowinsertskipped {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getsqlconnectorinstanceprefix($db) . 'row insert skipped');
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row insert skipped');
     }
 
 }
@@ -521,7 +523,7 @@ sub rowupdateskipped {
 
     my ($db,$tablename,$matched,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getsqlconnectorinstanceprefix($db) . "row update skipped, $matched matching rows");
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . "row update skipped, $matched matching rows");
     }
 
 }
@@ -640,6 +642,15 @@ sub processing_info {
     my ($tid, $message, $logger) = @_;
     if (defined $logger) {
         $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
+    }
+
+}
+
+sub processing_debug {
+
+    my ($tid, $message, $logger) = @_;
+    if (defined $logger) {
+        $logger->debug(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
     }
 
 }

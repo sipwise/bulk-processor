@@ -1,10 +1,10 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::billing::domain_resellers;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+    get_billing_db
 
 );
 
@@ -20,15 +20,16 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_domain
+    countby_domainid_resellerid
 );
 
-my $tablename = 'voip_domains';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'domain_resellers';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'domain',
+    'domain_id',
+    'reseller_id',
 ];
 
 my $indexes = {};
@@ -48,20 +49,30 @@ sub new {
 
 }
 
-sub findby_domain {
+sub countby_domainid_resellerid {
 
-    my ($domain,$load_recursive) = @_;
+    my ($domain_id,$reseller_id) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    if ($domain_id) {
+        push(@terms,$db->columnidentifier('domain_id') . ' = ?');
+        push(@params,$domain_id);
+    }
+    if ($reseller_id) {
+        push(@terms,$db->columnidentifier('reseller_id') . ' = ?');
+        push(@params,$reseller_id);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
+    }
 
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
+    return $db->db_get_value($stmt,@params);
 
 }
 
