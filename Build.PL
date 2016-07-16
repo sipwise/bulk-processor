@@ -73,4 +73,6 @@ my $builder = Module::Build->new(
     },
     add_to_cleanup => ['NGCP-BulkProcessor-*', 'Excel-Reader-*'],
 );
+$builder->add_build_element('pl');
+$builder->add_build_element('cfg');
 $builder->create_build_script;

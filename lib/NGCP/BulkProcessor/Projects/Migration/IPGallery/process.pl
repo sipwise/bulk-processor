@@ -81,7 +81,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_batch
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::SubscriberProvisioning qw(
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning qw(
     test
 );
 
@@ -254,7 +254,7 @@ sub check_task {
     $result = check_kamailio_db_tables(\@check_messages);
     #$result &= ..
     push(@$messages,join("\n",@check_messages));
-    
+
     @check_messages = ();
     $result = check_import_db_tables(\@check_messages);
     #$result &= ..

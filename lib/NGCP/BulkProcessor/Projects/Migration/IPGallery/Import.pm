@@ -19,6 +19,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $user_password_import_numofthreads
     $ignore_user_password_unique
     $username_prefix
+    $min_password_length
     $batch_import_numofthreads
     $ignore_batch_unique
     $subscribernumber_pattern
@@ -111,7 +112,8 @@ sub import_features_define {
                     foreach my $option (@{$row->{$subscriber_number}}) {
                         if (defined $option and 'HASH' eq ref $option) {
                             foreach my $setoption (keys %$option) {
-                                foreach my $setoptionitem (@{$skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption}}) {
+                                my $setoptionitems = $skip_duplicate_setoptionitems ? removeduplicates($option->{$setoption}) : $option->{$setoption};
+                                foreach my $setoptionitem (@$setoptionitems) {
                                     if ($context->{upsert}) {
                                         push(@featureoptionsetitem_rows,[ $subscriber_number, $setoption, $setoptionitem,
                                             $subscriber_number, $setoption, $setoptionitem ]);
@@ -120,12 +122,14 @@ sub import_features_define {
                                             $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::added_delta ]);
                                     }
                                 }
-                                if ($context->{upsert}) {
-                                    push(@featureoption_rows,[ $subscriber_number, $setoption,
-                                        $subscriber_number, $setoption ]);
-                                } else {
-                                    push(@featureoption_rows,[ $subscriber_number, $setoption,
-                                        $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::added_delta ]);
+                                if ((scalar @$setoptionitems) > 0) {
+                                    if ($context->{upsert}) {
+                                        push(@featureoption_rows,[ $subscriber_number, $setoption,
+                                            $subscriber_number, $setoption ]);
+                                    } else {
+                                        push(@featureoption_rows,[ $subscriber_number, $setoption,
+                                            $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::added_delta ]);
+                                    }
                                 }
                             }
                         } else {
@@ -215,7 +219,7 @@ sub _insert_featureoption_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_rollback(1);
         };
         die($err);
     }
@@ -237,7 +241,7 @@ sub _insert_featureoptionsetitem_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_rollback(1);
         };
         die($err);
     }
@@ -402,7 +406,7 @@ sub _insert_subscriber_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_rollback(1);
         };
         die($err);
     }
@@ -494,7 +498,7 @@ sub _insert_lnp_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_rollback(1);
         };
         die($err);
     }
@@ -530,6 +534,14 @@ sub import_user_password {
                 unshift(@usernamepassword_row,($username_prefix // '') . $usernamepassword_row[0]);
                 my $record = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword->new(\@usernamepassword_row);
                 next unless _check_subscribernumber($context,$record->{fqdn},$rownum);
+                if (not defined $record->{password} or ($min_password_length and length($record->{password}) < $min_password_length)) {
+                    if ($skip_errors) {
+                        fileprocessingwarn($context->{filename},"record $rownum - no password or length less than $min_password_length: " . $record->{fqdn},getlogger(__PACKAGE__));
+                        next;
+                    } else {
+                        fileprocessingerror($context->{filename},"record $rownum - no password or length less than $min_password_length: " . $record->{fqdn},getlogger(__PACKAGE__));
+                    }
+                }
                 if ($context->{upsert}) {
                     push(@usernamepassword_row,$record->{fqdn},$record->{password},$record->{fqdn});
                 } else {
@@ -591,7 +603,7 @@ sub _insert_usernamepassword_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_rollback(1);
         };
         die($err);
     }
@@ -715,7 +727,7 @@ sub _insert_batch_rows {
     my $err = $@;
     if ($err) {
         eval {
-            $context->{db}->db_rollback();
+            $context->{db}->db_rollback(1);
         };
         die($err);
     }
@@ -726,10 +738,10 @@ sub _check_subscribernumber {
     my $result = 1;
     if (defined $subscribernumber_pattern) {
         if ($subscribernumber !~ $subscribernumber_pattern) {
+            $result &= 0;
             if ($skip_errors) {
                 fileprocessingwarn($context->{filename},'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber,getlogger(__PACKAGE__));
             } else {
-                $result &= 0;
                 fileprocessingerror($context->{filename},'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber,getlogger(__PACKAGE__));
             }
         }
