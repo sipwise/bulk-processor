@@ -200,7 +200,13 @@ sub extract_collection_items {
     if (defined $data and 'HASH' eq ref $data
         and defined $data->{'_embedded'} and 'HASH' eq ref $data->{'_embedded'}) {
         $result = $data->{'_embedded'}->{$params->{$ITEM_REL_PARAM}};
-        undef $result unless ref $result;
+        if ('ARRAY' eq ref $result) {
+
+        } elsif ('HASH' eq ref $result) {
+            $result = [ $result ];
+        } else {
+            undef $result;
+        }
     }
     $result //= [];
     return shared_clone($result);

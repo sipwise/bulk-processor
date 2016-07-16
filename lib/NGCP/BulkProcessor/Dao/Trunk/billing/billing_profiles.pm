@@ -1,10 +1,10 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+    get_billing_db
 
 );
 
@@ -20,15 +20,35 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_domain
+    findby_id
 );
 
-my $tablename = 'voip_domains';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'billing_profiles';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'domain',
+    'reseller_id',
+    'handle',
+    'name',
+    'prepaid',
+    'interval_charge',
+    'interval_free_time',
+    'interval_free_cash',
+    'interval_unit',
+    'interval_count',
+    'fraud_interval_limit',
+    'fraud_interval_lock',
+    'fraud_interval_notify',
+    'fraud_daily_limit',
+    'fraud_daily_lock',
+    'fraud_daily_notify',
+    'fraud_use_reseller_rates',
+    'currency',
+    'status',
+    'modify_timestamp',
+    'create_timestamp',
+    'terminate_timestamp',
 ];
 
 my $indexes = {};
@@ -48,17 +68,17 @@ sub new {
 
 }
 
-sub findby_domain {
+sub findby_id {
 
-    my ($domain,$load_recursive) = @_;
+    my ($id,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];

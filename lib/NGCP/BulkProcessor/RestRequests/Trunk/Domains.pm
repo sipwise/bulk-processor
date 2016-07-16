@@ -11,6 +11,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::RestProcessor qw(
     process_collection
     copy_row
+    get_query_string
 );
 
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw();
@@ -21,6 +22,10 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::RestItem);
 our @EXPORT_OK = qw(
     get_item
     create_item
+
+    get_item_filtered
+    get_item_path
+    get_item_filter_path
 );
 
 my $get_restapi = \&get_ngcp_restapi;
@@ -36,6 +41,11 @@ my $fieldnames = [
     'domain',
     'reseller_id',
 ];
+
+my $get_item_filter_path_query = sub {
+    my ($filters) = @_;
+    return 'api/' . $resource . '/' . get_query_string($filters);
+};
 
 sub new {
 
@@ -55,6 +65,15 @@ sub get_item {
     my ($id,$load_recursive,$headers) = @_;
     my $restapi = &$get_restapi();
     return builditems_fromrows($restapi->get(&$get_item_path_query($id),$headers),$load_recursive);
+
+}
+
+sub get_item_filtered {
+
+    my ($filters,$load_recursive,$headers) = @_;
+    my $restapi = &$get_restapi();
+    return builditems_fromrows($restapi->extract_collection_items($restapi->get(&$get_item_filter_path_query($filters),$headers),undef,undef,
+        { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation }),$load_recursive)->[0];
 
 }
 
@@ -92,6 +111,20 @@ sub builditems_fromrows {
         return $item;
     }
     return undef;
+
+}
+
+sub get_item_path {
+
+    my ($id) = @_;
+    return &$get_item_path_query($id);
+
+}
+
+sub get_item_filter_path {
+
+    my ($filters) = @_;
+    return &$get_item_filter_path_query($filters);
 
 }
 
