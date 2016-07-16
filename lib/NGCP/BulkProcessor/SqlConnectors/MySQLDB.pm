@@ -17,7 +17,7 @@ use NGCP::BulkProcessor::Logging qw(
 use NGCP::BulkProcessor::LogError qw(dberror fieldnamesdiffer);
 
 use DBI;
-use DBD::mysql 4.014;
+use DBD::mysql 4.014; # 4.035;
 
 use NGCP::BulkProcessor::Array qw(arrayeq itemcount contains setcontains);
 

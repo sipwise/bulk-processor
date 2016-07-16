@@ -1,10 +1,10 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::billing::domains;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+    get_billing_db
 
 );
 
@@ -23,8 +23,8 @@ our @EXPORT_OK = qw(
     findby_domain
 );
 
-my $tablename = 'voip_domains';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'domains';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',

@@ -13,6 +13,7 @@ use NGCP::BulkProcessor::Globals qw(
     $executable_path
     $cpucount
     $enablemultithreading
+    $is_perl_debug
     update_masterconfig
 );
 
@@ -127,6 +128,7 @@ sub _splashinfo {
     configurationinfo('working path: ' . $working_path,getlogger(__PACKAGE__));
     configurationinfo($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),getlogger(__PACKAGE__));
     configurationinfo('master config file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
+    configurationinfo('WARNING: running perl debug',getlogger(__PACKAGE__)) if $is_perl_debug;
 
 }
 
