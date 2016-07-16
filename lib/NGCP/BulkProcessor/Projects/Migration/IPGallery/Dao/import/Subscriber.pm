@@ -33,6 +33,7 @@ our @EXPORT_OK = qw(
     getinsertstatement
     getupsertstatement
 
+    list_barringprofiles
     findby_subscribernumber
     countby_subscribernumber
     update_delta
@@ -142,7 +143,18 @@ sub findby_subscribernumber {
             ' AND ' . $db->columnidentifier('dial_number') . ' = ?'
     ,split_subscribernumber($subscribernumber));
 
-    return buildrecords_fromrows($rows,$load_recursive);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub list_barringprofiles {
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    return $db->db_get_col('SELECT DISTINCT(' .
+        $db->columnidentifier('barring_profile') . ') FROM ' . $table);
 
 }
 
@@ -170,18 +182,23 @@ sub countby_subscribernumber {
 
 sub countby_delta {
 
-    my ($delta) = @_;
+    my ($deltas) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table . ' WHERE 1=1';
     my @params = ();
-    if (defined $delta) {
-        $stmt .= ' WHERE ' .
-            $db->columnidentifier('delta') . ' = ?';
-        push(@params,$delta);
+    if (defined $deltas and 'HASH' eq ref $deltas) {
+        foreach my $in (keys %$deltas) {
+            my @values = (defined $deltas->{$in} and 'ARRAY' eq ref $deltas->{$in} ? @{$deltas->{$in}} : ($deltas->{$in}));
+            $stmt .= ' AND ' . $db->columnidentifier('delta') . ' ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+            push(@params,@values);
+        }
+    } elsif (defined $deltas and length($deltas) > 0) {
+        $stmt .= ' AND ' . $db->columnidentifier('delta') . ' = ?';
+        push(@params,$deltas);
     }
 
     return $db->db_get_value($stmt,@params);
@@ -247,12 +264,14 @@ sub process_records {
 
     my %params = @_;
     my ($process_code,
+        $static_context,
         $init_process_context_code,
         $uninit_process_context_code,
         $multithreading,
         $numofthreads,
         $load_recursive) = @params{qw/
             process_code
+            static_context
             init_process_context_code
             uninit_process_context_code
             multithreading
@@ -269,6 +288,7 @@ sub process_records {
                 my ($context,$rowblock,$row_offset) = @_;
                 return &$process_code($context,buildrecords_fromrows($rowblock,$load_recursive),$row_offset);
             },
+        static_context              => $static_context,
         init_process_context_code   => $init_process_context_code,
         uninit_process_context_code => $uninit_process_context_code,
         destroy_reader_dbs_code     => \&destroy_all_dbs,

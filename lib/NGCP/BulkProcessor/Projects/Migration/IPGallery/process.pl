@@ -12,6 +12,7 @@ use Fcntl qw(LOCK_EX LOCK_NB);
 use NGCP::BulkProcessor::Globals qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     update_settings
+    update_barring_profiles
     check_dry
     $output_path
     $rollback_path
@@ -20,12 +21,16 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $dry
     $skip_errors
     $force
+    $batch
     $run_id
     $features_define_filename
     $subscriber_define_filename
     $lnp_define_filename
     $user_password_filename
     $batch_filename
+    $reseller_id
+    $barring_profiles_yml
+    $barring_profiles
 );
 use NGCP::BulkProcessor::Logging qw(
     init_log
@@ -66,11 +71,20 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword qw();
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch qw();
 
+use NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
+
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
+
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Check qw(
     check_billing_db_tables
     check_provisioning_db_tables
     check_kamailio_db_tables
     check_import_db_tables
+    check_rest_get_items
 );
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
@@ -81,8 +95,26 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
     import_batch
 );
 
-use NGCP::BulkProcessor::Projects::Migration::IPGallery::SubscriberProvisioning qw(
-    test
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning qw(
+    provision_subscribers
+    provision_subscribers_batch
+);
+
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Preferences qw(
+    set_barring_profiles
+    set_barring_profiles_batch
+
+    set_peer_auth
+    set_peer_auth_batch
+
+    $INIT_PEER_AUTH_MODE
+    $SWITCHOVER_PEER_AUTH_MODE
+    $CLEAR_PEER_AUTH_MODE
+);
+
+use NGCP::BulkProcessor::Projects::Migration::IPGallery::Api qw(
+    set_call_forwards
+    set_call_forwards_batch
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -127,6 +159,20 @@ push(@TASK_OPTS,$import_truncate_batch_task_opt);
 my $provision_subscriber_task_opt = 'provision_subscriber';
 push(@TASK_OPTS,$provision_subscriber_task_opt);
 
+my $set_barring_profiles_task_opt = 'set_barring_profiles';
+push(@TASK_OPTS,$set_barring_profiles_task_opt);
+
+my $init_peer_auth_task_opt = 'init_peer_auth';
+push(@TASK_OPTS,$init_peer_auth_task_opt);
+
+my $switchover_peer_auth_task_opt = 'switchover_peer_auth';
+push(@TASK_OPTS,$switchover_peer_auth_task_opt);
+
+my $clear_peer_auth_task_opt = 'clear_peer_auth';
+push(@TASK_OPTS,$clear_peer_auth_task_opt);
+
+my $set_call_forwards_task_opt = 'set_call_forwards';
+push(@TASK_OPTS,$set_call_forwards_task_opt);
 
 if (init()) {
     main();
@@ -148,6 +194,7 @@ sub init {
         "dry" => \$dry,
         "skip-errors" => \$skip_errors,
         "force" => \$force,
+        "batch" => \$batch,
     ); # or scripterror('error in command line arguments',getlogger(getscriptpath()));
 
     $tasks = removeduplicates($tasks,1);
@@ -155,7 +202,7 @@ sub init {
     my $result = load_config($configfile);
     init_log();
     $result &= load_config($settingsfile,\&update_settings,$SIMPLE_CONFIG_TYPE);
-    #$result &= load_config($settingsfile,\&update_settings,$SIMPLE_CONFIG_TYPE);
+    $result &= load_config($barring_profiles_yml,\&update_barring_profiles,$YAML_CONFIG_TYPE);
     return $result;
 
 }
@@ -172,42 +219,77 @@ sub main() {
         foreach my $task (@$tasks) {
 
             if (lc($check_task_opt) eq lc($task)) {
-                $result = check_task(\@messages) if taskinfo($check_task_opt,$result);
+                $result &= check_task(\@messages) if taskinfo($check_task_opt,$result);
 
             } elsif (lc($cleanup_task_opt) eq lc($task)) {
-                $result = cleanup_task(\@messages,0) if taskinfo($cleanup_task_opt,$result);
+                $result &= cleanup_task(\@messages,0) if taskinfo($cleanup_task_opt,$result);
             } elsif (lc($cleanup_all_task_opt) eq lc($task)) {
-                $result = cleanup_task(\@messages,1) if taskinfo($cleanup_all_task_opt,$result);
+                $result &= cleanup_task(\@messages,1) if taskinfo($cleanup_all_task_opt,$result);
 
             } elsif (lc($import_features_define_task_opt) eq lc($task)) {
-                $result = import_features_define_task(\@messages) if taskinfo($import_features_define_task_opt,$result);
+                $result &= import_features_define_task(\@messages) if taskinfo($import_features_define_task_opt,$result);
             } elsif (lc($import_truncate_features_task_opt) eq lc($task)) {
-                $result = import_truncate_features_task(\@messages) if taskinfo($import_truncate_features_task_opt,$result);
+                $result &= import_truncate_features_task(\@messages) if taskinfo($import_truncate_features_task_opt,$result);
 
             } elsif (lc($import_subscriber_define_task_opt) eq lc($task)) {
-                $result = import_subscriber_define_task(\@messages) if taskinfo($import_subscriber_define_task_opt,$result);
+                $result &= import_subscriber_define_task(\@messages) if taskinfo($import_subscriber_define_task_opt,$result);
             } elsif (lc($import_truncate_subscriber_task_opt) eq lc($task)) {
-                $result = import_truncate_subscriber_task(\@messages) if taskinfo($import_truncate_subscriber_task_opt,$result);
+                $result &= import_truncate_subscriber_task(\@messages) if taskinfo($import_truncate_subscriber_task_opt,$result);
 
             } elsif (lc($import_lnp_define_task_opt) eq lc($task)) {
-                $result = import_lnp_define_task(\@messages) if taskinfo($import_lnp_define_task_opt,$result);
+                $result &= import_lnp_define_task(\@messages) if taskinfo($import_lnp_define_task_opt,$result);
             } elsif (lc($import_truncate_lnp_task_opt) eq lc($task)) {
-                $result = import_truncate_lnp_task(\@messages) if taskinfo($import_truncate_lnp_task_opt,$result);
+                $result &= import_truncate_lnp_task(\@messages) if taskinfo($import_truncate_lnp_task_opt,$result);
 
             } elsif (lc($import_user_password_task_opt) eq lc($task)) {
-                $result = import_user_password_task(\@messages) if taskinfo($import_user_password_task_opt,$result);
+                $result &= import_user_password_task(\@messages) if taskinfo($import_user_password_task_opt,$result);
             } elsif (lc($import_truncate_user_password_task_opt) eq lc($task)) {
-                $result = import_truncate_user_password_task(\@messages) if taskinfo($import_truncate_user_password_task_opt,$result);
+                $result &= import_truncate_user_password_task(\@messages) if taskinfo($import_truncate_user_password_task_opt,$result);
 
             } elsif (lc($import_batch_task_opt) eq lc($task)) {
-                $result = import_batch_task(\@messages) if taskinfo($import_batch_task_opt,$result);
+                $result &= import_batch_task(\@messages) if taskinfo($import_batch_task_opt,$result);
             } elsif (lc($import_truncate_batch_task_opt) eq lc($task)) {
-                $result = import_truncate_batch_task(\@messages) if taskinfo($import_truncate_batch_task_opt,$result);
+                $result &= import_truncate_batch_task(\@messages) if taskinfo($import_truncate_batch_task_opt,$result);
 
             } elsif (lc($provision_subscriber_task_opt) eq lc($task)) {
-                if (taskinfo($provision_subscriber_task_opt,$result)) {
+                if (taskinfo($provision_subscriber_task_opt,$result) and ($result = batchinfo($result))) {
                     next unless check_dry();
-                    $result = provision_subscriber_task(\@messages);
+                    $result &= provision_subscriber_task(\@messages);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($set_barring_profiles_task_opt) eq lc($task)) {
+                if (taskinfo($set_barring_profiles_task_opt,$result) and ($result = batchinfo($result))) {
+                    next unless check_dry();
+                    $result &= set_barring_profiles_task(\@messages);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($init_peer_auth_task_opt) eq lc($task)) {
+                if (taskinfo($init_peer_auth_task_opt,$result) and ($result = batchinfo($result))) {
+                    next unless check_dry();
+                    $result &= set_peer_auth_task(\@messages,$INIT_PEER_AUTH_MODE);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($switchover_peer_auth_task_opt) eq lc($task)) {
+                if (taskinfo($switchover_peer_auth_task_opt,$result) and ($result = batchinfo($result))) {
+                    next unless check_dry();
+                    $result &= set_peer_auth_task(\@messages,$SWITCHOVER_PEER_AUTH_MODE);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($clear_peer_auth_task_opt) eq lc($task)) {
+                if (taskinfo($clear_peer_auth_task_opt,$result) and ($result = batchinfo($result))) {
+                    next unless check_dry();
+                    $result &= set_peer_auth_task(\@messages,$CLEAR_PEER_AUTH_MODE);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($set_call_forwards_task_opt) eq lc($task)) {
+                if (taskinfo($set_call_forwards_task_opt,$result) and ($result = batchinfo($result))) {
+                    next unless check_dry();
+                    $result &= set_call_forwards_task(\@messages);
                     $completion |= 1;
                 }
 
@@ -238,6 +320,33 @@ sub taskinfo {
     return $result;
 }
 
+sub batchinfo {
+
+    my ($result) = @_;
+    if ($result) {
+        if ($batch) {
+            $result = 0;
+            my $stats = '';
+            eval {
+                my $batch_size = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::countby_delta({ 'NOT IN' =>
+                        $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta});
+                $stats .= " of $batch_size subscriber number(s)";
+                $result = ($batch_size > 0 ? 1 : 0);
+            };
+            if ($@ or not $result) {
+                destroy_all_dbs();
+                scriptwarn("processing is limited to batch$stats (you might need to import a non-empty batch first)",getlogger(getscriptpath()));
+            } else {
+                scriptinfo("processing is limited to batch$stats",getlogger(getscriptpath()));
+            }
+        } else {
+            $result = 1;
+        }
+    }
+    return $result;
+
+}
+
 sub check_task {
     my ($messages) = @_;
     my @check_messages = ();
@@ -254,7 +363,12 @@ sub check_task {
     $result = check_kamailio_db_tables(\@check_messages);
     #$result &= ..
     push(@$messages,join("\n",@check_messages));
-    
+
+    @check_messages = ();
+    $result = check_rest_get_items(\@check_messages);
+    #$result &= ..
+    push(@$messages,join("\n",@check_messages));
+
     @check_messages = ();
     $result = check_import_db_tables(\@check_messages);
     #$result &= ..
@@ -291,12 +405,12 @@ sub cleanup_task {
 sub import_features_define_task {
 
     my ($messages) = @_;
-    my $result = 0;
+    my ($result,$warning_count) = (0,0,0);
     eval {
-        $result = import_features_define($features_define_filename);
+        ($result,$warning_count) = import_features_define($features_define_filename);
     };
     my $err = $@;
-    my $stats = '';
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
     eval {
         $stats .= "\n  total feature option records: " .
             NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber_option() . ' rows';
@@ -369,12 +483,12 @@ sub import_truncate_features_task {
 sub import_subscriber_define_task {
 
     my ($messages) = @_;
-    my $result = 0;
+    my ($result,$warning_count) = (0,0,0);
     eval {
-        $result = import_subscriber_define($subscriber_define_filename);
+        ($result,$warning_count) = import_subscriber_define($subscriber_define_filename);
     };
     my $err = $@;
-    my $stats = '';
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
     eval {
         $stats .= "\n  total subscriber records: " .
             NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_subscribernumber() . ' rows';
@@ -427,12 +541,12 @@ sub import_truncate_subscriber_task {
 sub import_lnp_define_task {
 
     my ($messages) = @_;
-    my $result = 0;
+    my ($result,$warning_count) = (0,0,0);
     eval {
-        $result = import_lnp_define($lnp_define_filename);
+        ($result,$warning_count) = import_lnp_define($lnp_define_filename);
     };
     my $err = $@;
-    my $stats = '';
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
     eval {
         $stats .= "\n  total lnp number records: " .
             NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::countby_lrncode_portednumber() . ' rows';
@@ -489,12 +603,12 @@ sub import_truncate_lnp_task {
 sub import_user_password_task {
 
     my ($messages) = @_;
-    my $result = 0;
+    my ($result,$warning_count) = (0,0,0);
     eval {
-        $result = import_user_password($user_password_filename);
+        ($result,$warning_count) = import_user_password($user_password_filename);
     };
     my $err = $@;
-    my $stats = '';
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
     eval {
         $stats .= "\n  total username password records: " .
             NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::countby_fqdn() . ' rows';
@@ -552,12 +666,12 @@ sub import_truncate_user_password_task {
 sub import_batch_task {
 
     my ($messages) = @_;
-    my $result = 0;
+    my ($result,$warning_count) = (0,0,0);
     eval {
-        $result = import_batch($batch_filename);
+        ($result,$warning_count) = import_batch($batch_filename);
     };
     my $err = $@;
-    my $stats = '';
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
     eval {
         $stats .= "\n  total batch records: " .
             NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::countby_number() . ' rows';
@@ -613,20 +727,185 @@ sub import_truncate_batch_task {
 sub provision_subscriber_task {
 
     my ($messages) = @_;
-    my $result = 0;
+    my ($result,$warning_count) = (0,0,0);
     eval {
-        $result = test();
+        if ($batch) {
+            ($result,$warning_count) = provision_subscribers_batch();
+        } else {
+            ($result,$warning_count) = provision_subscribers();
+        }
     };
     my $err = $@;
-    my $stats = '';
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
     eval {
-        #$stats .= "\n  total batch records: " .
-        #    NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::countby_number() . ' rows';
+        $stats .= "\n  total contracts: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(undef,$reseller_id) . ' rows';
+        my $active_count = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::contracts::ACTIVE_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    active: $active_count rows";
+        my $terminated_count = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::contracts::TERMINATED_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    terminated: $terminated_count rows";
+
+        $stats .= "\n  total subscribers: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(undef,$reseller_id) . ' rows';
+        $active_count = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::ACTIVE_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    active: $active_count rows";
+        $terminated_count = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::TERMINATED_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    terminated: $terminated_count rows";
     };
     if ($err or !$result) {
         push(@$messages,"provisioning subscribers INCOMPLETE$stats");
     } else {
         push(@$messages,"provisioning subscribers completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
+
+sub set_barring_profiles_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0,0);
+    eval {
+        if ($batch) {
+            ($result,$warning_count) = set_barring_profiles_batch();
+        } else {
+            ($result,$warning_count) = set_barring_profiles();
+        }
+    };
+    my $err = $@;
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    eval {
+        my $adm_ncos_id_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ADM_NCOS_ID_ATTRIBUTE);
+        my $subscriber_barring_profiles = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::list_barringprofiles();
+        foreach my $barring_profile (@$subscriber_barring_profiles) {
+            if (exists $barring_profiles->{$barring_profile}) {
+                my $level = $barring_profiles->{$barring_profile};
+                if (defined $level and length($level) > 0) {
+                    my $ncos_level = NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels::findby_resellerid_level(
+                        $reseller_id,$level);
+                    $stats .= "\n  '$barring_profile' / '" . $ncos_level->{level}. "': " .
+                        NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                            $adm_ncos_id_attribute->{id},$ncos_level->{id}) . ' rows';
+
+                }
+            }
+        }
+    };
+    if ($err or !$result) {
+        push(@$messages,"set subscribers\' ncos level preference INCOMPLETE$stats");
+    } else {
+        push(@$messages,"set subscribers\' ncos level preference completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
+sub set_peer_auth_task {
+
+    my ($messages,$mode) = @_;
+    my ($result,$warning_count) = (0,0,0);
+    eval {
+        if ($batch) {
+            ($result,$warning_count) = set_peer_auth_batch($mode);
+        } else {
+            ($result,$warning_count) = set_peer_auth($mode);
+        }
+    };
+    my $err = $@;
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    eval {
+        my $peer_auth_user_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_USER);
+        my $peer_auth_pass_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_PASS);
+        my $peer_auth_realm_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_REALM);
+        my $peer_auth_register_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_REGISTER);
+        my $force_inbound_calls_to_peer_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::FORCE_INBOUND_CALLS_TO_PEER);
+
+        $stats .= "\n  " . $peer_auth_user_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $peer_auth_user_attribute->{id},undef) . ' rows';
+        $stats .= "\n  " . $peer_auth_pass_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $peer_auth_pass_attribute->{id},undef) . ' rows';
+        $stats .= "\n  " . $peer_auth_realm_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $peer_auth_realm_attribute->{id},undef) . ' rows';
+
+        $stats .= "\n  " . $peer_auth_register_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $peer_auth_register_attribute->{id},undef) . ' rows';
+        $stats .= "\n  " . $force_inbound_calls_to_peer_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $force_inbound_calls_to_peer_attribute->{id},undef) . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"$mode subscribers\' peer auth preference INCOMPLETE$stats");
+    } else {
+        push(@$messages,"$mode subscribers\' peer auth preference completed$stats");
+        push(@$messages,"YOU MIGHT WANT TO RESTART SEMS NOW ...");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
+sub set_call_forwards_task {
+
+    my ($messages,$mode) = @_;
+    my ($result,$warning_count) = (0,0,0);
+    eval {
+        if ($batch) {
+            ($result,$warning_count) = set_call_forwards_batch($mode);
+        } else {
+            ($result,$warning_count) = set_call_forwards($mode);
+        }
+    };
+    my $err = $@;
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    eval {
+        $stats .= "\n  '" . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFU_TYPE . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,
+                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFU_TYPE) . ' rows';
+
+        $stats .= "\n  '" . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFB_TYPE . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,
+                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFB_TYPE) . ' rows';
+
+        $stats .= "\n  '" . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFT_TYPE . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,
+                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFT_TYPE) . ' rows';
+
+        $stats .= "\n  '" . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFNA_TYPE . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,
+                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFNA_TYPE) . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"set subscribers\' call forwards INCOMPLETE$stats");
+    } else {
+        push(@$messages,"set subscribers\' call forwards completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;

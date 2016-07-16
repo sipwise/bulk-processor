@@ -3,13 +3,18 @@ use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+);
+
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_kamailio_db
-
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
+    insert_record
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
@@ -19,6 +24,8 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
+
+    insert_row
 );
 
 my $tablename = 'voicemail_users';
@@ -54,7 +61,9 @@ my $expected_fieldnames = [
 
 my $indexes = {};
 
-my $insert_unique_fields = []; 
+my $insert_unique_fields = [];
+
+my $default_tz = 'vienna';
 
 sub new {
 
@@ -71,6 +80,48 @@ sub new {
 
 }
 
+sub insert_row {
+
+    my $db = &$get_db();
+    my $xa_db = shift // $db;
+    if ('HASH' eq ref $_[0]) {
+        my ($data,$insert_ignore) = @_;
+        check_table();
+        if (insert_record($db,$xa_db,$tablename,$data,$insert_ignore,$insert_unique_fields)) {
+            return $xa_db->db_last_insert_id();
+        }
+    } else {
+        my %params = @_;
+        my ($customer_id,
+            $mailbox,
+            $password) = @params{qw/
+                customer_id
+                mailbox
+                password
+            /};
+
+        if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+                $db->columnidentifier('customer_id') . ', ' .
+                $db->columnidentifier('email') . ', ' .
+                $db->columnidentifier('mailbox') . ', ' .
+                $db->columnidentifier('password') . ', ' .
+                $db->columnidentifier('tz') . ') VALUES (' .
+                '?, ' .
+                '\'\', ' .
+                '?, ' .
+                '?, ' .
+                '\'' . $default_tz . '\')',
+                $customer_id,
+                $mailbox,
+                $password,
+            )) {
+            rowinserted($db,$tablename,getlogger(__PACKAGE__));
+            return $xa_db->db_last_insert_id();
+        }
+    }
+    return undef;
+
+}
 
 sub buildrecords_fromrows {
 
