@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings;
 use strict;
 
 ## no critic
@@ -20,18 +20,30 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_domain
+    countby_subscriberid_type
+    $CFB_TYPE
+    $CFT_TYPE
+    $CFU_TYPE
+    $CFNA_TYPE
 );
 
-my $tablename = 'voip_domains';
+my $tablename = 'voip_cf_mappings';
 my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
     'id',
-    'domain',
+    'subscriber_id',
+    'type',
+    'destination_set_id',
+    'time_set_id',
 ];
 
 my $indexes = {};
+
+our $CFB_TYPE = 'cfb';
+our $CFT_TYPE = 'cft';
+our $CFU_TYPE = 'cfu';
+our $CFNA_TYPE = 'cfna';
 
 sub new {
 
@@ -48,20 +60,30 @@ sub new {
 
 }
 
-sub findby_domain {
+sub countby_subscriberid_type {
 
-    my ($domain,$load_recursive) = @_;
+    my ($subscriber_id,$type,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    if ($subscriber_id) {
+        push(@terms,$db->columnidentifier('subscriber_id') . ' = ?');
+        push(@params,$subscriber_id);
+    }
+    if ($type) {
+        push(@terms,$db->columnidentifier('type') . ' = ?');
+        push(@params,$type);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
+    }
 
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
+    return $db->db_get_value($stmt,@params);
 
 }
 

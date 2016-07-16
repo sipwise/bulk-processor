@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::RestRequests::Trunk::BillingZones;
+package NGCP::BulkProcessor::RestRequests::Trunk::CallForwards;
 use strict;
 
 ## no critic
@@ -19,12 +19,14 @@ require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::RestItem);
 our @EXPORT_OK = qw(
     get_item
-    create_item
     get_item_path
+    set_item
+    update_item
+    delete_item
 );
 
 my $get_restapi = \&get_ngcp_restapi;
-my $resource = 'billingzones';
+my $resource = 'callforwards';
 my $item_relation = 'ngcp:' . $resource;
 my $get_item_path_query = sub {
     my ($id) = @_;
@@ -33,9 +35,10 @@ my $get_item_path_query = sub {
 my $collection_path_query = 'api/' . $resource . '/';
 
 my $fieldnames = [
-    'billing_profile_id',
-    'detail',
-    'zone',
+    'cfu',
+    'cfb',
+    'cft',
+    'cfna',
 ];
 
 sub new {
@@ -59,16 +62,28 @@ sub get_item {
 
 }
 
-sub create_item {
+sub set_item {
 
-    my ($data,$load,$load_recursive,$post_headers,$get_headers) = @_;
+    my ($id,$data,$load_recursive,$headers) = @_;
     my $restapi = &$get_restapi();
-    if ($load) {
-        return builditems_fromrows($restapi->post_get($collection_path_query,$data,$post_headers,$get_headers),$load_recursive);
-    } else {
-        my ($id) = $restapi->post($collection_path_query,$data,$post_headers);
-        return $id;
-    }
+    return builditems_fromrows($restapi->put(&$get_item_path_query($id),$data,$headers),$load_recursive);
+
+}
+
+sub update_item {
+
+    my ($id,$data,$load_recursive,$headers) = @_;
+    my $restapi = &$get_restapi();
+    return builditems_fromrows($restapi->patch(&$get_item_path_query($id),$data,$headers),$load_recursive);
+
+}
+
+sub delete_item {
+
+    my ($id,$headers) = @_;
+    my $restapi = &$get_restapi();
+    ($id) = $restapi->delete(&$get_item_path_query($id),$headers);
+    return $id;
 
 }
 

@@ -8,6 +8,7 @@ use threads::shared;
 use Thread::Queue;
 
 use Time::HiRes qw(sleep);
+use URI::Escape qw();
 
 use NGCP::BulkProcessor::Globals qw(
     $enablemultithreading
@@ -34,6 +35,7 @@ our @EXPORT_OK = qw(
     init_item
     copy_row
     process_collection
+    get_query_string
 );
 
 my $collectionprocessing_threadqueuelength = 10;
@@ -43,6 +45,20 @@ my $thread_sleep_secs = 0.1;
 my $RUNNING = 1;
 my $COMPLETED = 2;
 my $ERROR = 4;
+
+sub get_query_string {
+    my ($filters) = @_;
+    my $query = '';
+    foreach my $param (keys %$filters) {
+        if (length($query) == 0) {
+            $query .= '?';
+        } else {
+            $query .= '&';
+        }
+        $query .= URI::Escape::uri_escape($param) . '=' . URI::Escape::uri_escape($filters->{$param});
+    }
+    return $query;
+};
 
 sub init_item {
 
@@ -100,6 +116,7 @@ sub process_collection {
         $headers,
         $extract_collection_items_params,
         $process_code,
+        $static_context,
         $blocksize,
         $init_process_context_code,
         $uninit_process_context_code,
@@ -110,6 +127,7 @@ sub process_collection {
             headers
             extract_collection_items_params
             process_code
+            static_context
             blocksize
             init_process_context_code
             uninit_process_context_code
@@ -149,6 +167,7 @@ sub process_collection {
             for (my $i = 0; $i < $collectionprocessing_threads; $i++) {
                 restthreadingdebug('starting processor thread ' . ($i + 1) . ' of ' . $collectionprocessing_threads,getlogger(__PACKAGE__));
                 my $processor = threads->create(\&_process,
+                                              _create_process_context($static_context,
                                               { queue                => $queue,
                                                 errorstates          => \%errorstates,
                                                 readertid              => $reader->tid(),
@@ -157,7 +176,7 @@ sub process_collection {
                                                 init_process_context_code => $init_process_context_code,
                                                 uninit_process_context_code => $uninit_process_context_code,
                                                 #blocksize            => $blocksize,
-                                              });
+                                              }));
                 if (!defined $processor) {
                     restthreadingdebug('processor thread ' . ($i + 1) . ' of ' . $collectionprocessing_threads . ' NOT started',getlogger(__PACKAGE__));
                 }
@@ -184,7 +203,7 @@ sub process_collection {
             my $restapi = &$get_restapi(); #$reader_connection_name);
             $blocksize //= $restapi->get_defaultcollectionpagesize();
 
-            my $context = { tid => $tid };
+            my $context = _create_process_context($static_context,{ tid => $tid });
             my $rowblock_result = 1;
             my $blockcount = 0;
             eval {
@@ -420,6 +439,21 @@ sub _get_stop_consumer_thread {
     }
 
     return $result;
+
+}
+
+sub _create_process_context {
+
+    my $context = {};
+    foreach my $ctx (@_) {
+        if (defined $ctx and 'HASH' eq ref $ctx) {
+            foreach my $key (keys %$ctx) {
+                $context->{$key} = $ctx->{$key};
+                #delete $ctx->{$key};
+            }
+        }
+    }
+    return $context;
 
 }
 
