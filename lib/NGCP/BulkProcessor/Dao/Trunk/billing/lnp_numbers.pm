@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contracts;
+package NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers;
 use strict;
 
 ## no critic
@@ -15,6 +15,8 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     insert_record
+    update_record
+    delete_record
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
@@ -25,44 +27,28 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
     insert_row
+    update_row
+    delete_row
 
-    countby_status_resellerid
-
-    $ACTIVE_STATE
-    $TERMINATED_STATE
+    findby_lnpproviderid_number
+    countby_lnpproviderid_number
 );
 
-my $tablename = 'contracts';
+my $tablename = 'lnp_numbers';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'customer_id',
-    'contact_id',
-    'order_id',
-    'profile_package_id',
-    'status',
-    'external_id',
-    'modify_timestamp',
-    'create_timestamp',
-    'activate_timestamp',
-    'terminate_timestamp',
-    'max_subscribers',
-    'send_invoice',
-    'subscriber_email_template_id',
-    'passreset_email_template_id',
-    'invoice_email_template_id',
-    'invoice_template_id',
-    'vat_rate',
-    'add_vat',
+    'number',
+    'routing_number',
+    'lnp_provider_id',
+    'start',
+    'end',
 ];
 
 my $indexes = {};
 
 my $insert_unique_fields = [];
-
-our $ACTIVE_STATE = 'active';
-our $TERMINATED_STATE = 'terminated';
 
 sub new {
 
@@ -79,31 +65,67 @@ sub new {
 
 }
 
-sub countby_status_resellerid {
+sub findby_lnpproviderid_number {
 
-    my ($status,$reseller_id) = @_;
+    my ($xa_db,$lnp_provider_id,$number,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('lnp_provider_id') . ' = ?' .
+            ' AND ' . $db->columnidentifier('number') . ' = ?';
+    my @params = ($lnp_provider_id,$number);
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub countby_lnpproviderid_number {
+
+    my ($lnp_provider_id,$number,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT COUNT(*) FROM ' . $table . ' AS contract' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
-    my @params = ();
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @terms = ();
-    if ($status) {
-        push(@terms,'contract.status = ?');
-        push(@params,$status);
+    my @params = ();
+    if (defined $lnp_provider_id) {
+        push(@terms,$db->columnidentifier('lnp_provider_id') . ' = ?');
+        push(@params,$lnp_provider_id);
     }
-    if ($reseller_id) {
-        push(@terms,'contact.reseller_id = ?');
-        push(@params,$reseller_id);
+    if (defined $number) {
+        push(@terms,$db->columnidentifier('number') . ' = ?');
+        push(@params,$number);
     }
     if ((scalar @terms) > 0) {
         $stmt .= ' WHERE ' . join(' AND ',@terms);
     }
 
     return $db->db_get_value($stmt,@params);
+
+}
+
+sub update_row {
+
+    my ($xa_db,$data) = @_;
+
+    check_table();
+    return update_record($get_db,$xa_db,$tablename,$data);
+
+}
+
+sub delete_row {
+
+    my ($xa_db,$data) = @_;
+
+    check_table();
+    return delete_record($get_db,$xa_db,$tablename,$data);
 
 }
 
@@ -119,20 +141,19 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($contact_id) = @params{qw/
-                contact_id
+        my ($number,
+            $lnp_provider_id) = @params{qw/
+                number
+                lnp_provider_id
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('contact_id') . ', ' .
-                $db->columnidentifier('create_timestamp') . ', ' .
-                $db->columnidentifier('modify_timestamp') . ', ' .
-                $db->columnidentifier('status') . ') VALUES (' .
+                $db->columnidentifier('number') . ', ' .
+                $db->columnidentifier('lnp_provider_id') . ') VALUES (' .
                 '?, ' .
-                'NOW(), ' .
-                'NOW(), ' .
-                '\'' . $ACTIVE_STATE . '\')',
-                $contact_id,
+                '?)',
+                $number,
+                $lnp_provider_id,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();

@@ -22,6 +22,9 @@ our @EXPORT_OK = qw(
     create_item
     set_item
     update_item
+    get_item_path
+
+    $TERMINATED_STATE
 );
 
 my $get_restapi = \&get_ngcp_restapi;
@@ -50,6 +53,8 @@ my $fieldnames = [
     'type',
     'vat_rate',
 ];
+
+our $TERMINATED_STATE = 'terminated';
 
 sub new {
 
@@ -122,6 +127,13 @@ sub builditems_fromrows {
         return $item;
     }
     return undef;
+
+}
+
+sub get_item_path {
+
+    my ($id) = @_;
+    return &$get_item_path_query($id);
 
 }
 

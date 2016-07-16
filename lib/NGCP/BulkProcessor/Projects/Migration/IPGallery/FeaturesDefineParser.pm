@@ -32,6 +32,10 @@ whitespace       ~ [\s]+
 :discard         ~ whitespace
 __GRAMMAR__
 
+my %setoptions_to_clean = (
+    Incoming_Prefix_Barring => 1,
+);
+
 sub _build_record {
 
     my ($closure,$subscribernumber,$leftcb,$options,$rightcb) = @_;
@@ -56,6 +60,11 @@ sub _build_option {
 sub _build_setoption {
 
     my ($closure,$optionname,$leftcb,$optionvalues,$rightcb) = @_;
+    if (exists $setoptions_to_clean{$optionname}
+        and $setoptions_to_clean{$optionname}) {
+        my @cleanoptionvalues = map { local $_ = $_; s/(\t|#).*$//g; $_; } @$optionvalues;
+        $optionvalues = \@cleanoptionvalues;
+    }
     return { $optionname => $optionvalues };
 
 }
