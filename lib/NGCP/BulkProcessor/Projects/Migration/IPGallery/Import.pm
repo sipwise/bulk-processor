@@ -208,8 +208,17 @@ sub _insert_featureoption_rows {
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::gettablename(),
         #lock - $import_multithreading
     );
-    $context->{db}->db_do_rowblock($featureoption_rows);
-    $context->{db}->db_finish();
+    eval {
+        $context->{db}->db_do_rowblock($featureoption_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback();
+        };
+        die($err);
+    }
 }
 
 sub _insert_featureoptionsetitem_rows {
@@ -221,8 +230,17 @@ sub _insert_featureoptionsetitem_rows {
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::gettablename(),
         #lock
     );
-    $context->{db}->db_do_rowblock($featureoptionsetitem_rows);
-    $context->{db}->db_finish();
+    eval {
+        $context->{db}->db_do_rowblock($featureoptionsetitem_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback();
+        };
+        die($err);
+    }
 }
 
 sub import_subscriber_define {
@@ -377,8 +395,17 @@ sub _insert_subscriber_rows {
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::gettablename(),
         #lock
     );
-    $context->{db}->db_do_rowblock($subscriber_rows);
-    $context->{db}->db_finish();
+    eval {
+        $context->{db}->db_do_rowblock($subscriber_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback();
+        };
+        die($err);
+    }
 }
 
 sub import_lnp_define {
@@ -460,8 +487,17 @@ sub _insert_lnp_rows {
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::gettablename(),
         #lock
     );
-    $context->{db}->db_do_rowblock($lnp_rows);
-    $context->{db}->db_finish();
+    eval {
+        $context->{db}->db_do_rowblock($lnp_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback();
+        };
+        die($err);
+    }
 }
 
 
@@ -548,8 +584,17 @@ sub _insert_usernamepassword_rows {
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::gettablename(),
         #lock - $import_multithreading
     );
-    $context->{db}->db_do_rowblock($usernamepassword_rows);
-    $context->{db}->db_finish();
+    eval {
+        $context->{db}->db_do_rowblock($usernamepassword_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback();
+        };
+        die($err);
+    }
 }
 
 sub import_batch {
@@ -663,8 +708,17 @@ sub _insert_batch_rows {
         #NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::gettablename(),
         #lock
     );
-    $context->{db}->db_do_rowblock($batch_rows);
-    $context->{db}->db_finish();
+    eval {
+        $context->{db}->db_do_rowblock($batch_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback();
+        };
+        die($err);
+    }
 }
 
 sub _check_subscribernumber {
@@ -676,7 +730,7 @@ sub _check_subscribernumber {
                 fileprocessingwarn($context->{filename},'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber,getlogger(__PACKAGE__));
             } else {
                 $result &= 0;
-                fileprocessingerror($context->{filename},'record ' . $rownum . ' - no features records for subscriber found: ' . $subscribernumber,getlogger(__PACKAGE__));
+                fileprocessingerror($context->{filename},'record ' . $rownum . ' - invalid subscriber number found: ' . $subscribernumber,getlogger(__PACKAGE__));
             }
         }
     }

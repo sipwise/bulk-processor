@@ -13,7 +13,7 @@
 *.msg
 *.komodoproject
 *.kpf
-*.MAC
+*.mac
 .gitattributes
 
 #/uml

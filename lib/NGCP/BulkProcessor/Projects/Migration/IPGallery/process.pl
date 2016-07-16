@@ -68,6 +68,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch qw()
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Check qw(
     check_billing_db_tables
+    check_provisioning_db_tables
     check_import_db_tables
 );
 
@@ -243,6 +244,10 @@ sub check_task {
     #$result &= ..
     push(@$messages,join("\n",@check_messages));
 
+    @check_messages = ();
+    $result = check_provisioning_db_tables(\@check_messages);
+    #$result &= ..
+    push(@$messages,join("\n",@check_messages));
 
     @check_messages = ();
     $result = check_import_db_tables(\@check_messages);

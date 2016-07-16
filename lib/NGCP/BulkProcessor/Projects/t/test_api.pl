@@ -104,6 +104,28 @@ load_config('config.cfg');
         domain_id => $domain_id,
         username => "subscriber$t",
         password => "subscriber$t",
+        primary_number => { cc => '99', ac=> '', sn => '12345678' },
+    });
+
+    $success = NGCP::BulkProcessor::RestRequests::Trunk::Subscribers::delete_item($subscriber_id);
+
+    my $customer = NGCP::BulkProcessor::RestRequests::Trunk::Customers::update_item($customer_id,{
+        status => "terminated",
+    });
+
+    $customer_id = NGCP::BulkProcessor::RestRequests::Trunk::Customers::create_item({
+		contact_id => $customercontact_id,
+		billing_profile_id => $billing_profile_id,
+        status => "active",
+		type => "sipaccount",
+    });
+
+    $subscriber_id = NGCP::BulkProcessor::RestRequests::Trunk::Subscribers::create_item({
+        customer_id => $customer_id,
+        domain_id => $domain_id,
+        username => "subscriber$t",
+        password => "subscriber$t",
+        primary_number => { cc => '99', ac=> '', sn => '12345678' },
     });
 
     print "blah";

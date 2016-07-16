@@ -1,10 +1,10 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contacts;
+package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_billing_db
+    get_provisioning_db
 
 );
 
@@ -25,42 +25,28 @@ our @EXPORT_OK = qw(
 
 #my $logger = getlogger(__PACKAGE__);
 
-my $tablename = 'contacts';
-my $get_db = \&get_billing_db;
+my $tablename = 'voip_subscribers';
+my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
     'id',
-    'reseller_id',
-    'gender',
-    'firstname',
-    'lastname',
-    'comregnum',
-    'company',
-    'street',
-    'postcode',
-    'city',
-    'country',
-    'phonenumber',
-    'mobilenumber',
-    'email',
-    'newsletter',
+    'username',
+    'domain_id',
+    'uuid',
+    'password',
+    'admin',
+    'account_id',
+    'webusername',
+    'webpassword',
+    'is_pbx_pilot',
+    'is_pbx_group',
+    'pbx_hunt_policy',
+    'pbx_hunt_timeout',
+    'pbx_extension',
+    'profile_set_id',
+    'profile_id',
     'modify_timestamp',
     'create_timestamp',
-    'faxnumber',
-    'iban',
-    'bic',
-    'vatnum',
-    'bankname',
-    'gpp0',
-    'gpp1',
-    'gpp2',
-    'gpp3',
-    'gpp4',
-    'gpp5',
-    'gpp6',
-    'gpp7',
-    'gpp8',
-    'gpp9',
 ];
 
 my $indexes = {};

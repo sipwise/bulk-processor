@@ -64,7 +64,7 @@ sub insert_row {
 
     my ($data,$insert_ignore) = @_;
     check_table();
-    #return insert_record($get_db,$tablename,$data,$insert_ignore,$unique_fields) = @_;
+    return insert_record($get_db,$tablename,$data,$insert_ignore,$insert_unique_fields);
 
 }
 

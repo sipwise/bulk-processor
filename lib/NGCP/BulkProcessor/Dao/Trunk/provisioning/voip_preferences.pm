@@ -1,10 +1,10 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contacts;
+package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_billing_db
+    get_provisioning_db
 
 );
 
@@ -20,55 +20,38 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
-    insert_row
 );
 
 #my $logger = getlogger(__PACKAGE__);
 
-my $tablename = 'contacts';
-my $get_db = \&get_billing_db;
+my $tablename = 'voip_preferences';
+my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
     'id',
-    'reseller_id',
-    'gender',
-    'firstname',
-    'lastname',
-    'comregnum',
-    'company',
-    'street',
-    'postcode',
-    'city',
-    'country',
-    'phonenumber',
-    'mobilenumber',
-    'email',
-    'newsletter',
+    'voip_preference_groups_id',
+    'attribute',
+    'label',
+    'type',
+    'max_occur',
+    'usr_pref',
+    'prof_pref',
+    'dom_pref',
+    'peer_pref',
+    'contract_pref',
+    'contract_location_pref',
     'modify_timestamp',
-    'create_timestamp',
-    'faxnumber',
-    'iban',
-    'bic',
-    'vatnum',
-    'bankname',
-    'gpp0',
-    'gpp1',
-    'gpp2',
-    'gpp3',
-    'gpp4',
-    'gpp5',
-    'gpp6',
-    'gpp7',
-    'gpp8',
-    'gpp9',
+    'internal',
+    'expose_to_customer',
+    'data_type',
+    'read_only',
+    'description',
 ];
 
 my $indexes = {};
 #    'balance_interval' => [ 'contract_id','start','end' ],
 #    'invoice_idx' => [ 'invoice_id' ],
 #};
-
-my $insert_unique_fields = []; #[ 'contract_id','start','end' ];
 
 sub new {
 
@@ -82,14 +65,6 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
-
-}
-
-sub insert_row {
-
-    my ($data,$insert_ignore) = @_;
-    check_table();
-    return insert_record($get_db,$tablename,$data,$insert_ignore,$insert_unique_fields);
 
 }
 

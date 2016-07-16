@@ -17,6 +17,24 @@ use NGCP::BulkProcessor::Globals qw(
     $billing_host
     $billing_port
 
+    $provisioning_databasename
+    $provisioning_username
+    $provisioning_password
+    $provisioning_host
+    $provisioning_port
+
+    $kamailio_databasename
+    $kamailio_username
+    $kamailio_password
+    $kamailio_host
+    $kamailio_port
+
+    $xa_databasename
+    $xa_username
+    $xa_password
+    $xa_host
+    $xa_port
+
     $ngcprestapi_uri
     $ngcprestapi_username
     $ngcprestapi_password
@@ -33,7 +51,7 @@ use NGCP::BulkProcessor::SqlConnectors::MySQLDB;
 #use NGCP::BulkProcessor::SqlConnectors::PostgreSQLDB;
 #use NGCP::BulkProcessor::SqlConnectors::SQLiteDB qw($staticdbfilemode
 #                              cleanupdbfiles);
-use NGCP::BulkProcessor::SqlConnectors::CSVDB;
+#use NGCP::BulkProcessor::SqlConnectors::CSVDB;
 #use NGCP::BulkProcessor::SqlConnectors::SQLServerDB;
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi;
 
@@ -57,6 +75,15 @@ our @EXPORT_OK = qw(
     get_billing_db
     billing_db_tableidentifier
 
+    get_provisioning_db
+    provisioning_db_tableidentifier
+
+    get_kamailio_db
+    kamailio_db_tableidentifier
+
+    get_xa_db
+    xa_db_tableidentifier
+
     get_ngcp_restapi
 
     destroy_dbs
@@ -71,6 +98,9 @@ my $connectorinstancenameseparator = '_';
 # thread connector pools:
 my $accounting_dbs = {};
 my $billing_dbs = {};
+my $provisioning_dbs = {};
+my $kamailio_dbs = {};
+my $xa_dbs = {};
 
 my $ngcp_restapis = {};
 
@@ -125,6 +155,82 @@ sub billing_db_tableidentifier {
 
 }
 
+sub get_provisioning_db {
+
+    my ($instance_name,$reconnect) = @_;
+    my $name = get_connectorinstancename($instance_name);
+    if (!defined $provisioning_dbs->{$name}) {
+        $provisioning_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($instance_name);
+        if (!defined $reconnect) {
+            $reconnect = 1;
+        }
+    }
+    if ($reconnect) {
+        $provisioning_dbs->{$name}->db_connect($provisioning_databasename,$provisioning_username,$provisioning_password,$provisioning_host,$provisioning_port);
+    }
+    return $provisioning_dbs->{$name};
+
+}
+
+sub provisioning_db_tableidentifier {
+
+    my ($get_target_db,$tablename) = @_;
+    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
+    return $target_db->getsafetablename(NGCP::BulkProcessor::SqlConnectors::MySQLDB::get_tableidentifier($tablename,$provisioning_databasename));
+
+}
+
+sub get_kamailio_db {
+
+    my ($instance_name,$reconnect) = @_;
+    my $name = get_connectorinstancename($instance_name);
+    if (!defined $kamailio_dbs->{$name}) {
+        $kamailio_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($instance_name);
+        if (!defined $reconnect) {
+            $reconnect = 1;
+        }
+    }
+    if ($reconnect) {
+        $kamailio_dbs->{$name}->db_connect($kamailio_databasename,$kamailio_username,$kamailio_password,$kamailio_host,$kamailio_port);
+    }
+    return $kamailio_dbs->{$name};
+
+}
+
+sub kamailio_db_tableidentifier {
+
+    my ($get_target_db,$tablename) = @_;
+    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
+    return $target_db->getsafetablename(NGCP::BulkProcessor::SqlConnectors::MySQLDB::get_tableidentifier($tablename,$kamailio_databasename));
+
+}
+
+
+sub get_xa_db {
+
+    my ($instance_name,$reconnect) = @_;
+    my $name = get_connectorinstancename($instance_name);
+    if (!defined $xa_dbs->{$name}) {
+        $xa_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($instance_name);
+        if (!defined $reconnect) {
+            $reconnect = 1;
+        }
+    }
+    if ($reconnect) {
+        $xa_dbs->{$name}->db_connect($xa_databasename,$xa_username,$xa_password,$xa_host,$xa_port);
+    }
+    return $xa_dbs->{$name};
+
+}
+
+sub xa_db_tableidentifier {
+
+    my ($get_target_db,$tablename) = @_;
+    my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
+    return $target_db->getsafetablename(NGCP::BulkProcessor::SqlConnectors::MySQLDB::get_tableidentifier($tablename,$xa_databasename));
+
+}
+
 sub get_ngcp_restapi {
 
     my ($instance_name) = @_;
@@ -160,6 +266,24 @@ sub destroy_dbs {
         cleartableinfo($billing_dbs->{$name});
         undef $billing_dbs->{$name};
         delete $billing_dbs->{$name};
+    }
+
+    foreach my $name (keys %$provisioning_dbs) {
+        cleartableinfo($provisioning_dbs->{$name});
+        undef $provisioning_dbs->{$name};
+        delete $provisioning_dbs->{$name};
+    }
+
+    foreach my $name (keys %$kamailio_dbs) {
+        cleartableinfo($kamailio_dbs->{$name});
+        undef $kamailio_dbs->{$name};
+        delete $kamailio_dbs->{$name};
+    }
+
+    foreach my $name (keys %$xa_dbs) {
+        cleartableinfo($xa_dbs->{$name});
+        undef $xa_dbs->{$name};
+        delete $xa_dbs->{$name};
     }
 
 }

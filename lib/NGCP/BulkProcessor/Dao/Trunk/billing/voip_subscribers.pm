@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contacts;
+package NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers;
 use strict;
 
 ## no critic
@@ -25,42 +25,19 @@ our @EXPORT_OK = qw(
 
 #my $logger = getlogger(__PACKAGE__);
 
-my $tablename = 'contacts';
+my $tablename = 'voip_subscribers';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'reseller_id',
-    'gender',
-    'firstname',
-    'lastname',
-    'comregnum',
-    'company',
-    'street',
-    'postcode',
-    'city',
-    'country',
-    'phonenumber',
-    'mobilenumber',
-    'email',
-    'newsletter',
-    'modify_timestamp',
-    'create_timestamp',
-    'faxnumber',
-    'iban',
-    'bic',
-    'vatnum',
-    'bankname',
-    'gpp0',
-    'gpp1',
-    'gpp2',
-    'gpp3',
-    'gpp4',
-    'gpp5',
-    'gpp6',
-    'gpp7',
-    'gpp8',
-    'gpp9',
+    'contract_id',
+    'uuid',
+    'username',
+    'domain_id',
+    'status',
+    'primary_number_id',
+    'external_id',
+    'contact_id',
 ];
 
 my $indexes = {};

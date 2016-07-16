@@ -682,6 +682,7 @@ sub db_rollback {
     if (defined $self->{dbh}) {
         dbdebug($self,'db_rollback',getlogger(__PACKAGE__));
         $self->{dbh}->rollback() or dberror($self, "failed to rollback changes\nDBI error:\n" . $self->{dbh}->errstr(),getlogger(__PACKAGE__));
+        dbinfo($self,'transaction rolled back',getlogger(__PACKAGE__));
     }
 
 }
