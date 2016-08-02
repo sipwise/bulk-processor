@@ -13,6 +13,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
 
     $domain_name
     $reseller_id
+    $subsciber_username_prefix
 
     $set_call_forwards_multithreading
     $set_call_forwards_numofthreads
@@ -357,7 +358,7 @@ sub _reset_context {
 
     my $userpassword = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::findby_fqdn($context->{cli});
     if (defined $userpassword) {
-        $context->{username} = $userpassword->{username};
+        $context->{username} = (defined $subsciber_username_prefix ? $subsciber_username_prefix : '') . $userpassword->{username};
         $context->{password} = $userpassword->{password};
         $context->{userpassworddelta} = $userpassword->{delta};
     } else {

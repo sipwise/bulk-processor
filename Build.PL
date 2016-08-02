@@ -30,6 +30,7 @@ my $builder = Module::Build->new(
         'URI::Escape'                                           => 0,
         'String::MkPasswd::mkpasswd'                            => 0,
         #'List::Util'                                            => 0,
+        'Data::Validate::IP'                                    => 0,
 
         'Config::Any'                                           => 0,
         'YAML::Tiny'                                            => 0,
