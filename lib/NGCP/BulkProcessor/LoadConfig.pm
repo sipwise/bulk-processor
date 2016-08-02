@@ -30,7 +30,7 @@ use NGCP::BulkProcessor::LogError qw(
 
 use YAML::Tiny qw();
 use Config::Any qw();
-use NGCP::BulkProcessor::Utils qw(format_number);
+use NGCP::BulkProcessor::Utils qw(format_number trim);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -45,7 +45,7 @@ our @EXPORT_OK = qw(
 
 my $tuplesplitpattern = join('|',(quotemeta(','),
                                   quotemeta(';'),
-                                  quotemeta('/')
+                                  #quotemeta('/')
                                   )
                              );
 
@@ -154,7 +154,7 @@ sub _parse_config {
 sub split_tuple {
 
     my $token = shift;
-    return split(/$tuplesplitpattern/,$token);
+    return map { local $_ = $_; trim($_); } split(/$tuplesplitpattern/,$token);
 
 }
 

@@ -26,7 +26,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     split_tuple
     parse_regexp
 );
-use NGCP::BulkProcessor::Utils qw(format_number prompt);
+use NGCP::BulkProcessor::Utils qw(format_number check_ipnet prompt);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -81,6 +81,7 @@ our @EXPORT_OK = qw(
 
     $reseller_id
     $domain_name
+    $subsciber_username_prefix
     $billing_profile_id
     $contact_email_format
     $webpassword_length
@@ -97,6 +98,10 @@ our @EXPORT_OK = qw(
     $set_peer_auth_multithreading
     $set_peer_auth_numofthreads
     $peer_auth_realm
+
+    $set_allowed_ips_multithreading
+    $set_allowed_ips_numofthreads
+    $allowed_ips
 
     $set_call_forwards_multithreading
     $set_call_forwards_numofthreads
@@ -165,6 +170,7 @@ our $billing_profile_id = undef; #1
 our $contact_email_format = undef; #%s@melita.mt
 our $webpassword_length = undef;
 our $generate_webpassword = 1;
+our $subsciber_username_prefix = undef;
 
 our $provision_subscriber_multithreading = $enablemultithreading;
 our $provision_subscriber_numofthreads = $cpucount;
@@ -177,6 +183,10 @@ our $barring_profiles = {};
 our $set_peer_auth_multithreading = $enablemultithreading;
 our $set_peer_auth_numofthreads = $cpucount;
 our $peer_auth_realm = undef;
+
+our $set_allowed_ips_multithreading = $enablemultithreading;
+our $set_allowed_ips_numofthreads = $cpucount;
+our $allowed_ips = [];
 
 our $set_call_forwards_multithreading = $enablemultithreading;
 our $set_call_forwards_numofthreads = $cpucount;
@@ -256,6 +266,7 @@ sub update_settings {
             $result = 0;
         }
         $generate_webpassword = $data->{generate_webpassword} if exists $data->{generate_webpassword};
+        $subsciber_username_prefix = $data->{subsciber_username_prefix} if exists $data->{subsciber_username_prefix};
 
         $provision_subscriber_multithreading = $data->{provision_subscriber_multithreading} if exists $data->{provision_subscriber_multithreading};
         $provision_subscriber_numofthreads = _get_import_numofthreads($cpucount,$data,'provision_subscriber_numofthreads');
@@ -267,6 +278,16 @@ sub update_settings {
         $set_peer_auth_multithreading = $data->{set_peer_auth_multithreading} if exists $data->{set_peer_auth_multithreading};
         $set_peer_auth_numofthreads = _get_import_numofthreads($cpucount,$data,'set_peer_auth_numofthreads');
         $peer_auth_realm = $data->{peer_auth_realm} if exists $data->{peer_auth_realm};
+
+        $set_allowed_ips_multithreading = $data->{set_peer_auth_multithreading} if exists $data->{set_allowed_ips_multithreading};
+        $set_allowed_ips_numofthreads = _get_import_numofthreads($cpucount,$data,'set_allowed_ips_numofthreads');
+        $allowed_ips = [ split_tuple($data->{allowed_ips}) ] if exists $data->{allowed_ips};
+        foreach my $ipnet (@$allowed_ips) {
+            if (not check_ipnet($ipnet)) {
+                configurationerror($configfile,"invalid allowed_ip '$ipnet'",getlogger(__PACKAGE__));
+                $result = 0;
+            }
+        }
 
         $set_call_forwards_multithreading = $data->{set_call_forwards_multithreading} if exists $data->{set_call_forwards_multithreading};
         $set_call_forwards_numofthreads = _get_import_numofthreads($cpucount,$data,'set_call_forwards_numofthreads');

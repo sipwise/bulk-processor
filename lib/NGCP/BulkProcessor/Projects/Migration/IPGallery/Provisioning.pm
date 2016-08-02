@@ -14,6 +14,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
 
     $reseller_id
     $domain_name
+    $subsciber_username_prefix
     $billing_profile_id
     $contact_email_format
     $webpassword_length
@@ -565,7 +566,7 @@ sub _reset_context {
 
     my $userpassword = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::findby_fqdn($context->{cli});
     if (defined $userpassword) {
-        $context->{username} = $userpassword->{username};
+        $context->{username} = (defined $subsciber_username_prefix ? $subsciber_username_prefix : '') . $userpassword->{username};
         $context->{password} = $userpassword->{password};
         $context->{userpassworddelta} = $userpassword->{delta};
     } else {

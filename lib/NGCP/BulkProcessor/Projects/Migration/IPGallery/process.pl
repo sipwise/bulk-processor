@@ -109,6 +109,9 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Preferences qw(
     set_peer_auth
     set_peer_auth_batch
 
+    set_allowed_ips
+    set_allowed_ips_batch
+
     $INIT_PEER_AUTH_MODE
     $SWITCHOVER_PEER_AUTH_MODE
     $CLEAR_PEER_AUTH_MODE
@@ -176,6 +179,9 @@ push(@TASK_OPTS,$switchover_peer_auth_task_opt);
 
 my $clear_peer_auth_task_opt = 'clear_peer_auth';
 push(@TASK_OPTS,$clear_peer_auth_task_opt);
+
+#my $set_allowed_ips_task_opt = 'set_allowed_ips';
+#push(@TASK_OPTS,$set_allowed_ips_task_opt);
 
 my $set_call_forwards_task_opt = 'set_call_forwards';
 push(@TASK_OPTS,$set_call_forwards_task_opt);
@@ -294,6 +300,13 @@ sub main() {
                     $result &= set_peer_auth_task(\@messages,$CLEAR_PEER_AUTH_MODE);
                     $completion |= 1;
                 }
+
+            #} elsif (lc($set_allowed_ips_task_opt) eq lc($task)) {
+            #    if (taskinfo($set_allowed_ips_task_opt,$result,1) and ($result = batchinfo($result))) {
+            #        next unless check_dry();
+            #        $result &= set_allowed_ips_task(\@messages);
+            #        $completion |= 1;
+            #    }
 
             } elsif (lc($set_call_forwards_task_opt) eq lc($task)) {
                 if (taskinfo($set_call_forwards_task_opt,$result,1) and ($result = batchinfo($result))) {
@@ -424,7 +437,7 @@ sub cleanup_task {
 sub import_features_define_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         ($result,$warning_count) = import_features_define($features_define_filename);
     };
@@ -502,7 +515,7 @@ sub import_truncate_features_task {
 sub import_subscriber_define_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         ($result,$warning_count) = import_subscriber_define($subscriber_define_filename);
     };
@@ -560,7 +573,7 @@ sub import_truncate_subscriber_task {
 sub import_lnp_define_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         ($result,$warning_count) = import_lnp_define($lnp_define_filename);
     };
@@ -625,7 +638,7 @@ sub import_truncate_lnp_task {
 sub import_user_password_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         ($result,$warning_count) = import_user_password($user_password_filename);
     };
@@ -688,7 +701,7 @@ sub import_truncate_user_password_task {
 sub import_batch_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         ($result,$warning_count) = import_batch($batch_filename);
     };
@@ -749,7 +762,7 @@ sub import_truncate_batch_task {
 sub provision_subscriber_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         if ($batch) {
             ($result,$warning_count) = provision_subscribers_batch();
@@ -801,7 +814,7 @@ sub provision_subscriber_task {
 sub set_barring_profiles_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         if ($batch) {
             ($result,$warning_count) = set_barring_profiles_batch();
@@ -843,7 +856,7 @@ sub set_barring_profiles_task {
 sub set_peer_auth_task {
 
     my ($messages,$mode) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         if ($batch) {
             ($result,$warning_count) = set_peer_auth_batch($mode);
@@ -886,18 +899,71 @@ sub set_peer_auth_task {
         push(@$messages,"$mode subscribers\' peer auth preference INCOMPLETE$stats");
     } else {
         push(@$messages,"$mode subscribers\' peer auth preference completed$stats");
-        push(@$messages,"YOU MIGHT WANT TO RESTART SEMS NOW ...");
+        if (not $dry) {
+            push(@$messages,"YOU MIGHT WANT TO RESTART SEMS NOW ...");
+        }
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
 
 }
 
+sub set_allowed_ips_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        if ($batch) {
+            ($result,$warning_count) = set_allowed_ips_batch();
+        } else {
+            ($result,$warning_count) = set_allowed_ips();
+        }
+    };
+    my $err = $@;
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    eval {
+        my $peer_auth_user_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_USER);
+        my $peer_auth_pass_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_PASS);
+        my $peer_auth_realm_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_REALM);
+        my $peer_auth_register_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_REGISTER);
+        my $force_inbound_calls_to_peer_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::FORCE_INBOUND_CALLS_TO_PEER);
+
+        $stats .= "\n  " . $peer_auth_user_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $peer_auth_user_attribute->{id},undef) . ' rows';
+        $stats .= "\n  " . $peer_auth_pass_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $peer_auth_pass_attribute->{id},undef) . ' rows';
+        $stats .= "\n  " . $peer_auth_realm_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $peer_auth_realm_attribute->{id},undef) . ' rows';
+
+        $stats .= "\n  " . $peer_auth_register_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $peer_auth_register_attribute->{id},undef) . ' rows';
+        $stats .= "\n  " . $force_inbound_calls_to_peer_attribute->{attribute} . "': " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
+                $force_inbound_calls_to_peer_attribute->{id},undef) . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"set subscribers\' allowed_ips preference INCOMPLETE$stats");
+    } else {
+        push(@$messages,"set subscribers\' allowed_ips preference completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
 
 sub set_call_forwards_task {
 
     my ($messages,$mode) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         if ($batch) {
             ($result,$warning_count) = set_call_forwards_batch($mode);
@@ -937,7 +1003,7 @@ sub set_call_forwards_task {
 sub create_lnps_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0,0);
+    my ($result,$warning_count) = (0,0);
     eval {
         ($result,$warning_count) = create_lnps();
     };
