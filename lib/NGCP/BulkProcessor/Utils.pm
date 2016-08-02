@@ -12,6 +12,8 @@ setlocale(LC_NUMERIC, 'C');
 use Data::UUID qw();
 use UUID qw();
 
+use Data::Validate::IP qw(is_ipv4 is_ipv6);
+
 use Net::Address::IP::Local qw();
 #use FindBin qw($Bin);
 #use File::Spec::Functions qw(splitdir catdir);
@@ -101,6 +103,8 @@ our @EXPORT_OK = qw(
     $chmod_umask
 
     prompt
+    check_int
+    check_ipnet
 );
 
 our $chmod_umask = 0644;
@@ -849,6 +853,33 @@ sub prompt {
   print $query;
   chomp(my $answer = <STDIN>);
   return $answer;
+}
+
+sub check_ipnet {
+    my ($ipnet) = @_;
+    my ($ip, $net) = split(/\//,$ipnet);
+    if (is_ipv4($ip)) {
+        if (defined $net) {
+            return check_int($net) && $net >= 0 && $net <= 32;
+        } else {
+            return 1;
+        }
+    } elsif (is_ipv6($ip)) {
+        if (defined $net) {
+            return check_int($net) && $net >= 0 && $net <= 128;
+        } else {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+sub check_int {
+    my $val = shift;
+    if($val =~ /^[+-]?[0-9]+$/) {
+        return 1;
+    }
+    return 0;
 }
 
 1;

@@ -886,7 +886,9 @@ sub set_peer_auth_task {
         push(@$messages,"$mode subscribers\' peer auth preference INCOMPLETE$stats");
     } else {
         push(@$messages,"$mode subscribers\' peer auth preference completed$stats");
-        push(@$messages,"YOU MIGHT WANT TO RESTART SEMS NOW ...");
+        if (not $dry) {
+            push(@$messages,"YOU MIGHT WANT TO RESTART SEMS NOW ...");
+        }
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
