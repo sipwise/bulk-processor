@@ -61,11 +61,8 @@ our $FALSE = undef;
 sub new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new($get_db,
-                           $tablename,
-                           $expected_fieldnames,$indexes);
-
-    bless($self,$class);
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,$get_db,
+                           $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
 
@@ -131,7 +128,7 @@ sub update_row {
     my ($xa_db,$data) = @_;
 
     check_table();
-    return update_record($get_db,$xa_db,$tablename,$data);
+    return update_record($get_db,$xa_db,__PACKAGE__,$data);
 
 }
 
@@ -140,7 +137,7 @@ sub delete_row {
     my ($xa_db,$data) = @_;
 
     check_table();
-    return delete_record($get_db,$xa_db,$tablename,$data);
+    return delete_record($get_db,$xa_db,__PACKAGE__,$data);
 
 }
 
@@ -186,7 +183,7 @@ sub insert_row {
     if ('HASH' eq ref $_[0]) {
         my ($data,$insert_ignore) = @_;
         check_table();
-        if (insert_record($db,$xa_db,$tablename,$data,$insert_ignore,$insert_unique_fields)) {
+        if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
             return $xa_db->db_last_insert_id();
         }
     } else {
@@ -248,7 +245,7 @@ sub gettablename {
 sub check_table {
 
     return checktableinfo($get_db,
-                   $tablename,
+                   __PACKAGE__,$tablename,
                    $expected_fieldnames,
                    $indexes);
 

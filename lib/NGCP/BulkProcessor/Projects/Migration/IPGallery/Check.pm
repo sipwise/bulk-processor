@@ -24,6 +24,7 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::domain_resellers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers qw();
+use NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
@@ -107,6 +108,9 @@ sub check_billing_db_tables {
     $result &= $check_result; push(@$messages,$message);
 
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers');
+    if (not $check_result) {
+        ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers');
+    }
     $result &= $check_result; push(@$messages,$message);
 
     return $result;

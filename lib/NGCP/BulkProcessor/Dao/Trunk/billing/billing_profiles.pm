@@ -56,11 +56,8 @@ my $indexes = {};
 sub new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new($get_db,
-                           $tablename,
-                           $expected_fieldnames,$indexes);
-
-    bless($self,$class);
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,$get_db,
+                           $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
 
@@ -115,7 +112,7 @@ sub gettablename {
 sub check_table {
 
     return checktableinfo($get_db,
-                   $tablename,
+                   __PACKAGE__,$tablename,
                    $expected_fieldnames,
                    $indexes);
 

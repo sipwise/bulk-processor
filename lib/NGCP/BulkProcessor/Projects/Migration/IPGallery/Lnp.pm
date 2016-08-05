@@ -11,6 +11,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
 
     $create_lnps_multithreading
     $create_lnps_numofthreads
+    $create_lnp_block_txn
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -26,6 +27,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers qw();
+use NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers qw();
 
 use NGCP::BulkProcessor::ConnectorPool qw(
@@ -56,25 +58,48 @@ sub create_lnps {
         process_code => sub {
             my ($context,$records,$row_offset) = @_;
             my $rownum = $row_offset;
-            eval {
-                $context->{db}->db_begin();
+            if ($create_lnp_block_txn) {
+                eval {
+                    $context->{db}->db_begin();
+                    foreach my $imported_lnp (@$records) {
+                        $rownum++;
+                        next unless _reset_context($context,$imported_lnp,$rownum);
+                        _create_lnp($context);
+                    }
+                    if ($dry) {
+                        $context->{db}->db_rollback(0);
+                    } else {
+                        $context->{db}->db_commit();
+                    }
+                };
+                my $err = $@;
+                if ($err) {
+                    eval {
+                        $context->{db}->db_rollback(1);
+                    };
+                    die($err) if !$skip_errors;
+                }
+            } else {
                 foreach my $imported_lnp (@$records) {
                     $rownum++;
                     next unless _reset_context($context,$imported_lnp,$rownum);
-                    _create_lnp($context);
+                    eval {
+                        $context->{db}->db_begin();
+                        _create_lnp($context);
+                        if ($dry) {
+                            $context->{db}->db_rollback(0);
+                        } else {
+                            $context->{db}->db_commit();
+                        }
+                    };
+                    my $err = $@;
+                    if ($err) {
+                        eval {
+                            $context->{db}->db_rollback(1);
+                        };
+                        die($err) if !$skip_errors;
+                    }
                 }
-                if ($dry) {
-                    $context->{db}->db_rollback(0);
-                } else {
-                    $context->{db}->db_commit();
-                }
-            };
-            my $err = $@;
-            if ($err) {
-                eval {
-                    $context->{db}->db_rollback(1);
-                };
-                die($err) if !$skip_errors;
             }
 
             #return 0;
@@ -186,6 +211,13 @@ sub _create_lnps_checks {
         eval {
             $lnp_providers = NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers::findby_prefix($prefix);
         };
+        if ($@) {
+            rowprocessingwarn(threadid(),"falling back to mr4.4.1 lnp_providers table definition ...",getlogger(__PACKAGE__));
+            eval {
+                $lnp_providers = NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers::findby_prefix($prefix);
+            };
+        };
+
         if ($@ or (scalar @$lnp_providers) != 1) {
             rowprocessingerror(threadid(),"cannot find a (unique) lnp carrier with prefix '$prefix'",getlogger(__PACKAGE__));
             $result = 0; #even in skip-error mode..

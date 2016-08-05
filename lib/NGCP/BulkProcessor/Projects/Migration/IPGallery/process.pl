@@ -75,6 +75,7 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers qw();
+use NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
@@ -1009,12 +1010,21 @@ sub create_lnps_task {
     };
     my $err = $@;
     my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    my $lnp_providers = [];
+    eval {
+        $lnp_providers = NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers::findby_prefix();
+    };
+    if ($@) {
+        eval {
+            $lnp_providers = NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers::findby_prefix();
+        };
+    }
     eval {
 
         $stats .= "\n  lnp_numbers: " .
             NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers::countby_lnpproviderid_number() . ' rows';
 
-        foreach my $lnp_provider (@{NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers::findby_prefix()}) {
+        foreach my $lnp_provider (@$lnp_providers) {
             $stats .= "\n    '" . $lnp_provider->{name} . "': " .
                 NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers::countby_lnpproviderid_number($lnp_provider->{id}) . ' rows';
         }

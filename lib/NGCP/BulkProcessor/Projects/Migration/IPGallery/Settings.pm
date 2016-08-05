@@ -118,6 +118,7 @@ our @EXPORT_OK = qw(
 
     $create_lnps_multithreading
     $create_lnps_numofthreads
+    $create_lnp_block_txn
 );
 
 our $defaultconfig = 'config.cfg';
@@ -203,6 +204,7 @@ our $ringtimeout = undef;
 
 our $create_lnps_multithreading = $enablemultithreading;
 our $create_lnps_numofthreads = $cpucount;
+our $create_lnp_block_txn = 0;
 
 sub update_settings {
 
@@ -310,6 +312,7 @@ sub update_settings {
 
         $create_lnps_multithreading = $data->{create_lnps_multithreading} if exists $data->{create_lnps_multithreading};
         $create_lnps_numofthreads = _get_import_numofthreads($cpucount,$data,'create_lnps_numofthreads');
+        $create_lnp_block_txn = $data->{create_lnp_block_txn} if exists $data->{create_lnp_block_txn};
 
         return $result;
 
