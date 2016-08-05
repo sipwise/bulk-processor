@@ -45,11 +45,8 @@ our $SIP_ACCOUNT_HANDLE = 'SIP_ACCOUNT';
 sub new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new($get_db,
-                           $tablename,
-                           $expected_fieldnames,$indexes);
-
-    bless($self,$class);
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,$get_db,
+                           $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
 
@@ -73,7 +70,7 @@ sub findby_resellerid_handle {
         push(@params,$handle);
     }
     my $rows = $db->db_get_all_arrayref($stmt,@params);
-    
+
     return buildrecords_fromrows($rows,$load_recursive);
 
 }
@@ -108,7 +105,7 @@ sub gettablename {
 sub check_table {
 
     return checktableinfo($get_db,
-                   $tablename,
+                   __PACKAGE__,$tablename,
                    $expected_fieldnames,
                    $indexes);
 

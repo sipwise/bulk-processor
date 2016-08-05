@@ -13,6 +13,7 @@ our @EXPORT_OK = qw();
 
 sub new {
 
+    my $base_class = shift;
     my $class = shift;
     my $self = bless {}, $class;
     return init_item($self,@_);

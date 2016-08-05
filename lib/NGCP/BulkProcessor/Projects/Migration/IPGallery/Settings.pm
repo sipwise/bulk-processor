@@ -118,6 +118,11 @@ our @EXPORT_OK = qw(
 
     $create_lnps_multithreading
     $create_lnps_numofthreads
+    $create_lnp_block_txn
+
+    $set_preference_bulk_multithreading
+    $set_preference_bulk_numofthreads
+    $concurrent_max_total
 );
 
 our $defaultconfig = 'config.cfg';
@@ -203,6 +208,11 @@ our $ringtimeout = undef;
 
 our $create_lnps_multithreading = $enablemultithreading;
 our $create_lnps_numofthreads = $cpucount;
+our $create_lnp_block_txn = 0;
+
+our $set_preference_bulk_multithreading = $enablemultithreading;
+our $set_preference_bulk_numofthreads = $cpucount;
+our $concurrent_max_total = undef;
 
 sub update_settings {
 
@@ -310,6 +320,15 @@ sub update_settings {
 
         $create_lnps_multithreading = $data->{create_lnps_multithreading} if exists $data->{create_lnps_multithreading};
         $create_lnps_numofthreads = _get_import_numofthreads($cpucount,$data,'create_lnps_numofthreads');
+        $create_lnp_block_txn = $data->{create_lnp_block_txn} if exists $data->{create_lnp_block_txn};
+
+        $set_preference_bulk_multithreading = $data->{set_preference_bulk_multithreading} if exists $data->{set_preference_bulk_multithreading};
+        $set_preference_bulk_numofthreads = _get_import_numofthreads($cpucount,$data,'set_preference_bulk_numofthreads');
+        $concurrent_max_total = $data->{concurrent_max_total} if exists $data->{concurrent_max_total};
+        if (defined $concurrent_max_total and $concurrent_max_total <= 0) {
+            configurationerror($configfile,'empty concurrent_max_total or greater than 0 required',getlogger(__PACKAGE__));
+            $result = 0;
+        }
 
         return $result;
 

@@ -5,7 +5,7 @@ use strict;
 
 use NGCP::BulkProcessor::Logging qw(getlogger servicedebug);
 
-use NGCP::BulkProcessor::Service;
+use NGCP::BulkProcessor::Service qw();
 
 #use test::csv_table; # qw(test_table_bycolumn1);
 #use test::mysql_table;
@@ -42,15 +42,8 @@ my $functions = {
 
 sub new {
 
-    #my $class = shift;
-    #my $self = NGCP::BulkProcessor::Service->new($functions,$class);
-
-    #bless($self,$class);
-
-    #return $self;
-
-    my $self = NGCP::BulkProcessor::Service->new($functions,@_);
-    servicedebug($self,__PACKAGE__ . ' service created',getlogger(__PACKAGE__));
+    my $class = shift;
+    my $self = NGCP::BulkProcessor::Service->new($class,$functions,@_);
     return $self;
 
 }

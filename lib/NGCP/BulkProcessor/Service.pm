@@ -43,10 +43,11 @@ my $instance_counts = {};
 
 sub new {
 
-    #my $class = shift;
+    my $base_class = shift;
+    my $class = shift;
     #my $self = bless {}, $class;
-    my ($class,$functions,$derived_class,$serialization_format,$no_autostart) = @_;
-    my $self = bless {}, $derived_class;
+    my ($functions,$serialization_format,$no_autostart) = @_;
+    my $self = bless {}, $class;
 
     $self->{worker} = undef;
     $self->{functions} = $functions;
@@ -78,6 +79,7 @@ sub new {
 
     #$self = share($self);
     #autostart??
+    servicedebug($self,$class . ' service created',getlogger(__PACKAGE__));
 
     return $self;
 
