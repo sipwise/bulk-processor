@@ -99,7 +99,7 @@ sub gettablename {
 sub check_table {
 
     return checktableinfo($get_db,
-                   $tablename,
+                   __PACKAGE__,$tablename,
                    $expected_fieldnames,
                    $indexes);
 

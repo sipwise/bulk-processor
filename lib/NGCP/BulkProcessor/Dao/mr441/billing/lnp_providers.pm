@@ -1,7 +1,11 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::products;
+package NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers;
 use strict;
 
 ## no critic
+
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+);
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
@@ -19,28 +23,23 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_resellerid_handle
-    $SIP_ACCOUNT_HANDLE
+    findby_prefix
 );
 
-my $tablename = 'products';
+my $tablename = 'lnp_providers';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'reseller_id',
-    'class',
-    'handle',
     'name',
-    'on_sale',
-    'price',
-    'weight',
-    'billing_profile_id',
+    'prefix',
+    #'authoritative',
+    #'skip_rewrite',
 ];
 
 my $indexes = {};
 
-our $SIP_ACCOUNT_HANDLE = 'SIP_ACCOUNT';
+my $insert_unique_fields = [];
 
 sub new {
 
@@ -57,20 +56,23 @@ sub new {
 
 }
 
-sub findby_resellerid_handle {
+sub findby_prefix {
 
-    my ($reseller_id,$handle,$load_recursive) = @_;
+    my ($prefix,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('reseller_id') . ' <=> ?';
-    my @params = ($reseller_id);
-    if (defined $handle) {
-        $stmt .= ' AND ' . $db->columnidentifier('handle') . ' = ?';
-        push(@params,$handle);
+    my $stmt = 'SELECT * FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    if ($prefix) {
+        push(@terms,$db->columnidentifier('prefix') . ' = ?');
+        push(@params,$prefix);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
     }
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 

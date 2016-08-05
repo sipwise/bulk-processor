@@ -26,6 +26,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers qw();
+use NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers qw();
 
 use NGCP::BulkProcessor::ConnectorPool qw(
@@ -186,6 +187,14 @@ sub _create_lnps_checks {
         eval {
             $lnp_providers = NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers::findby_prefix($prefix);
         };
+        if ($@) {
+            rowprocessingwarn(threadid(),"falling back to mr4.4.1 lnp_providers table definition ...",getlogger(__PACKAGE__));
+            eval {
+                $lnp_providers = NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers::findby_prefix($prefix);
+                #todo
+            };
+        };
+
         if ($@ or (scalar @$lnp_providers) != 1) {
             rowprocessingerror(threadid(),"cannot find a (unique) lnp carrier with prefix '$prefix'",getlogger(__PACKAGE__));
             $result = 0; #even in skip-error mode..
