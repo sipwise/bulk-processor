@@ -35,6 +35,7 @@ our @EXPORT_OK = qw(
     $PEER_AUTH_REGISTER
     $FORCE_INBOUND_CALLS_TO_PEER
 
+    $ALLOWED_IPS_GRP_ATTRIBUTE
 );
 #$FORCE_OUTBOUND_CALLS_TO_PEER
 
@@ -79,14 +80,13 @@ our $PEER_AUTH_REGISTER = 'peer_auth_register';
 our $FORCE_INBOUND_CALLS_TO_PEER = 'force_inbound_calls_to_peer';
 #our $FORCE_OUTBOUND_CALLS_TO_PEER = 'force_outbound_calls_to_peer';
 
+our $ALLOWED_IPS_GRP_ATTRIBUTE = 'allowed_ips_grp';
+
 sub new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new($get_db,
-                           $tablename,
-                           $expected_fieldnames,$indexes);
-
-    bless($self,$class);
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,$get_db,
+                           $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
 
@@ -141,7 +141,7 @@ sub gettablename {
 sub check_table {
 
     return checktableinfo($get_db,
-                   $tablename,
+                   __PACKAGE__,$tablename,
                    $expected_fieldnames,
                    $indexes);
 

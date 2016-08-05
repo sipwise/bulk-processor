@@ -31,6 +31,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $reseller_id
     $barring_profiles_yml
     $barring_profiles
+    $allowed_ips
 );
 use NGCP::BulkProcessor::Logging qw(
     init_log
@@ -75,10 +76,13 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers qw();
+use NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_aig_sequence qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_allowed_ip_groups qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Check qw(
@@ -180,8 +184,8 @@ push(@TASK_OPTS,$switchover_peer_auth_task_opt);
 my $clear_peer_auth_task_opt = 'clear_peer_auth';
 push(@TASK_OPTS,$clear_peer_auth_task_opt);
 
-#my $set_allowed_ips_task_opt = 'set_allowed_ips';
-#push(@TASK_OPTS,$set_allowed_ips_task_opt);
+my $set_allowed_ips_task_opt = 'set_allowed_ips';
+push(@TASK_OPTS,$set_allowed_ips_task_opt);
 
 my $set_call_forwards_task_opt = 'set_call_forwards';
 push(@TASK_OPTS,$set_call_forwards_task_opt);
@@ -301,12 +305,12 @@ sub main() {
                     $completion |= 1;
                 }
 
-            #} elsif (lc($set_allowed_ips_task_opt) eq lc($task)) {
-            #    if (taskinfo($set_allowed_ips_task_opt,$result,1) and ($result = batchinfo($result))) {
-            #        next unless check_dry();
-            #        $result &= set_allowed_ips_task(\@messages);
-            #        $completion |= 1;
-            #    }
+            } elsif (lc($set_allowed_ips_task_opt) eq lc($task)) {
+                if (taskinfo($set_allowed_ips_task_opt,$result,1) and ($result = batchinfo($result))) {
+                    next unless check_dry();
+                    $result &= set_allowed_ips_task(\@messages);
+                    $completion |= 1;
+                }
 
             } elsif (lc($set_call_forwards_task_opt) eq lc($task)) {
                 if (taskinfo($set_call_forwards_task_opt,$result,1) and ($result = batchinfo($result))) {
@@ -878,20 +882,20 @@ sub set_peer_auth_task {
         my $force_inbound_calls_to_peer_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
             $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::FORCE_INBOUND_CALLS_TO_PEER);
 
-        $stats .= "\n  " . $peer_auth_user_attribute->{attribute} . "': " .
+        $stats .= "\n  '" . $peer_auth_user_attribute->{attribute} . "': " .
             NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
                 $peer_auth_user_attribute->{id},undef) . ' rows';
-        $stats .= "\n  " . $peer_auth_pass_attribute->{attribute} . "': " .
+        $stats .= "\n  '" . $peer_auth_pass_attribute->{attribute} . "': " .
             NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
                 $peer_auth_pass_attribute->{id},undef) . ' rows';
-        $stats .= "\n  " . $peer_auth_realm_attribute->{attribute} . "': " .
+        $stats .= "\n  '" . $peer_auth_realm_attribute->{attribute} . "': " .
             NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
                 $peer_auth_realm_attribute->{id},undef) . ' rows';
 
-        $stats .= "\n  " . $peer_auth_register_attribute->{attribute} . "': " .
+        $stats .= "\n  '" . $peer_auth_register_attribute->{attribute} . "': " .
             NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
                 $peer_auth_register_attribute->{id},undef) . ' rows';
-        $stats .= "\n  " . $force_inbound_calls_to_peer_attribute->{attribute} . "': " .
+        $stats .= "\n  '" . $force_inbound_calls_to_peer_attribute->{attribute} . "': " .
             NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
                 $force_inbound_calls_to_peer_attribute->{id},undef) . ' rows';
     };
@@ -914,41 +918,25 @@ sub set_allowed_ips_task {
     my ($result,$warning_count) = (0,0);
     eval {
         if ($batch) {
-            ($result,$warning_count) = set_allowed_ips_batch();
+            #($result,$warning_count) = set_allowed_ips_batch();
         } else {
-            ($result,$warning_count) = set_allowed_ips();
+            #($result,$warning_count) = set_allowed_ips();
         }
     };
     my $err = $@;
     my $stats = ($skip_errors ? ": $warning_count warnings" : '');
     eval {
-        my $peer_auth_user_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_USER);
-        my $peer_auth_pass_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_PASS);
-        my $peer_auth_realm_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_REALM);
-        my $peer_auth_register_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_REGISTER);
-        my $force_inbound_calls_to_peer_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::FORCE_INBOUND_CALLS_TO_PEER);
 
-        $stats .= "\n  " . $peer_auth_user_attribute->{attribute} . "': " .
+        my $allowed_ips_grp_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ALLOWED_IPS_GRP_ATTRIBUTE);
+        $stats .= "\n  '" . $allowed_ips_grp_attribute->{attribute} . "': " .
             NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
-                $peer_auth_user_attribute->{id},undef) . ' rows';
-        $stats .= "\n  " . $peer_auth_pass_attribute->{attribute} . "': " .
-            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
-                $peer_auth_pass_attribute->{id},undef) . ' rows';
-        $stats .= "\n  " . $peer_auth_realm_attribute->{attribute} . "': " .
-            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
-                $peer_auth_realm_attribute->{id},undef) . ' rows';
+                $allowed_ips_grp_attribute->{id},undef) . ' rows';
+        foreach my $ipnet (@$allowed_ips) {
+            $stats .= "\n    '$ipnet': " . NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_allowed_ip_groups::countby_groupid_ipnet(undef,$ipnet) . ' rows';
+        }
+        $stats .= "\n  voip_aig_sequence: " . NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_aig_sequence::get_id();
 
-        $stats .= "\n  " . $peer_auth_register_attribute->{attribute} . "': " .
-            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
-                $peer_auth_register_attribute->{id},undef) . ' rows';
-        $stats .= "\n  " . $force_inbound_calls_to_peer_attribute->{attribute} . "': " .
-            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
-                $force_inbound_calls_to_peer_attribute->{id},undef) . ' rows';
     };
     if ($err or !$result) {
         push(@$messages,"set subscribers\' allowed_ips preference INCOMPLETE$stats");
@@ -1009,12 +997,21 @@ sub create_lnps_task {
     };
     my $err = $@;
     my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    my $lnp_providers = [];
+    eval {
+        $lnp_providers = NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers::findby_prefix();
+    };
+    if ($@) {
+        eval {
+            $lnp_providers = NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers::findby_prefix();
+        };
+    }
     eval {
 
         $stats .= "\n  lnp_numbers: " .
             NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers::countby_lnpproviderid_number() . ' rows';
 
-        foreach my $lnp_provider (@{NGCP::BulkProcessor::Dao::Trunk::billing::lnp_providers::findby_prefix()}) {
+        foreach my $lnp_provider (@$lnp_providers) {
             $stats .= "\n    '" . $lnp_provider->{name} . "': " .
                 NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers::countby_lnpproviderid_number($lnp_provider->{id}) . ' rows';
         }

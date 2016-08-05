@@ -53,9 +53,7 @@ my $fieldnames = [
 sub new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::RestItem->new($fieldnames);
-
-    bless($self,$class);
+    my $self = NGCP::BulkProcessor::RestItem->new($class,$fieldnames);
 
     copy_row($self,shift,$fieldnames);
 

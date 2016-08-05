@@ -13,9 +13,10 @@ our @EXPORT_OK = qw();
 
 sub new {
 
+    my $base_class = shift;
     my $class = shift;
     my $self = bless {}, $class;
-    return init_record($self,@_);
+    return init_record($self,$class,@_);
 
 }
 

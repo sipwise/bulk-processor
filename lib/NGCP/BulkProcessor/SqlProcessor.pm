@@ -81,6 +81,7 @@ our @EXPORT_OK = qw(
 #transfer_record
 #transfer_records
 
+my $table_names = {};
 my $table_expected_fieldnames = {};
 my $table_fieldnames_cached = {};
 my $table_primarykeys = {};
@@ -107,17 +108,17 @@ my $ERROR = 4;
 
 sub init_record {
 
-    my ($record,$get_db,$tablename,$expected_fieldnames,$target_indexes) = @_;
+    my ($record,$class,$get_db,$tablename,$expected_fieldnames,$target_indexes) = @_;
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
 
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
 
-    checktableinfo($db,$tablename,$expected_fieldnames,$target_indexes);
+    checktableinfo($db,$class,$tablename,$expected_fieldnames,$target_indexes);
 
-    if (defined $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename}) { # and ref $table_fieldnames_cached->{$connectidentifier}->{$tablename} eq 'ARRAY') {
+    if (defined $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class}) { # and ref $table_fieldnames_cached->{$connectidentifier}->{$tablename} eq 'ARRAY') {
         # if there are fieldnames defined, we make a member variable for each and set it to undef
-        foreach my $fieldname (@{$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename}}) {
+        foreach my $fieldname (@{$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class}}) {
             $record->{$fieldname} = undef;
         }
     }
@@ -170,6 +171,12 @@ sub cleartableinfo {
 
     my $found = 0;
 
+    if (exists $table_names->{$tid}) {
+        if (exists $table_names->{$tid}->{$connectidentifier}) {
+            delete $table_names->{$tid}->{$connectidentifier};
+            $found = 1;
+        }
+    }
     if (exists $table_expected_fieldnames->{$tid}) {
         if (exists $table_expected_fieldnames->{$tid}->{$connectidentifier}) {
             delete $table_expected_fieldnames->{$tid}->{$connectidentifier};
@@ -195,6 +202,10 @@ sub cleartableinfo {
         }
     }
 
+    if ((scalar keys %{$table_names->{$tid}}) == 0) {
+        delete $table_names->{$tid};
+        $found = 1;
+    }
     if ((scalar keys %{$table_expected_fieldnames->{$tid}}) == 0) {
         delete $table_expected_fieldnames->{$tid};
         $found = 1;
@@ -220,13 +231,20 @@ sub cleartableinfo {
 
 sub registertableinfo { # to prepare creation of non-existent tables..
 
-    my ($get_db,$tablename,$fieldnames,$indexes,$keycols) = @_;
+    my ($get_db,$class,$tablename,$fieldnames,$indexes,$keycols) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
 
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
 
+    if (not exists $table_names->{$tid}) {
+        $table_names->{$tid} = {};
+    }
+    if (not exists $table_names->{$tid}->{$connectidentifier}) {
+        $table_names->{$tid}->{$connectidentifier} = {};
+    }
+    $table_names->{$tid}->{$connectidentifier}->{$class} = $tablename;
     if (not exists $table_expected_fieldnames->{$tid}) {
         $table_expected_fieldnames->{$tid} = {};
     }
@@ -234,8 +252,9 @@ sub registertableinfo { # to prepare creation of non-existent tables..
         # create an empty category for the connection if none exists yet:
         $table_expected_fieldnames->{$tid}->{$connectidentifier} = {};
     }
+
     # we prefer to always update the expected fieldnames (that come from a derived class)
-    $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename} = $fieldnames // [];
+    $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class} = $fieldnames // [];
 
     if (not exists $table_fieldnames_cached->{$tid}) {
         $table_fieldnames_cached->{$tid} = {};
@@ -252,7 +271,7 @@ sub registertableinfo { # to prepare creation of non-existent tables..
         # create an empty primary key column name cache for the connection if none exists yet:
         $table_primarykeys->{$tid}->{$connectidentifier} = {};
     }
-    $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename} = $keycols // [];
+    $table_primarykeys->{$tid}->{$connectidentifier}->{$class} = $keycols // [];
 
     if (not exists $table_target_indexes->{$tid}) {
         $table_target_indexes->{$tid} = {};
@@ -262,13 +281,13 @@ sub registertableinfo { # to prepare creation of non-existent tables..
         $table_target_indexes->{$tid}->{$connectidentifier} = {};
     }
     # we prefer to always update the target table indexes (that come from a derived class)
-    $table_target_indexes->{$tid}->{$connectidentifier}->{$tablename} = $indexes // {};
+    $table_target_indexes->{$tid}->{$connectidentifier}->{$class} = $indexes // {};
 
 }
 
 sub checktableinfo {
 
-    my ($get_db,$tablename,$expected_fieldnames,$target_indexes) = @_;
+    my ($get_db,$class,$tablename,$expected_fieldnames,$target_indexes) = @_;
 
     my $result = 1;
 
@@ -277,6 +296,13 @@ sub checktableinfo {
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
 
+    if (not exists $table_names->{$tid}) {
+        $table_names->{$tid} = {};
+    }
+    if (not exists $table_names->{$tid}->{$connectidentifier}) {
+        $table_names->{$tid}->{$connectidentifier} = {};
+    }
+    $table_names->{$tid}->{$connectidentifier}->{$class} = $tablename;
     if (not exists $table_expected_fieldnames->{$tid}) {
         #$table_expected_fieldnames->{$tid} = shared_clone({});
         $table_expected_fieldnames->{$tid} = {};
@@ -287,8 +313,8 @@ sub checktableinfo {
         $table_expected_fieldnames->{$tid}->{$connectidentifier} = {};
     }
     # we prefer to always update the expected fieldnames (that come from a derived class)
-    #$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename} = shared_clone($expected_fieldnames);
-    $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename} = $expected_fieldnames // [];
+    #$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class} = shared_clone($expected_fieldnames);
+    $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class} = $expected_fieldnames // [];
 
     if (not exists $table_fieldnames_cached->{$tid}) {
         #$table_fieldnames_cached->{$tid} = shared_clone({});
@@ -300,24 +326,26 @@ sub checktableinfo {
         $table_fieldnames_cached->{$tid}->{$connectidentifier} = {};
     }
 
-    if (not exists $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename}) {
+    if (not exists $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$class}) {
         # query the database for fieldnames of the table if we don't have a cache entry yet:
-        #$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename} = shared_clone($db->getfieldnames($tablename));
-        $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename} = $db->getfieldnames($tablename);
-        #my $fieldnames = $db->getfieldnames($tablename);
-        if (!defined $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename}
-            or (scalar @{$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename}}) == 0
-            or setcontains($table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename},1)) {
+        my $fieldnames = $db->getfieldnames($tablename);
+        if (!defined $fieldnames
+            or (scalar @{$fieldnames}) == 0
+            or setcontains($table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class},$fieldnames,1)) {
             #fieldnames are case insensitive in general
-            # if not expected fieldnames are given or queried fieldnames match, we log this:
-            #$table_fieldnames_cached->{$connectidentifier}->{$tablename} = $table_expected_fieldnames->{$connectidentifier}->{$tablename};
+            $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$class} = { fieldnames => $fieldnames, ok => 1, };
             fieldnamesaquired($db,$tablename,getlogger(__PACKAGE__));
         } else {
             # otherwise we log a failure (exit? - see Logging Module)
             #$table_fieldnames_cached->{$connectidentifier}->{$tablename} = {}; #$fieldnames;
-            fieldnamesdiffer($db,$tablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_fieldnames_cached->{$tid}->{$connectidentifier}->{$tablename},getlogger(__PACKAGE__));
+            $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$class} = { fieldnames => $fieldnames, ok => 0, };
+            fieldnamesdiffer($db,$tablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class},$fieldnames,getlogger(__PACKAGE__));
             $result = 0;
         }
+    } elsif (not $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$class}->{ok}) {
+        fieldnamesdiffer($db,$tablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class},
+            $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$class}->{fieldnames},getlogger(__PACKAGE__));
+        $result = 0;
     }
 
     if (not exists $table_primarykeys->{$tid}) {
@@ -329,11 +357,11 @@ sub checktableinfo {
         #$table_primarykeys->{$tid}->{$connectidentifier} = shared_clone({});
         $table_primarykeys->{$tid}->{$connectidentifier} = {};
     }
-    if (not exists $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename}) {
+    if (not exists $table_primarykeys->{$tid}->{$connectidentifier}->{$class}) {
         # query the database for primary keys of the table if we don't have them cached yet:
-        #$table_primarykeys->{$tid}->{$connectidentifier}->{$tablename} = shared_clone($db->getprimarykeycols($tablename));
-        $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename} = $db->getprimarykeycols($tablename);
-        primarykeycolsaquired($db,$tablename,$table_primarykeys->{$tid}->{$connectidentifier}->{$tablename},getlogger(__PACKAGE__));
+        #$table_primarykeys->{$tid}->{$connectidentifier}->{$class} = shared_clone($db->getprimarykeycols($class));
+        $table_primarykeys->{$tid}->{$connectidentifier}->{$class} = $db->getprimarykeycols($tablename);
+        primarykeycolsaquired($db,$tablename,$table_primarykeys->{$tid}->{$connectidentifier}->{$class},getlogger(__PACKAGE__));
     }
 
     if (not exists $table_target_indexes->{$tid}) {
@@ -346,8 +374,8 @@ sub checktableinfo {
         $table_target_indexes->{$tid}->{$connectidentifier} = {};
     }
     # we prefer to always update the target table indexes (that come from a derived class)
-    #$table_target_indexes->{$tid}->{$connectidentifier}->{$tablename} = shared_clone($target_indexes);
-    $table_target_indexes->{$tid}->{$connectidentifier}->{$tablename} = $target_indexes // {};
+    #$table_target_indexes->{$tid}->{$connectidentifier}->{$class} = shared_clone($target_indexes);
+    $table_target_indexes->{$tid}->{$connectidentifier}->{$class} = $target_indexes // {};
 
     return $result;
 
@@ -355,7 +383,7 @@ sub checktableinfo {
 
 sub create_targettable {
 
-    my ($get_db,$tablename,$get_target_db,$targettablename,$truncate,$defer_indexes,$texttable_engine) = @_;
+    my ($get_db,$class,$get_target_db,$targetclass,$targettablename,$truncate,$defer_indexes,$texttable_engine) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $target_db = (ref $get_target_db eq 'CODE') ? &$get_target_db() : $get_target_db;
@@ -369,22 +397,22 @@ sub create_targettable {
     }
 
     my $result = $target_db->create_texttable($targettablename,
-                                 $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},
-                                 $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename},
-                                 $table_target_indexes->{$tid}->{$connectidentifier}->{$tablename},
+                                 $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class},
+                                 $table_primarykeys->{$tid}->{$connectidentifier}->{$class},
+                                 $table_target_indexes->{$tid}->{$connectidentifier}->{$class},
                                  # 'ifnotexists' is always true
                                  $truncate,
                                  $defer_indexes,
                                  $texttable_engine);
 
-    checktableinfo($target_db,$targettablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$defer_indexes ? undef : $table_target_indexes->{$tid}->{$connectidentifier}->{$tablename});
+    checktableinfo($target_db,$targetclass,$targettablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class},$defer_indexes ? undef : $table_target_indexes->{$tid}->{$connectidentifier}->{$class});
     return $result;
 
 }
 
 sub delete_records {
 
-    my ($get_db,$get_xa_db,$tablename,$keyfields,$equal,$vals_table) = @_;
+    my ($get_db,$get_xa_db,$class,$keyfields,$equal,$vals_table) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $xa_db = (defined $get_xa_db ? (ref $get_xa_db eq 'CODE') ? &$get_xa_db() : $get_xa_db : $db);
@@ -392,8 +420,9 @@ sub delete_records {
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
 
-    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
+    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
+    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$class};
+    my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
 
     if (defined $expected_fieldnames and
         (defined $keyfields and
@@ -463,7 +492,7 @@ sub delete_records {
 
 sub insert_record {
 
-    my ($get_db,$get_xa_db,$tablename,$row,$insert_ignore,$unique_count_fields) = @_;
+    my ($get_db,$get_xa_db,$class,$row,$insert_ignore,$unique_count_fields) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $xa_db = (defined $get_xa_db ? (ref $get_xa_db eq 'CODE') ? &$get_xa_db() : $get_xa_db : $db);
@@ -472,8 +501,9 @@ sub insert_record {
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
 
-    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-    #my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
+    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
+    #my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$class};
+    my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
 
     if (defined $expected_fieldnames and defined $row) {
 
@@ -530,7 +560,7 @@ sub insert_record {
 
 sub delete_record {
 
-    my ($get_db,$get_xa_db,$tablename,$row) = @_;
+    my ($get_db,$get_xa_db,$class,$row) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $xa_db = (defined $get_xa_db ? (ref $get_xa_db eq 'CODE') ? &$get_xa_db() : $get_xa_db : $db);
@@ -539,8 +569,9 @@ sub delete_record {
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
 
-    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
+    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
+    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$class};
+    my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
 
     if (defined $expected_fieldnames and defined $row) {
 
@@ -603,7 +634,7 @@ sub delete_record {
 
 sub update_record {
 
-    my ($get_db,$get_xa_db,$tablename,$row) = @_;
+    my ($get_db,$get_xa_db,$class,$row) = @_;
 
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $xa_db = (defined $get_xa_db ? (ref $get_xa_db eq 'CODE') ? &$get_xa_db() : $get_xa_db : $db);
@@ -612,8 +643,9 @@ sub update_record {
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
 
-    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename};
+    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
+    my $primarykeys = $table_primarykeys->{$tid}->{$connectidentifier}->{$class};
+    my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
 
     if (defined $expected_fieldnames and defined $row) {
 
@@ -683,11 +715,12 @@ sub update_record {
 
 sub insert_stmt {
 
-    my ($get_db,$tablename,$insert_ignore) = @_;
+    my ($get_db,$class,$insert_ignore) = @_;
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
-    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
+    my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
+    my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
     return 'INSERT ' . ($insert_ignore ? $db->insert_ignore_phrase() . ' ' : '') . 'INTO ' . $db->tableidentifier($tablename) . ' (' .
       join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @$expected_fieldnames) .
       ') VALUES (' . substr(',?' x scalar @$expected_fieldnames,1) . ')';
@@ -698,8 +731,9 @@ sub transfer_table {
 
     my %params = @_;
     my ($get_db,
-        $tablename,
+        $class,
         $get_target_db,
+        $targetclass,
         $targettablename,
         $truncate_targettable,
         $create_indexes,
@@ -712,8 +746,9 @@ sub transfer_table {
         $select,
         $values) = @params{qw/
             get_db
-            tablename
+            class
             get_target_db
+            targetclass
             targettablename
             truncate_targettable
             create_indexes
@@ -733,6 +768,10 @@ sub transfer_table {
 
         my $db = &$get_db($reader_connection_name,1);
         my $target_db = &$get_target_db(); #$writer_connection_name);
+
+        my $connectidentifier = $db->connectidentifier();
+        my $tid = threadid();
+        my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
 
         my $countstatement;
         if (defined $selectcount) {
@@ -756,11 +795,9 @@ sub transfer_table {
 
         $create_indexes = ((defined $create_indexes) ? $create_indexes : $transfer_defer_indexes);
 
-        if (create_targettable($db,$tablename,$target_db,$targettablename,$truncate_targettable,$create_indexes,$texttable_engine)) {
+        if (create_targettable($db,$class,$target_db,$targetclass,$targettablename,$truncate_targettable,$create_indexes,$texttable_engine)) {
 
-            my $connectidentifier = $db->connectidentifier();
-            my $tid = threadid();
-            my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
+            my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
 
             my @fieldnames = @$expected_fieldnames;
 
@@ -774,7 +811,7 @@ sub transfer_table {
                 $selectstatement = 'SELECT ' . join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fieldnames) . ' FROM ' . $db->tableidentifier($tablename)
             }
 
-        my $insertstatement = 'INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . $valueplaceholders . ')';
+            my $insertstatement = 'INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . $valueplaceholders . ')';
 
             my $blocksize;
 
@@ -813,6 +850,7 @@ sub transfer_table {
                                             threadqueuelength    => $tabletransfer_threadqueuelength,
                                             get_db               => $get_db,
                                             tablename            => $tablename,
+                                            class                => $class,
                                             selectstatement      => $selectstatement,
                                             blocksize            => $blocksize,
                                             rowcount             => $rowcount,
@@ -831,6 +869,7 @@ sub transfer_table {
                                             #writererrorstate_ref => \$writererrorstate,
                                             get_target_db        => $get_target_db,
                                             targettablename      => $targettablename,
+                                            targetclass         => $targetclass,
                                             insertstatement      => $insertstatement,
                                             blocksize            => $blocksize,
                                             rowcount             => $rowcount,
@@ -937,16 +976,16 @@ sub transfer_table {
 
                 eval {
                     $target_db->create_primarykey($targettablename,
-                        $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename},
-                        $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename});
+                        $table_primarykeys->{$tid}->{$connectidentifier}->{$class},
+                        $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class});
 
                     $target_db->create_indexes($targettablename,
-                        $table_target_indexes->{$tid}->{$connectidentifier}->{$tablename},
-                        $table_primarykeys->{$tid}->{$connectidentifier}->{$tablename});
+                        $table_target_indexes->{$tid}->{$connectidentifier}->{$class},
+                        $table_primarykeys->{$tid}->{$connectidentifier}->{$class});
 
 
-                    delete $table_primarykeys->{$tid}->{$target_db->connectidentifier()}->{$targettablename};
-                    checktableinfo($target_db,$targettablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename},$table_target_indexes->{$tid}->{$connectidentifier}->{$tablename});
+                    delete $table_primarykeys->{$tid}->{$target_db->connectidentifier()}->{$targetclass};
+                    checktableinfo($target_db,$targetclass,$targettablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class},$table_target_indexes->{$tid}->{$connectidentifier}->{$class});
 
                     $target_db->vacuum($targettablename);
 
@@ -982,7 +1021,7 @@ sub process_table {
 
     my %params = @_;
     my ($get_db,
-        $tablename,
+        $class,
         $process_code,
         $static_context,
         $init_process_context_code,
@@ -994,7 +1033,7 @@ sub process_table {
         $select,
         $values) = @params{qw/
             get_db
-            tablename
+            class
             process_code
             static_context
             init_process_context_code
@@ -1013,6 +1052,11 @@ sub process_table {
 
         my $db = &$get_db($reader_connection_name,1);
 
+        my $connectidentifier = $db->connectidentifier();
+        my $tid = threadid();
+        my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
+        my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
+
         my $countstatement;
         if (defined $selectcount) {
             $countstatement = $selectcount;
@@ -1029,17 +1073,7 @@ sub process_table {
             return;
         }
 
-        my $errorstate = $RUNNING;
-
-        my $connectidentifier = $db->connectidentifier();
-        my $tid = threadid();
-        my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$tablename};
-
         my @fieldnames = @$expected_fieldnames;
-
-        #my $setfieldnames = join(', ',@fieldnames);
-        #my $valueplaceholders = substr(',?' x scalar @fieldnames,1);
-
         my $selectstatement;
         if (length($select) > 0) {
             $selectstatement = $select;
@@ -1047,6 +1081,7 @@ sub process_table {
             $selectstatement = 'SELECT ' . join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fieldnames) . ' FROM ' . $db->tableidentifier($tablename);
         }
 
+        my $errorstate = $RUNNING;
         my $blocksize;
 
         if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
@@ -1084,6 +1119,7 @@ sub process_table {
                                             threadqueuelength    => $tableprocessing_threadqueuelength,
                                             get_db               => $get_db,
                                             tablename            => $tablename,
+                                            class                => $class,
                                             selectstatement      => $selectstatement,
                                             blocksize            => $blocksize,
                                             rowcount             => $rowcount,

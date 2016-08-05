@@ -65,11 +65,8 @@ our $added_delta = 'ADDED';
 sub new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new($get_db,
-                           $tablename,
-                           $expected_fieldnames,$indexes);
-
-    bless($self,$class);
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,$get_db,
+                           $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
 
@@ -83,8 +80,8 @@ sub create_table {
 
     my $db = &$get_db();
 
-    registertableinfo($db,$tablename,$expected_fieldnames,$indexes,$primarykey_fieldnames);
-    return create_targettable($db,$tablename,$db,$tablename,$truncate,0,undef);
+    registertableinfo($db,__PACKAGE__,$tablename,$expected_fieldnames,$indexes,$primarykey_fieldnames);
+    return create_targettable($db,__PACKAGE__,$db,__PACKAGE__,$tablename,$truncate,0,undef);
 
 }
 
@@ -235,7 +232,7 @@ sub getinsertstatement {
 
     my ($insert_ignore) = @_;
     check_table();
-    return insert_stmt($get_db,$tablename,$insert_ignore);
+    return insert_stmt($get_db,__PACKAGE__,$insert_ignore);
 
 }
 
@@ -271,7 +268,7 @@ sub gettablename {
 sub check_table {
 
     return checktableinfo($get_db,
-                   $tablename,
+                   __PACKAGE__,$tablename,
                    $expected_fieldnames,
                    $indexes);
 
