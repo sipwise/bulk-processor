@@ -25,7 +25,8 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $cft_timeouts
     $cfna_priorities
     $cfna_timeouts
-    $cfnumber_pattern
+    $cfnumber_exclude_pattern
+    $cfnumber_trim_pattern
     $ringtimeout
 );
 
@@ -454,15 +455,22 @@ sub _prepare_callforward {
     foreach my $cf_option_set_item (@$cf_option_set_items) {
         if (defined $cf_option_set_item and $cf_option_set_item->{delta} ne
             $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOptionSetItem::deleted_delta) {
-            if (not defined $cfnumber_pattern or $cf_option_set_item->{optionsetitem} =~ $cfnumber_pattern) {
+            if (defined $cfnumber_exclude_pattern and $cf_option_set_item->{optionsetitem} =~ $cfnumber_exclude_pattern) {
+                _warn($context,"($context->{rownum}) " . $cf_option_set_item->{option} . " '" . $cf_option_set_item->{optionsetitem} . "' of subscriber " . $context->{cli} . ': exclude pattern match');
+            } else {
+                my $destination = $cf_option_set_item->{optionsetitem};
+                if (defined $cfnumber_trim_pattern) {
+                    $destination =~ s/$cfnumber_trim_pattern//;
+                    if ($cf_option_set_item->{optionsetitem} ne $destination) {
+                        _info($context,"($context->{rownum}) " . $cf_option_set_item->{option} . " '" . $cf_option_set_item->{optionsetitem} . "' of subscriber " . $context->{cli} . ": trim pattern match, changed to to '$destination'");
+                    }
+                }
                 push(@destinations, {
-                    destination => $cf_option_set_item->{optionsetitem},
+                    destination => $destination,
                     priority => (defined $priorities->[$i] ? $priorities->[$i] : $priorities->[-1]),
                     timeout => (defined $timeouts->[$i] ? $timeouts->[$i] : $timeouts->[-1]),
                 });
                 $i++;
-            } else {
-                 _warn($context,"($context->{rownum}) " . $cf_option_set_item->{option} . " '" . $cf_option_set_item->{optionsetitem} . "' of subscriber " . $context->{cli} . ' does not match pattern for call forwards, skipping');
             }
         }
     }

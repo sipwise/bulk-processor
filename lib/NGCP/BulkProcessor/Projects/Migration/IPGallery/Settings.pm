@@ -113,7 +113,8 @@ our @EXPORT_OK = qw(
     $cft_timeouts
     $cfna_priorities
     $cfna_timeouts
-    $cfnumber_pattern
+    $cfnumber_exclude_pattern
+    $cfnumber_trim_pattern
     $ringtimeout
 
     $create_lnps_multithreading
@@ -203,7 +204,8 @@ our $cft_priorities = [];
 our $cft_timeouts = [];
 our $cfna_priorities = [];
 our $cfna_timeouts = [];
-our $cfnumber_pattern = undef;
+our $cfnumber_exclude_pattern = undef;
+our $cfnumber_trim_pattern = undef;
 our $ringtimeout = undef;
 
 our $create_lnps_multithreading = $enablemultithreading;
@@ -309,8 +311,11 @@ sub update_settings {
         $cft_timeouts = [ split_tuple($data->{cft_timeouts}) ] if exists $data->{cft_timeouts};
         $cfna_priorities = [ split_tuple($data->{cfna_priorities}) ] if exists $data->{cfna_priorities};
         $cfna_timeouts = [ split_tuple($data->{cfna_timeouts}) ] if exists $data->{cfna_timeouts};
-        $cfnumber_pattern = $data->{cfnumber_pattern} if exists $data->{cfnumber_pattern};
-        ($regexp_result,$cfnumber_pattern) = parse_regexp($cfnumber_pattern,$configfile);
+        $cfnumber_exclude_pattern = $data->{cfnumber_exclude_pattern} if exists $data->{cfnumber_exclude_pattern};
+        ($regexp_result,$cfnumber_exclude_pattern) = parse_regexp($cfnumber_exclude_pattern,$configfile);
+        $result &= $regexp_result;
+        $cfnumber_trim_pattern = $data->{cfnumber_trim_pattern} if exists $data->{cfnumber_trim_pattern};
+        ($regexp_result,$cfnumber_trim_pattern) = parse_regexp($cfnumber_trim_pattern,$configfile);
         $result &= $regexp_result;
         $ringtimeout = $data->{ringtimeout} if exists $data->{ringtimeout};
         if (not defined $ringtimeout or $ringtimeout <= 0) {
