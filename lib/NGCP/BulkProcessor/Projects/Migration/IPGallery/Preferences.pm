@@ -699,8 +699,7 @@ sub _reset_set_peer_auth_context {
 
 sub set_allowed_ips {
 
-    my ($mode) = @_;
-    my $static_context = { mode => $mode };
+    my $static_context = {};
     my $result = _set_allowed_ips_checks($static_context);
 
     destroy_all_dbs();
@@ -715,7 +714,7 @@ sub set_allowed_ips {
                 next unless _reset_set_allowed_ips_context($context,$imported_subscriber,$rownum);
                 _set_allowed_ips($context);
             }
-
+            cleanup_aig_sequence_ids($context);
             #return 0;
             return 1;
         },
@@ -742,10 +741,31 @@ sub set_allowed_ips {
     ),$warning_count);
 }
 
+sub cleanup_aig_sequence_ids {
+    my ($context) = @_;
+    eval {
+        $context->{db}->db_begin();
+        if (NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_aig_sequence::cleanup_ids($context->{db})) {
+            _info($context,'voip_aig_sequence cleaned up');
+        }
+        if ($dry) {
+            $context->{db}->db_rollback(0);
+        } else {
+            $context->{db}->db_commit();
+        }
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback(1);
+        };
+        die($err) if !$skip_errors;
+    }
+}
+
 sub set_allowed_ips_batch {
 
-    my ($mode) = @_;
-    my $static_context = { mode => $mode };
+    my $static_context = {};
     my $result = _set_allowed_ips_checks($static_context);
 
     destroy_all_dbs();
@@ -770,7 +790,7 @@ sub set_allowed_ips_batch {
                     }
                 }
             }
-
+            cleanup_aig_sequence_ids($context);
             #return 0;
             return 1;
         },
@@ -835,7 +855,7 @@ sub _set_allowed_ips_preferences {
         NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_allowed_ip_groups::delete_groupid($context->{db},$context->{allowed_ip_group_id});
         _info($context,"($context->{rownum}) " . 'allowed ips group for subscriber ' . $context->{cli} . ' exists, ipnets deleted',1);
     } else {
-        $context->{allowed_ip_group_id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_aig_sequence::forupdate_increment($context->{db});
+        $context->{allowed_ip_group_id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_aig_sequence::increment($context->{db});
         _info($context,"($context->{rownum}) " . 'new allowed ips group id for subscriber ' . $context->{cli} . ' aquired',1);
     }
 

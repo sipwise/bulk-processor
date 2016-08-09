@@ -9,6 +9,7 @@ use NGCP::BulkProcessor::Logging qw(
     rowinsertskipped
     rowupdateskipped
     rowupdated
+    rowsdeleted
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
@@ -29,9 +30,11 @@ our @EXPORT_OK = qw(
     check_table
 
     get_id
-    forupdate_increment
+    increment
+    cleanup_ids
 
 );
+#forupdate_increment
 
 my $tablename = 'voip_aig_sequence';
 my $get_db = \&get_provisioning_db;
@@ -44,8 +47,8 @@ my $indexes = {};
 
 my $insert_unique_fields = [];
 
-my $start_value = 1;
-my $increment = 1;
+#my $start_value = 1;
+#my $increment = 1;
 
 sub new {
 
@@ -61,16 +64,20 @@ sub new {
 
 sub get_id {
 
+    my ($xa_db) = @_;
+
     check_table();
     my $db = &$get_db();
+    $xa_db //= $db;
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table;
-    return $db->db_get_value($stmt);
+    my $stmt = 'SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table . ' ORDER BY ID DESC LIMIT 1';
+    return $xa_db->db_get_value($stmt);
 
 }
 
-sub forupdate_increment {
+
+sub increment {
 
     my ($xa_db) = @_;
 
@@ -79,29 +86,75 @@ sub forupdate_increment {
     $xa_db //= $db;
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table . ' FOR UPDATE';
-    my $id = $xa_db->db_get_value($stmt);
-    if (defined $id) {
-        $stmt = 'UPDATE ' . $table . ' SET ' . $db->columnidentifier('id') . ' = ? WHERE ' . $db->columnidentifier('id') . ' = ?';
-        if ($xa_db->db_do($stmt,$id + $increment,$id)) {
-            rowupdated($db,$tablename,getlogger(__PACKAGE__));
-            return $id + $increment;
-        } else {
-            rowupdateskipped($db,$tablename,0,getlogger(__PACKAGE__));
-            return undef;
-        }
+    my $stmt = insert_stmt($db,__PACKAGE__);
+    if ($xa_db->db_do($stmt,0)) {
+        rowinserted($db,$tablename,getlogger(__PACKAGE__));
+        return $xa_db->db_last_insert_id();
     } else {
-        $stmt = insert_stmt($db,__PACKAGE__);
-        if ($xa_db->db_do($stmt,$start_value)) {
-            rowinserted($db,$tablename,getlogger(__PACKAGE__));
-            return $start_value;
-        } else {
-            rowinsertskipped($db,$tablename,getlogger(__PACKAGE__));
-            return undef;
-        }
+        rowinsertskipped($db,$tablename,getlogger(__PACKAGE__));
+        return undef;
     }
 
 }
+
+sub cleanup_ids {
+
+    my ($xa_db) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    #You can't specify target table 'voip_aig_sequence' for update in FROM clause
+    my $max_id = get_id($xa_db);
+    if ($max_id) {
+        my $stmt = 'DELETE FROM ' . $table . ' WHERE ' . $db->columnidentifier('id') . ' < ?';
+        my $count;
+        if ($count = $xa_db->db_do($stmt,$max_id)) {
+            rowsdeleted($db,$tablename,$count,$count,getlogger(__PACKAGE__));
+            return 1;
+        } else {
+            rowsdeleted($db,$tablename,0,0,getlogger(__PACKAGE__));
+            return 0;
+        }
+    } else {
+        return 0;
+    }
+}
+
+#sub forupdate_increment {
+#
+#    my ($xa_db) = @_;
+#
+#    check_table();
+#    my $db = &$get_db();
+#    $xa_db //= $db;
+#    my $table = $db->tableidentifier($tablename);
+#
+#    my $stmt = 'SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table . ' ORDER BY ID DESC LIMIT 1 FOR UPDATE';
+#    my $id = $xa_db->db_get_value($stmt);
+#    if (defined $id) {
+#        $stmt = 'UPDATE ' . $table . ' SET ' . $db->columnidentifier('id') . ' = ? WHERE ' . $db->columnidentifier('id') . ' = ?';
+#        if ($xa_db->db_do($stmt,$id + $increment,$id)) {
+#            rowupdated($db,$tablename,getlogger(__PACKAGE__));
+#            return $id + $increment;
+#        } else {
+#            rowupdateskipped($db,$tablename,0,getlogger(__PACKAGE__));
+#            return undef;
+#        }
+#    } else {
+#        $stmt = insert_stmt($db,__PACKAGE__);
+#        if ($xa_db->db_do($stmt,$start_value)) {
+#            rowinserted($db,$tablename,getlogger(__PACKAGE__));
+#            return $start_value;
+#        } else {
+#            rowinsertskipped($db,$tablename,getlogger(__PACKAGE__));
+#            return undef;
+#        }
+#    }
+#
+#}
 
 sub buildrecords_fromrows {
 
