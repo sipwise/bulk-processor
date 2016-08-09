@@ -65,7 +65,7 @@ sub get_id {
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table;
+    my $stmt = 'SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table . ' ORDER BY ID DESC LIMIT 1';
     return $db->db_get_value($stmt);
 
 }
@@ -79,7 +79,7 @@ sub forupdate_increment {
     $xa_db //= $db;
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table . ' FOR UPDATE';
+    my $stmt = 'SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table . ' ORDER BY ID DESC LIMIT 1 FOR UPDATE';
     my $id = $xa_db->db_get_value($stmt);
     if (defined $id) {
         $stmt = 'UPDATE ' . $table . ' SET ' . $db->columnidentifier('id') . ' = ? WHERE ' . $db->columnidentifier('id') . ' = ?';
