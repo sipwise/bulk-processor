@@ -22,6 +22,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
 
     $provision_subscriber_multithreading
     $provision_subscriber_numofthreads
+    $reprovision_upon_password_change
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -90,6 +91,7 @@ sub provision_subscribers {
 
     destroy_all_dbs();
     my $warning_count :shared = 0;
+    my $updated_password_count :shared = 0;
     return ($result && NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::process_records(
         static_context => $static_context,
         process_code => sub {
@@ -108,6 +110,7 @@ sub provision_subscribers {
             $context->{db} = &get_xa_db();
             $context->{error_count} = 0;
             $context->{warning_count} = 0;
+            $context->{updated_password_count} = 0;
             # below is not mandatory..
             _check_insert_tables();
         },
@@ -118,12 +121,13 @@ sub provision_subscribers {
             {
                 lock $warning_count;
                 $warning_count += $context->{warning_count};
+                $updated_password_count += $context->{updated_password_count};
             }
         },
         load_recursive => 0,
         multithreading => $provision_subscriber_multithreading,
         numofthreads => $provision_subscriber_numofthreads,
-    ),$warning_count);
+    ),$warning_count,$updated_password_count);
 }
 
 sub provision_subscribers_batch {
@@ -133,6 +137,7 @@ sub provision_subscribers_batch {
 
     destroy_all_dbs();
     my $warning_count :shared = 0;
+    my $updated_password_count :shared = 0;
     return ($result && NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::process_records(
         static_context => $static_context,
         process_code => sub {
@@ -140,15 +145,17 @@ sub provision_subscribers_batch {
             my $rownum = $row_offset;
             foreach my $record (@$records) {
                 $rownum++;
-                my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
-                if (defined $imported_subscriber) {
-                    next unless _provision_susbcriber($context,$imported_subscriber,$rownum);
-                } else {
-                    if ($skip_errors) {
-                        _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
-                        next;
+                if ($record->{delta} ne $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta) {
+                    my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
+                    if (defined $imported_subscriber) {
+                        next unless _provision_susbcriber($context,$imported_subscriber,$rownum);
                     } else {
-                        _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        if ($skip_errors) {
+                            _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                            next;
+                        } else {
+                            _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        }
                     }
                 }
             }
@@ -161,6 +168,7 @@ sub provision_subscribers_batch {
             $context->{db} = &get_xa_db();
             $context->{error_count} = 0;
             $context->{warning_count} = 0;
+            $context->{updated_password_count} = 0;
             # below is not mandatory..
             _check_insert_tables();
         },
@@ -171,12 +179,13 @@ sub provision_subscribers_batch {
             {
                 lock $warning_count;
                 $warning_count += $context->{warning_count};
+                $updated_password_count += $context->{updated_password_count};
             }
         },
         load_recursive => 0,
         multithreading => $provision_subscriber_multithreading,
         numofthreads => $provision_subscriber_numofthreads,
-    ),$warning_count);
+    ),$warning_count,$updated_password_count);
 }
 
 
@@ -243,30 +252,34 @@ sub _provision_susbcriber {
 
                     _info($context,"($context->{rownum}) " . 'existing billing subscriber with username ' . $context->{username} . ' and updated password found (re-provisioned)');
 
-                    if (_terminate_subscriber($context,$existing_billing_voip_subscriber->{id})) {
-                        if (_terminate_contract($context,$existing_billing_voip_subscriber->{contract_id})) {
-                            if ($dry) {
-                                _create_contact($context);
-                                _create_contract($context);
-                                eval {
-                                    _create_subscriber($context);
-                                };
-                                if ($@) {
-                                    _info($context,"($context->{rownum}) " . 'expected error ' . $@ . ' while re-provisioning subscriber ' . $context->{cli} . ' in dry-mode',1);
-                                } else {
-                                    if ($skip_errors) {
-                                        _warn($context,"($context->{rownum}) " . 'expected error while re-provisioning subscriber ' . $context->{cli} . ' in dry-mode missing');
+                    if ($reprovision_upon_password_change) {
+                        if (_terminate_subscriber($context,$existing_billing_voip_subscriber->{id})) {
+                            if (_terminate_contract($context,$existing_billing_voip_subscriber->{contract_id})) {
+                                if ($dry) {
+                                    _create_contact($context);
+                                    _create_contract($context);
+                                    eval {
+                                        _create_subscriber($context);
+                                    };
+                                    if ($@) {
+                                        _info($context,"($context->{rownum}) " . 'expected error ' . $@ . ' while re-provisioning subscriber ' . $context->{cli} . ' in dry-mode',1);
                                     } else {
-                                        _error($context,"($context->{rownum}) " . 'expected error while re-provisioning subscriber ' . $context->{cli} . ' in dry-mode missing');
+                                        if ($skip_errors) {
+                                            _warn($context,"($context->{rownum}) " . 'expected error while re-provisioning subscriber ' . $context->{cli} . ' in dry-mode missing');
+                                        } else {
+                                            _error($context,"($context->{rownum}) " . 'expected error while re-provisioning subscriber ' . $context->{cli} . ' in dry-mode missing');
+                                        }
                                     }
+                                } else {
+                                    _create_contact($context);
+                                    _create_contract($context);
+                                    _create_subscriber($context);
+                                    _info($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ' successfully re-provisioned');
                                 }
-                            } else {
-                                _create_contact($context);
-                                _create_contract($context);
-                                _create_subscriber($context);
-                                _info($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ' successfully re-provisioned');
                             }
                         }
+                    } else {
+                        _update_passwords($context,$existing_billing_voip_subscriber->{uuid});
                     }
                 } else {
                     _info($context,"($context->{rownum}) " . 'existing billing subscriber with username ' . $context->{username} . ' and unchanged password found, skipping',1);
@@ -422,6 +435,15 @@ sub _provision_subscribers_checks {
         $result = 0; #even in skip-error mode..
     }
 
+    eval {
+        $context->{peer_auth_pass_attribute} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_PASS);
+    };
+    if ($@ or not defined $context->{peer_auth_pass_attribute}) {
+        rowprocessingerror(threadid(),'cannot find peer_auth_pass attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
     return $result;
 }
 
@@ -461,6 +483,44 @@ sub _create_contract {
     );
 
     return 1;
+
+}
+
+sub _update_passwords {
+    my ($context,$uuid) = @_;
+
+    my $provisioning_voip_subscriber = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(
+                $context->{db},$uuid);
+
+    if (defined $provisioning_voip_subscriber) {
+
+        if (NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::update_row($context->{db},{
+                id => $provisioning_voip_subscriber->{id},
+                password => $context->{password},
+            })) {
+            _info($context,"($context->{rownum}) " . 'subscriber password updated: ' . $context->{cli});
+            my $old_preferences = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::findby_subscriberid_attributeid($context->{db},
+                $provisioning_voip_subscriber->{id},$context->{peer_auth_pass_attribute}->{id});
+            if ((scalar @$old_preferences) > 0) {
+                if (NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::update_row($context->{db},{
+                        id => $old_preferences->[0]->{id},
+                        value => $context->{password},
+                    })) {
+                    $context->{updated_password_count} = $context->{updated_password_count} + 1;
+                    _info($context,"($context->{rownum}) " . 'peer_auth_pass password found and updated: ' . $context->{cli});
+                }
+            } else {
+                _info($context,"($context->{rownum}) " . 'no peer_auth_pass password to update: ' . $context->{cli});
+            }
+        }
+
+    } else {
+        if ($skip_errors) {
+            _warn($context,"($context->{rownum}) " . 'no provisioning subscriber found: ' . $context->{cli});
+        } else {
+            _error($context,"($context->{rownum}) " . 'no provisioning subscriber found: ' . $context->{cli});
+        }
+    }
 
 }
 

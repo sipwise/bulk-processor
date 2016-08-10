@@ -15,6 +15,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     insert_record
+    update_record
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
@@ -25,6 +26,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
     insert_row
+    update_row
 
     findby_uuid
 );
@@ -84,6 +86,15 @@ sub findby_uuid {
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub update_row {
+
+    my ($xa_db,$data) = @_;
+
+    check_table();
+    return update_record($get_db,$xa_db,__PACKAGE__,$data);
 
 }
 

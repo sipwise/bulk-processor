@@ -126,16 +126,18 @@ sub set_call_forwards_batch {
             my $rownum = $row_offset;
             foreach my $record (@$records) {
                 $rownum++;
-                my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
-                if (defined $imported_subscriber) {
-                    next unless _reset_set_call_forward_context($context,$imported_subscriber,$rownum);
-                    _set_call_forward($context);
-                } else {
-                    if ($skip_errors) {
-                        _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
-                        next;
+                if ($record->{delta} ne $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta) {
+                    my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
+                    if (defined $imported_subscriber) {
+                        next unless _reset_set_call_forward_context($context,$imported_subscriber,$rownum);
+                        _set_call_forward($context);
                     } else {
-                        _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        if ($skip_errors) {
+                            _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                            next;
+                        } else {
+                            _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        }
                     }
                 }
             }

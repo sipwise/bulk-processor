@@ -33,6 +33,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $barring_profiles
     $allowed_ips
     $concurrent_max_total
+    $reprovision_upon_password_change
 );
 use NGCP::BulkProcessor::Logging qw(
     init_log
@@ -782,16 +783,17 @@ sub import_truncate_batch_task {
 sub provision_subscriber_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0);
+    my ($result,$warning_count,$updated_password_count) = (0,0,0);
     eval {
         if ($batch) {
-            ($result,$warning_count) = provision_subscribers_batch();
+            ($result,$warning_count,$updated_password_count) = provision_subscribers_batch();
         } else {
-            ($result,$warning_count) = provision_subscribers();
+            ($result,$warning_count,$updated_password_count) = provision_subscribers();
         }
     };
     my $err = $@;
     my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    my $updated_password_count = 0;
     eval {
         $stats .= "\n  total contracts: " .
             NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(undef,$reseller_id) . ' rows';
@@ -823,6 +825,9 @@ sub provision_subscriber_task {
         push(@$messages,"provisioning subscribers INCOMPLETE$stats");
     } else {
         push(@$messages,"provisioning subscribers completed$stats");
+        if (not $dry and $reprovision_upon_password_change and $updated_password_count > 0) {
+            push(@$messages,"THERE WERE $updated_password_count UPDATED PASSWORDS. YOU MIGHT WANT TO RESTART SEMS NOW ...");
+        }
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
