@@ -152,15 +152,17 @@ sub set_barring_profiles_batch {
             foreach my $record (@$records) {
                 $rownum++;
                 my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
-                if (defined $imported_subscriber) {
-                    next unless _reset_set_barring_profile_context($context,$imported_subscriber,$rownum);
-                    _set_barring_profile($context);
-                } else {
-                    if ($skip_errors) {
-                        _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
-                        next;
+                if ($record->{delta} ne $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta) {
+                    if (defined $imported_subscriber) {
+                        next unless _reset_set_barring_profile_context($context,$imported_subscriber,$rownum);
+                        _set_barring_profile($context);
                     } else {
-                        _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        if ($skip_errors) {
+                            _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                            next;
+                        } else {
+                            _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        }
                     }
                 }
             }
@@ -513,16 +515,18 @@ sub set_peer_auth_batch {
             my $rownum = $row_offset;
             foreach my $record (@$records) {
                 $rownum++;
-                my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
-                if (defined $imported_subscriber) {
-                    next unless _reset_set_peer_auth_context($context,$imported_subscriber,$rownum);
-                    _set_peer_auth($context);
-                } else {
-                    if ($skip_errors) {
-                        _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
-                        next;
+                if ($record->{delta} ne $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta) {
+                    my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
+                    if (defined $imported_subscriber) {
+                        next unless _reset_set_peer_auth_context($context,$imported_subscriber,$rownum);
+                        _set_peer_auth($context);
                     } else {
-                        _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        if ($skip_errors) {
+                            _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                            next;
+                        } else {
+                            _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        }
                     }
                 }
             }
@@ -777,16 +781,18 @@ sub set_allowed_ips_batch {
             my $rownum = $row_offset;
             foreach my $record (@$records) {
                 $rownum++;
-                my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
-                if (defined $imported_subscriber) {
-                    next unless _reset_set_allowed_ips_context($context,$imported_subscriber,$rownum);
-                    _set_allowed_ips($context);
-                } else {
-                    if ($skip_errors) {
-                        _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
-                        next;
+                if ($record->{delta} ne $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta) {
+                    my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
+                    if (defined $imported_subscriber) {
+                        next unless _reset_set_allowed_ips_context($context,$imported_subscriber,$rownum);
+                        _set_allowed_ips($context);
                     } else {
-                        _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        if ($skip_errors) {
+                            _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                            next;
+                        } else {
+                            _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        }
                     }
                 }
             }
@@ -950,16 +956,18 @@ sub set_preference_bulk_batch {
             my $rownum = $row_offset;
             foreach my $record (@$records) {
                 $rownum++;
-                my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
-                if (defined $imported_subscriber) {
-                    next unless _reset_set_preference_bulk_context($context,$imported_subscriber,$rownum);
-                    _set_preference_bulk($context);
-                } else {
-                    if ($skip_errors) {
-                        _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
-                        next;
+                if ($record->{delta} ne $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta) {
+                    my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
+                    if (defined $imported_subscriber) {
+                        next unless _reset_set_preference_bulk_context($context,$imported_subscriber,$rownum);
+                        _set_preference_bulk($context);
                     } else {
-                        _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        if ($skip_errors) {
+                            _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                            next;
+                        } else {
+                            _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        }
                     }
                 }
             }
