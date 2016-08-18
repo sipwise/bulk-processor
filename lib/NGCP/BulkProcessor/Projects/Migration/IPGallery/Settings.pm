@@ -90,6 +90,7 @@ our @EXPORT_OK = qw(
     $provision_subscriber_multithreading
     $provision_subscriber_numofthreads
     $reprovision_upon_password_change
+    $always_update_subscriber
 
     $set_barring_profiles_multithreading
     $set_barring_profiles_numofthreads
@@ -182,6 +183,7 @@ our $subsciber_username_prefix = undef;
 our $provision_subscriber_multithreading = $enablemultithreading;
 our $provision_subscriber_numofthreads = $cpucount;
 our $reprovision_upon_password_change = 0;
+our $always_update_subscriber = 0;
 
 our $set_barring_profiles_multithreading = $enablemultithreading;
 our $set_barring_profiles_numofthreads = $cpucount;
@@ -285,6 +287,7 @@ sub update_settings {
         $provision_subscriber_multithreading = $data->{provision_subscriber_multithreading} if exists $data->{provision_subscriber_multithreading};
         $provision_subscriber_numofthreads = _get_import_numofthreads($cpucount,$data,'provision_subscriber_numofthreads');
         $reprovision_upon_password_change = $data->{reprovision_upon_password_change} if exists $data->{reprovision_upon_password_change};
+        $always_update_subscriber = $data->{always_update_subscriber} if exists $data->{always_update_subscriber};
 
         $set_barring_profiles_multithreading = $data->{set_barring_profiles_multithreading} if exists $data->{set_barring_profiles_multithreading};
         $set_barring_profiles_numofthreads = _get_import_numofthreads($cpucount,$data,'set_barring_profiles_numofthreads');

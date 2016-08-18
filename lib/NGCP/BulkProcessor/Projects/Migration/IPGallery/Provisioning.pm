@@ -23,6 +23,7 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $provision_subscriber_multithreading
     $provision_subscriber_numofthreads
     $reprovision_upon_password_change
+    $always_update_subscriber
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -247,7 +248,7 @@ sub _provision_susbcriber {
                 }
 
             } else {
-                if ($context->{userpassworddelta} eq
+                if ($always_update_subscriber or $context->{userpassworddelta} eq
                     $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::updated_delta) {
 
                     _info($context,"($context->{rownum}) " . 'existing billing subscriber with username ' . $context->{username} . ' and updated password found (re-provisioned)');
