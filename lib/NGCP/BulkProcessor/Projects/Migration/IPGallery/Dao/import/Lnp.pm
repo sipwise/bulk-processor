@@ -63,7 +63,7 @@ my $expected_fieldnames = [
 ];
 
 # table creation:
-my $primarykey_fieldnames = [ 'lrn_code', 'ported_number' ];
+my $primarykey_fieldnames = [ 'ported_number' ];
 my $indexes = { $tablename . '_delta' => [ 'delta(7)' ]};
 #my $fixtable_statements = [];
 
