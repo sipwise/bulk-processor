@@ -143,25 +143,27 @@ sub _create_lnp {
     #    $context->{db}->db_begin();
         #_warn($context,'AutoCommit is on') if $context->{db}->{drh}->{AutoCommit};
 
-        my $existing_lnp_number = NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers::findby_lnpproviderid_number($context->{db},
-            $context->{lnp_provider}->{id}, $context->{number});
-        if (defined $existing_lnp_number) {
-            $context->{lnp_number_id} = $existing_lnp_number->{id};
-            if ($context->{delta} eq
-                $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::deleted_delta) {
-                _info($context,"($context->{rownum}) " . 'lnp ' . $context->{number} . ' is deleted, but lnp_number found');
-                _delete_lnp_number($context);
-            } else {
-                _info($context,"($context->{rownum}) " . 'lnp_number for lnp ' . $context->{number} . ' exists',1);
-                #_update_lnp_number($context);
-            }
-        } else {
+        my $existing_lnp_numbers = NGCP::BulkProcessor::Dao::Trunk::billing::lnp_numbers::findby_lnpproviderid_number($context->{db},
+            undef, $context->{number});
+        if ((scalar @$existing_lnp_numbers) == 0) {
             if ($context->{delta} eq
                 $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::deleted_delta) {
                 _info($context,"($context->{rownum}) " . 'lnp ' . $context->{number} . ' is deleted, and no lnp_number found');
             } else {
                 _create_lnp_number($context);
-                _info($context,"($context->{rownum}) " . 'lnp_number ' . $context->{number} . ' created',1);
+            }
+        } elsif ((scalar @$existing_lnp_numbers) >= 1) {
+            _warn($context,"($context->{rownum}) " . 'multiple (' . (scalar @$existing_lnp_numbers) . ') existing lnp\'s ' . $context->{number} . ' found, processing each') if ((scalar @$existing_lnp_numbers) > 1);
+            foreach my $existing_lnp_number (@$existing_lnp_numbers) {
+                $context->{lnp_number_id} = $existing_lnp_number->{id};
+                if ($context->{delta} eq
+                    $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Lnp::deleted_delta) {
+                    _info($context,"($context->{rownum}) " . 'lnp ' . $context->{number} . ' is deleted, but lnp_number found');
+                    _delete_lnp_number($context);
+                } else {
+                    _info($context,"($context->{rownum}) " . 'lnp_number for lnp ' . $context->{number} . ' exists',1);
+                    _update_lnp_number($context);
+                }
             }
         }
 
@@ -237,6 +239,7 @@ sub _create_lnp_number {
         number => $context->{number},
         lnp_provider_id => $context->{lnp_provider}->{id},
     );
+    _info($context,"($context->{rownum}) " . 'lnp_number ' . $context->{number} . ' created',1);
 
     return 1;
 
@@ -252,7 +255,7 @@ sub _update_lnp_number {
         number => $context->{number},
         lnp_provider_id => $context->{lnp_provider}->{id},
     });
-    _info($context,"($context->{rownum}) " . 'lnp_number ' . $context->{number} . ' updated',1);
+    _info($context,"($context->{rownum}) " . 'lnp_number ' . $context->{number} . ' updated',0);
 
     return 1;
 

@@ -72,12 +72,16 @@ sub findby_lnpproviderid_number {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('lnp_provider_id') . ' = ?' .
-            ' AND ' . $db->columnidentifier('number') . ' = ?';
-    my @params = ($lnp_provider_id,$number);
+            $db->columnidentifier('number') . ' = ?';
+    my @params = ($number);
+    if (defined $lnp_provider_id) {
+        $stmt .= ' AND ' . $db->columnidentifier('lnp_provider_id') . ' = ?';
+        push(@params,$lnp_provider_id);
+    }
+
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 

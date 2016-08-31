@@ -39,6 +39,7 @@ sub new {
     $self->{tid} = threadid();
 
     $self->{uri} = undef;
+    $self->{path} = undef;
     $self->{netloc} = undef;
 
     $self->{ua} = undef;
@@ -67,9 +68,15 @@ sub baseuri {
         my $uri = shift;
         undef $self->{ua};
         undef $self->{uri};
+        undef $self->{path};
         undef $self->{netloc};
-        if (($self->{netloc}) = ($uri =~ m!^https?://(.*)/?.*$!)) {
+        if ($uri =~ m!^https?://([^/]+)/?.*$!) {
+            $self->{netloc} = $1;
             $self->{uri} = URI->new($uri);
+            $self->{path} = $self->{uri}->path();
+            if (defined $self->{path} and length($self->{path}) > 0) {
+                $self->{path} .= '/' if $self->{path} !~ m!/$!;
+            }
             $self->{uri}->path_query('');
             $self->{uri}->fragment(undef);
             restdebug($self,"base URL set to '" . $self->{uri} . "'",getlogger(__PACKAGE__));
@@ -178,8 +185,16 @@ sub _get_request_uri {
     if (!defined $self->{uri}) {
         resterror($self,'base URL not set',getlogger(__PACKAGE__));
     }
-    if (blessed($path_query) and $path_query->isa('URI')) {
-        $path_query = $path_query->path_query();
+    if (defined $path_query) {
+        if (blessed($path_query) and $path_query->isa('URI')) {
+            $path_query = $path_query->path_query();
+        }
+    } else {
+        $path_query = '';
+    }
+    if (defined $self->{path} and length($self->{path}) > 0) {
+        $path_query =~ s!^/!!;
+        $path_query = $self->{path} . $path_query;
     }
     my $uri = $self->{uri}->clone();
     $uri->path_query($path_query);
