@@ -254,7 +254,11 @@ sub _set_subscriber_preference {
         eval {
             $context->{db}->db_rollback(1);
         };
-        die($err) if !$skip_errors;
+        if ($skip_errors) {
+            _warn($context,"($context->{rownum}) " . 'database error with subscriber ' . $context->{cli} . ': ' . $err);
+        } else {
+            _error($context,"($context->{rownum}) " . 'database error with subscriber ' . $context->{cli} . ': ' . $err);
+        }
     }
 
 }
@@ -763,7 +767,11 @@ sub cleanup_aig_sequence_ids {
         eval {
             $context->{db}->db_rollback(1);
         };
-        die($err) if !$skip_errors;
+        if ($skip_errors) {
+            _warn($context,"database problem with voip_aig_sequence clean up: " . $err);
+        } else {
+            _error($context,"database problem with voip_aig_sequence clean up: " . $err);
+        }
     }
 }
 

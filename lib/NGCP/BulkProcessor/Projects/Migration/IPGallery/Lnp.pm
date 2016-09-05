@@ -77,7 +77,11 @@ sub create_lnps {
                     eval {
                         $context->{db}->db_rollback(1);
                     };
-                    die($err) if !$skip_errors;
+                    if ($skip_errors) {
+                        _warn($context,"($context->{rownum}) " . 'database error with lnp ' . $context->{number} . ': ' . $err);
+                    } else {
+                        _error($context,"($context->{rownum}) " . 'database error with lnp ' . $context->{number} . ': ' . $err);
+                    }
                 }
             } else {
                 foreach my $imported_lnp (@$records) {
@@ -97,7 +101,11 @@ sub create_lnps {
                         eval {
                             $context->{db}->db_rollback(1);
                         };
-                        die($err) if !$skip_errors;
+                        if ($skip_errors) {
+                            _warn($context,"($context->{rownum}) " . 'database error with lnp ' . $context->{number} . ': ' . $err);
+                        } else {
+                            _error($context,"($context->{rownum}) " . 'database error with lnp ' . $context->{number} . ': ' . $err);
+                        }
                     }
                 }
             }

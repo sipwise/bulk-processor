@@ -302,7 +302,11 @@ sub _provision_susbcriber {
         eval {
             $context->{db}->db_rollback(1);
         };
-        die($err) if !$skip_errors;
+        if ($skip_errors) {
+            _warn($context,"($context->{rownum}) " . 'database error with subscriber ' . $context->{cli} . ': ' . $err);
+        } else {
+            _error($context,"($context->{rownum}) " . 'database error with subscriber ' . $context->{cli} . ': ' . $err);
+        }
     }
 
     return 1;
