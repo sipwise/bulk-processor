@@ -24,6 +24,9 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $provision_subscriber_numofthreads
     $reprovision_upon_password_change
     $always_update_subscriber
+
+    $update_webpasswords_multithreading
+    $update_webpasswords_numofthreads
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -77,12 +80,16 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::ProjectConnectorPool qw
 );
 
 use NGCP::BulkProcessor::Utils qw(create_uuid threadid);
+use NGCP::BulkProcessor::RandomString qw(createpassworddummy);
 
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     provision_subscribers
     provision_subscribers_batch
+
+    update_webpasswords
+    update_webpasswords_batch
 );
 
 sub provision_subscribers {
@@ -696,11 +703,12 @@ sub _reset_context {
 }
 
 sub _generate_webpassword {
-    return String::MkPasswd::mkpasswd(
-        -length => $webpassword_length,
-        -minnum => 1, -minlower => 1, -minupper => 1, -minspecial => 1,
-        -distribute => 1, -fatal => 1,
-    );
+    #return String::MkPasswd::mkpasswd(
+    #    -length => $webpassword_length,
+    #    -minnum => 1, -minlower => 1, -minupper => 1, -minspecial => 1,
+    #    -distribute => 1, -fatal => 1,
+    #);
+    return createpassworddummy();
 }
 
 sub _terminate_subscriber {
@@ -757,6 +765,261 @@ sub _terminate_contract {
     return $result;
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sub update_webpasswords {
+
+    my $static_context = {};
+    my $result = _update_webpasswords_checks($static_context);
+
+    destroy_all_dbs();
+    my $warning_count :shared = 0;
+    return ($result && NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::process_records(
+        static_context => $static_context,
+        process_code => sub {
+            my ($context,$records,$row_offset) = @_;
+            my $rownum = $row_offset;
+            foreach my $imported_subscriber (@$records) {
+                $rownum++;
+                next unless _update_webpassword($context,$imported_subscriber,$rownum);
+            }
+
+            #return 0;
+            return 1;
+        },
+        init_process_context_code => sub {
+            my ($context)= @_;
+            $context->{db} = &get_xa_db();
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
+        },
+        uninit_process_context_code => sub {
+            my ($context)= @_;
+            undef $context->{db};
+            destroy_all_dbs();
+            {
+                lock $warning_count;
+                $warning_count += $context->{warning_count};
+            }
+        },
+        load_recursive => 0,
+        multithreading => $update_webpasswords_multithreading,
+        numofthreads => $update_webpasswords_numofthreads,
+    ),$warning_count);
+}
+
+sub update_webpasswords_batch {
+
+    my $static_context = {};
+    my $result = _update_webpasswords_checks($static_context);
+
+    destroy_all_dbs();
+    my $warning_count :shared = 0;
+    return ($result && NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::process_records(
+        static_context => $static_context,
+        process_code => sub {
+            my ($context,$records,$row_offset) = @_;
+            my $rownum = $row_offset;
+            foreach my $record (@$records) {
+                $rownum++;
+                my $imported_subscriber = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::findby_subscribernumber($record->{number});
+                if ($record->{delta} ne $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta) {
+                    if (defined $imported_subscriber) {
+                        next unless _update_password($context,$imported_subscriber,$rownum);
+                    } else {
+                        if ($skip_errors) {
+                            _warn($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                            next;
+                        } else {
+                            _error($context,'record ' . $rownum . ' - no subscriber record for batch number found: ' . $record->{number});
+                        }
+                    }
+                }
+            }
+
+            #return 0;
+            return 1;
+        },
+        init_process_context_code => sub {
+            my ($context)= @_;
+            $context->{db} = &get_xa_db();
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
+        },
+        uninit_process_context_code => sub {
+            my ($context)= @_;
+            undef $context->{db};
+            destroy_all_dbs();
+            {
+                lock $warning_count;
+                $warning_count += $context->{warning_count};
+            }
+        },
+        load_recursive => 0,
+        multithreading => $update_webpasswords_multithreading,
+        numofthreads => $update_webpasswords_numofthreads,
+    ),$warning_count);
+}
+
+sub _update_webpassword {
+    my ($context,$imported_subscriber,$rownum) = @_;
+
+    return 0 unless _reset_context($context,$imported_subscriber,$rownum);
+
+    eval {
+        $context->{db}->db_begin();
+        #rowprocessingwarn($context->{tid},'AutoCommit is on' ,getlogger(__PACKAGE__)) if $context->{db}->{drh}->{AutoCommit};
+
+        my $existing_billing_voip_subscribers = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_domainid_username_states($context->{db},
+            $context->{billing_domain}->{id},$context->{username},{ 'NOT IN' => $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::TERMINATED_STATE});
+        if ((scalar @$existing_billing_voip_subscribers) == 0) {
+
+            if ($context->{subscriberdelta} eq
+                $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::deleted_delta) {
+                _info($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ' is deleted, and no active subscriber found',1);
+            } else {
+                _warn($context,"($context->{rownum}) no active subscriber found for susbcriber " . $context->{cli});
+            }
+        } elsif ((scalar @$existing_billing_voip_subscribers) == 1) {
+            $context->{billing_voip_subscriber} = $existing_billing_voip_subscribers->[0];
+            $context->{provisioning_voip_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(
+                $context->{db},$context->{billing_voip_subscriber}->{uuid});
+            if (defined $context->{provisioning_voip_subscriber}) {
+                if ($context->{subscriberdelta} eq
+                    $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::deleted_delta) {
+
+                    _warn($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ' is deleted, but active subscriber found');
+
+                } else {
+                    _update_subscriber_webpassword($context);
+                }
+            } else {
+                if ($skip_errors) {
+                    _warn($context,"($context->{rownum}) " . 'no provisioning subscriber found: ' . $context->{cli});
+                } else {
+                    _error($context,"($context->{rownum}) " . 'no provisioning subscriber found: ' . $context->{cli});
+                }
+            }
+        } else {
+            rowprocessingwarn($context->{tid},"($context->{rownum}) " . 'multiple (' . (scalar @$existing_billing_voip_subscribers) . ') existing billing subscribers with username ' . $context->{username} . ' found, skipping' ,getlogger(__PACKAGE__));
+        }
+
+        if ($dry) {
+            $context->{db}->db_rollback(0);
+        } else {
+            $context->{db}->db_commit();
+        }
+
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback(1);
+        };
+        if ($skip_errors) {
+            _warn($context,"($context->{rownum}) " . 'database error with subscriber ' . $context->{cli} . ': ' . $err);
+        } else {
+            _error($context,"($context->{rownum}) " . 'database error with subscriber ' . $context->{cli} . ': ' . $err);
+        }
+    }
+
+}
+
+sub _update_webpasswords_checks  {
+
+    my ($context) = @_;
+
+    my $result = 1;
+    my $userpasswordcount = 0;
+    eval {
+        $userpasswordcount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::countby_fqdn();
+    };
+    if ($@ or $userpasswordcount == 0) {
+        rowprocessingerror(threadid(),'please import user passwords first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+    my $subscribercount = 0;
+    eval {
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_subscribernumber();
+    };
+    if ($@ or $subscribercount == 0) {
+        rowprocessingerror(threadid(),'please import subscribers first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
+    if ($batch) {
+        my $batch_size = 0;
+        eval {
+            $batch_size = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::countby_delta({ 'NOT IN' =>
+                        $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Batch::deleted_delta});
+        };
+        if ($@ or $batch_size == 0) {
+            rowprocessingerror(threadid(),'please import a batch first',getlogger(__PACKAGE__));
+            $result = 0; #even in skip-error mode..
+        }
+    }
+
+    eval {
+        $context->{billing_domain} = NGCP::BulkProcessor::Dao::Trunk::billing::domains::findby_domain($domain_name);
+        if (defined $context->{billing_domain}
+            and NGCP::BulkProcessor::Dao::Trunk::billing::domain_resellers::countby_domainid_resellerid($context->{billing_domain}->{id},$reseller_id) == 0) {
+            undef $context->{billing_domain};
+        }
+    };
+    if ($@ or not defined $context->{billing_domain}) {
+        rowprocessingerror(threadid(),'cannot find billing domain',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
+    return $result;
+
+}
+
+
+sub _update_subscriber_webpassword {
+
+    my ($context) = @_;
+
+    my $result = 1;
+
+    NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::update_row($context->{db},{
+        id => $context->{provisioning_voip_subscriber}->{id},
+        webpassword => $context->{webpassword},
+    });
+
+    return $result;
+
+}
+
+
+
+
+
+
+
 
 sub _error {
 

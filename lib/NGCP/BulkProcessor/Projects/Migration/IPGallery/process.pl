@@ -106,6 +106,9 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning qw(
     provision_subscribers
     provision_subscribers_batch
+
+    update_webpasswords
+    update_webpasswords_batch
 );
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Preferences qw(
