@@ -290,10 +290,10 @@ sub _checks  {
         $result = 0; #even in skip-error mode..
     }
     my $subscribercount = 0;
-    my $subscriber_barring_profiles = [];
+    #my $subscriber_barring_profiles = [];
     eval {
         $subscribercount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_subscribernumber();
-        $subscriber_barring_profiles = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::list_barringprofiles();
+        #$subscriber_barring_profiles = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::list_barringprofiles();
     };
     if ($@ or $subscribercount == 0) {
         rowprocessingerror(threadid(),'please import subscribers first',getlogger(__PACKAGE__));

@@ -106,6 +106,9 @@ use NGCP::BulkProcessor::Projects::Migration::IPGallery::Import qw(
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Provisioning qw(
     provision_subscribers
     provision_subscribers_batch
+
+    update_webpasswords
+    update_webpasswords_batch
 );
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Preferences qw(
@@ -200,6 +203,9 @@ push(@TASK_OPTS,$set_concurrent_max_total_task_opt);
 
 my $create_lnps_task_opt = 'create_lnps';
 push(@TASK_OPTS,$create_lnps_task_opt);
+
+my $update_webpasswords_task_opt = 'update_webpasswords';
+push(@TASK_OPTS,$update_webpasswords_task_opt);
 
 if (init()) {
     main();
@@ -342,6 +348,14 @@ sub main() {
                     $result &= create_lnps_task(\@messages);
                     $completion |= 1;
                 }
+                
+            } elsif (lc($update_webpasswords_task_opt) eq lc($task)) {
+                if (taskinfo($update_webpasswords_task_opt,$result,1) and ($result = batchinfo($result))) {
+                    next unless check_dry();
+                    $result &= update_webpasswords_task(\@messages);
+                    $completion |= 1;
+                }
+
 
             } else {
                 $result = 0;
@@ -1073,6 +1087,46 @@ sub set_preference_bulk_task {
         push(@$messages,"set subscribers\' $bulk_attribute_name preference INCOMPLETE$stats");
     } else {
         push(@$messages,"set subscribers\' $bulk_attribute_name preference completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
+
+
+sub update_webpasswords_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        if ($batch) {
+            ($result,$warning_count) = update_webpasswords_batch();
+        } else {
+            ($result,$warning_count) = update_webpasswords();
+        }
+    };
+    my $err = $@;
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    eval {
+        $stats .= "\n  total subscribers: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(undef,$reseller_id) . ' rows';
+        my $active_count = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::ACTIVE_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    active: $active_count rows";
+        my $terminated_count = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(
+            $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::TERMINATED_STATE,
+            $reseller_id
+        );
+        $stats .= "\n    terminated: $terminated_count rows";
+    };
+    if ($err or !$result) {
+        push(@$messages,"update webpasswords INCOMPLETE$stats");
+    } else {
+        push(@$messages,"update webpasswords completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;

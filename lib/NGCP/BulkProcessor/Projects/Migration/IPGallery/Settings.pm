@@ -126,6 +126,9 @@ our @EXPORT_OK = qw(
     $set_preference_bulk_multithreading
     $set_preference_bulk_numofthreads
     $concurrent_max_total
+
+    $update_webpasswords_multithreading
+    $update_webpasswords_numofthreads
 );
 
 our $defaultconfig = 'config.cfg';
@@ -219,6 +222,9 @@ our $create_lnp_block_txn = 0;
 our $set_preference_bulk_multithreading = $enablemultithreading;
 our $set_preference_bulk_numofthreads = $cpucount;
 our $concurrent_max_total = undef;
+
+our $update_webpasswords_multithreading = $enablemultithreading;
+our $update_webpasswords_numofthreads = $cpucount;
 
 sub update_settings {
 
@@ -340,6 +346,9 @@ sub update_settings {
             configurationerror($configfile,'empty concurrent_max_total or greater than 0 required',getlogger(__PACKAGE__));
             $result = 0;
         }
+
+        $update_webpasswords_multithreading = $data->{update_webpasswords_multithreading} if exists $data->{update_webpasswords_multithreading};
+        $update_webpasswords_numofthreads = _get_import_numofthreads($cpucount,$data,'update_webpasswords_numofthreads');
 
         return $result;
 
