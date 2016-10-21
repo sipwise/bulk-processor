@@ -1,3 +1,25 @@
+ngcp-bulk-processor (5.0.0.0+0~mr5.0.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [52d66ca] MT#18663 MT#20893 row bulk processing framework WIP #5
+  * [1c669a3] MT#18663 row bulk processing framework WIP #6
+  * [b4f244a] MT#18663 MT#20893 row bulk processing framework WIP #7
+  * [8eece8e] MT#18663 row bulk processing framework WIP #8
+  * [5e47afd] MT#18663 row bulk processing framework WIP #9
+  * [84575f9] MT#18663 row bulk processing framework WIP #10
+  * [15762ef] MT#18663 row bulk processing framework WIP #11
+  * [0c667af] MT#18663 MT#20893 row bulk processing framework WIP #12
+  * [0332ec4] MT#18663 MT#20893 row bulk processing framework WIP #13
+  * [a2d365e] MT#18663 MT#20893 row bulk processing framework WIP #14
+  * [a2892c6] MT#18663 MT#20893 row bulk processing framework WIP #15
+  * [018a04f] MT#18663 MT#20893 MT#21871 align setting allowed ips with api impl
+  * [ccbf657] MT#18663 MT#20893 wip16: subscriebr update, line endings, batch processing fixes
+  * [babc153] MT#20837 option to always update subscriber passwords
+  * [a781396] MT#20837 handle unique lnp numbers properly
+  * [e390670] MT#20837 consider low-level db errors in error stats
+
+ -- Alexander Lutay <alutay@sipwise.com>  Fri, 21 Oct 2016 14:17:33 +0200
+
 ngcp-bulk-processor (1.0.0.0+0~mr4.5.0.0) unstable; urgency=medium
 
   * Initial revision
