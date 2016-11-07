@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "3a4c51b2_2a937ca4",
+        "filename": "debian/control",
+        "patchSetId": 3
+      },
+      "lineNbr": 14,
+      "author": {
+        "id": 1000001
+      },
+      "writtenOn": "2016-11-07T13:35:10Z",
+      "side": 1,
+      "message": "BTW In which cases it should be Conflicts (e.g. upgrade.git) and Brakes (e.g. templates.git) ?",
+      "range": {
+        "startLine": 14,
+        "startChar": 0,
+        "endLine": 14,
+        "endChar": 7
+      },
+      "revId": "d5ed3fd33a903eeb20628a108aa98d83a2ab7831",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
