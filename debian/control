@@ -7,8 +7,14 @@ Build-Depends:
 Standards-Version: 3.9.7
 Homepage: https://www.sipwise.com/
 
-Package: ngcp-bulk-processor-pro
+Package: ngcp-bulk-processor
 Architecture: all
+Provides:
+ ngcp-bulk-processor-pro,
+Conflicts:
+ ngcp-bulk-processor-pro,
+Replaces:
+ ngcp-bulk-processor-pro,
 Depends:
  perl,
  libarchive-zip-perl,
