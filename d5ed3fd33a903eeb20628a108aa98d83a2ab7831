@@ -22,6 +22,30 @@
       "revId": "d5ed3fd33a903eeb20628a108aa98d83a2ab7831",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "3a4c51b2_9d2bf881",
+        "filename": "debian/control",
+        "patchSetId": 3
+      },
+      "lineNbr": 14,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2016-11-07T14:51:52Z",
+      "side": 1,
+      "message": "no dependeicies with templates repo.",
+      "parentUuid": "3a4c51b2_2a937ca4",
+      "range": {
+        "startLine": 14,
+        "startChar": 0,
+        "endLine": 14,
+        "endChar": 7
+      },
+      "revId": "d5ed3fd33a903eeb20628a108aa98d83a2ab7831",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
