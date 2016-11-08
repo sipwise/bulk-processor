@@ -1,8 +1,11 @@
 package NGCP::BulkProcessor::Projects::Migration::IPGallery::Check;
 use strict;
-no strict 'refs';
 
 ## no critic
+
+no strict 'refs';
+
+
 
 use NGCP::BulkProcessor::Projects::Migration::IPGallery::Settings qw(
     $reseller_id
