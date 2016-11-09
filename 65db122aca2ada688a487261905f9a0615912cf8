@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "1a494da4_210aaad2",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 1000001
+      },
+      "writtenOn": "2016-11-09T11:48:45Z",
+      "side": 1,
+      "message": "please use better commit message next time :-)\nTnx for the fix.",
+      "range": {
+        "startLine": 7,
+        "startChar": 8,
+        "endLine": 7,
+        "endChar": 22
+      },
+      "revId": "65db122aca2ada688a487261905f9a0615912cf8",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
