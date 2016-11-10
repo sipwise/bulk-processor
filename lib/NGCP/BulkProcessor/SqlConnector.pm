@@ -26,6 +26,7 @@ use DBI;
 use NGCP::BulkProcessor::Utils qw(threadid);
 use NGCP::BulkProcessor::Array qw(arrayeq);
 use NGCP::BulkProcessor::RandomString qw(createtmpstring);
+use NGCP::BulkProcessor::Calendar qw();
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -454,6 +455,18 @@ sub _fetch_error {
     }
     dberror($self,'failed with ' . $operation . ":\n" . $query . "\n" . ((defined $index) ? 'column index: ' . $index . "\n" : '') . "parameters:\n". join(', ', @_) . "\nDBI error:\n" . $errstr,getlogger(__PACKAGE__));
 
+}
+
+sub datetime_to_string {
+    my $self = shift;
+	my ($dt) = @_;
+    return NGCP::BulkProcessor::Calendar::datetime_to_string($dt);
+}
+
+sub datetime_from_string {
+    my $self = shift;
+	my ($s,$tz) = @_;
+	return NGCP::BulkProcessor::Calendar::datetime_from_string($s,$tz);
 }
 
 # "The data type is 'sticky' in that bind values passed to execute() are bound with
