@@ -8,7 +8,7 @@ use threads::shared;
 use Thread::Queue;
 
 use Time::HiRes qw(sleep);
-use URI::Escape qw();
+#use URI::Escape qw();
 
 use NGCP::BulkProcessor::Globals qw(
     $enablemultithreading
@@ -27,7 +27,7 @@ use NGCP::BulkProcessor::LogError qw(
     restprocessingfailed
 );
 
-use NGCP::BulkProcessor::Utils qw(threadid);
+use NGCP::BulkProcessor::Utils qw(threadid urlencode urldecode);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -55,7 +55,8 @@ sub get_query_string {
         } else {
             $query .= '&';
         }
-        $query .= URI::Escape::uri_escape($param) . '=' . URI::Escape::uri_escape($filters->{$param});
+        #$query .= URI::Escape::uri_escape($param) . '=' . URI::Escape::uri_escape($filters->{$param});
+        $query .= urlencode($param) . '=' . urlencode($filters->{$param});
     }
     return $query;
 };
