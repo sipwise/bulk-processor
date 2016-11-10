@@ -25,6 +25,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
     insert_row
+    findby_contractid
 );
 
 my $tablename = 'contract_balances';
@@ -59,6 +60,25 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_contractid {
+
+    my ($xa_db,$contract_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contract_id') . ' = ?';
+    my @params = ($contract_id);
+
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 

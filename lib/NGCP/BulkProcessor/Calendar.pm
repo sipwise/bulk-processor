@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::FakeTime;
+package NGCP::BulkProcessor::Calendar;
 use strict;
 
 ## no critic
@@ -28,11 +28,18 @@ our @EXPORT_OK = qw(
     fake_current_unix
     infinite_future
     is_infinite_future
+    infinite_past
+    is_infinite_past
     datetime_to_string
     datetime_from_string
+    set_timezone
 );
 
 my $is_fake_time = 0;
+my $timezone_cache = {};
+my $UTC = DateTime::TimeZone->new(name => 'UTC');
+my $LOCAL = DateTime::TimeZone->new(name => 'local');
+my $FLOATING = DateTime::TimeZone::Floating->new();
 
 sub set_fake_time {
 	my ($o) = @_;
@@ -65,13 +72,9 @@ sub fake_current_unix {
 
 sub _current_local {
 	if ($is_fake_time) {
-		return DateTime->from_epoch(epoch => Time::Warp::time,
-			time_zone => DateTime::TimeZone->new(name => 'local')
-		);
+		return DateTime->from_epoch(epoch => Time::Warp::time, time_zone => $LOCAL);
 	} else {
-		return DateTime->now(
-			time_zone => DateTime::TimeZone->new(name => 'local')
-		);
+		return DateTime->now(time_zone => $LOCAL);
 	}
 }
 
@@ -81,7 +84,7 @@ sub infinite_future {
 		#applying the 'local' timezone takes too long -> "The current implementation of DateTime::TimeZone
 		#will use a huge amount of memory calculating all the DST changes from now until the future date.
 		#Use UTC or the floating time zone and you will be safe."
-		time_zone => DateTime::TimeZone->new(name => 'UTC')
+		time_zone => $UTC
 		#- with floating timezones, the long conversion takes place when comparing with a 'local' dt
 		#- the error due to leap years/seconds is not relevant in comparisons
 	);
@@ -90,6 +93,19 @@ sub infinite_future {
 sub is_infinite_future {
 	my $dt = shift;
 	return $dt->year >= 9999;
+}
+
+sub infinite_past {
+    #mysql 5.5: The supported range is '1000-01-01 00:00:00' ...
+    return DateTime->new(year => 1000, month => 1, day => 1, hour => 0, minute => 0, second => 0,
+        time_zone => $UTC
+    );
+    #$dt->epoch calls should be okay if perl >= 5.12.0
+}
+
+sub is_infinite_past {
+    my $dt = shift;
+    return $dt->year <= 1000;
 }
 
 sub datetime_to_string {
@@ -101,11 +117,28 @@ sub datetime_to_string {
 }
 
 sub datetime_from_string {
-	my $s = shift;
+	my ($s,$tz) = @_;
 	$s =~ s/^(\d{4}\-\d{2}\-\d{2})\s+(\d.+)$/$1T$2/;
 	my $ts = DateTime::Format::ISO8601->parse_datetime($s);
-	$ts->set_time_zone( DateTime::TimeZone->new(name => 'local') );
+    set_timezone($ts,$tz);
 	return $ts;
+}
+
+sub set_timezone {
+    my ($dt,$tz) = @_;
+    return unless defined ($dt);
+    if (defined $tz and length($tz) > 0) {
+        my $timezone;
+        if (exists $timezone_cache->{$tz}) {
+            $timezone = $timezone_cache->{$tz};
+        } else {
+            $timezone = DateTime::TimeZone->new(name => $tz);
+            $timezone_cache->{$tz} = $timezone;
+        }
+        $dt->set_time_zone( $timezone );
+    } else { #floating otherwise.
+        $dt->set_time_zone( $FLOATING );
+    }
 }
 
 sub _set_fake_time {
