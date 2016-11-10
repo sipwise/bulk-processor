@@ -240,10 +240,10 @@ sub update_settings {
         $import_multithreading = $data->{import_multithreading} if exists $data->{import_multithreading};
 
         $features_define_filename = _get_import_filename($features_define_filename,$data,'features_define_filename');
-        $features_define_import_numofthreads =_get_import_numofthreads($cpucount,$data,'features_define_import_numofthreads');
+        $features_define_import_numofthreads =_get_numofthreads($cpucount,$data,'features_define_import_numofthreads');
 
         $subscriber_define_filename = _get_import_filename($subscriber_define_filename,$data,'subscriber_define_filename');
-        $subscriber_define_import_numofthreads = _get_import_numofthreads($cpucount,$data,'subscriber_define_import_numofthreads');
+        $subscriber_define_import_numofthreads = _get_numofthreads($cpucount,$data,'subscriber_define_import_numofthreads');
 
         $subscribernumer_exclude_pattern = $data->{subscribernumer_exclude_pattern} if exists $data->{subscribernumer_exclude_pattern};
         ($regexp_result,$subscribernumer_exclude_pattern) = parse_regexp($subscribernumer_exclude_pattern,$configfile);
@@ -257,16 +257,16 @@ sub update_settings {
         $result &= $regexp_result;
 
         $lnp_define_filename = _get_import_filename($lnp_define_filename,$data,'lnp_define_filename');
-        $lnp_define_import_numofthreads = _get_import_numofthreads($cpucount,$data,'lnp_define_import_numofthreads');
+        $lnp_define_import_numofthreads = _get_numofthreads($cpucount,$data,'lnp_define_import_numofthreads');
 
         $user_password_filename = _get_import_filename($user_password_filename,$data,'user_password_filename');
-        $user_password_import_numofthreads = _get_import_numofthreads($cpucount,$data,'user_password_import_numofthreads');
+        $user_password_import_numofthreads = _get_numofthreads($cpucount,$data,'user_password_import_numofthreads');
 
         $username_prefix = $data->{username_prefix} if exists $data->{username_prefix};
         $min_password_length = $data->{min_password_length} if exists $data->{min_password_length};
 
         $batch_filename = _get_import_filename($batch_filename,$data,'batch_filename');
-        $batch_import_numofthreads = _get_import_numofthreads($cpucount,$data,'batch_import_numofthreads');
+        $batch_import_numofthreads = _get_numofthreads($cpucount,$data,'batch_import_numofthreads');
 
         $reseller_id = $data->{reseller_id} if exists $data->{reseller_id};
         $domain_name = $data->{domain_name} if exists $data->{domain_name};
@@ -285,20 +285,20 @@ sub update_settings {
         $subsciber_username_prefix = $data->{subsciber_username_prefix} if exists $data->{subsciber_username_prefix};
 
         $provision_subscriber_multithreading = $data->{provision_subscriber_multithreading} if exists $data->{provision_subscriber_multithreading};
-        $provision_subscriber_numofthreads = _get_import_numofthreads($cpucount,$data,'provision_subscriber_numofthreads');
+        $provision_subscriber_numofthreads = _get_numofthreads($cpucount,$data,'provision_subscriber_numofthreads');
         $reprovision_upon_password_change = $data->{reprovision_upon_password_change} if exists $data->{reprovision_upon_password_change};
         $always_update_subscriber = $data->{always_update_subscriber} if exists $data->{always_update_subscriber};
 
         $set_barring_profiles_multithreading = $data->{set_barring_profiles_multithreading} if exists $data->{set_barring_profiles_multithreading};
-        $set_barring_profiles_numofthreads = _get_import_numofthreads($cpucount,$data,'set_barring_profiles_numofthreads');
+        $set_barring_profiles_numofthreads = _get_numofthreads($cpucount,$data,'set_barring_profiles_numofthreads');
         $barring_profiles_yml = $data->{barring_profiles_yml} if exists $data->{barring_profiles_yml};
 
         $set_peer_auth_multithreading = $data->{set_peer_auth_multithreading} if exists $data->{set_peer_auth_multithreading};
-        $set_peer_auth_numofthreads = _get_import_numofthreads($cpucount,$data,'set_peer_auth_numofthreads');
+        $set_peer_auth_numofthreads = _get_numofthreads($cpucount,$data,'set_peer_auth_numofthreads');
         $peer_auth_realm = $data->{peer_auth_realm} if exists $data->{peer_auth_realm};
 
         $set_allowed_ips_multithreading = $data->{set_peer_auth_multithreading} if exists $data->{set_allowed_ips_multithreading};
-        $set_allowed_ips_numofthreads = _get_import_numofthreads($cpucount,$data,'set_allowed_ips_numofthreads');
+        $set_allowed_ips_numofthreads = _get_numofthreads($cpucount,$data,'set_allowed_ips_numofthreads');
         $allowed_ips = [ split_tuple($data->{allowed_ips}) ] if exists $data->{allowed_ips};
         foreach my $ipnet (@$allowed_ips) {
             if (not check_ipnet($ipnet)) {
@@ -308,7 +308,7 @@ sub update_settings {
         }
 
         $set_call_forwards_multithreading = $data->{set_call_forwards_multithreading} if exists $data->{set_call_forwards_multithreading};
-        $set_call_forwards_numofthreads = _get_import_numofthreads($cpucount,$data,'set_call_forwards_numofthreads');
+        $set_call_forwards_numofthreads = _get_numofthreads($cpucount,$data,'set_call_forwards_numofthreads');
         $cfb_priorities = [ split_tuple($data->{cfb_priorities}) ] if exists $data->{cfb_priorities};
         $cfb_timeouts = [ split_tuple($data->{cfb_timeouts}) ] if exists $data->{cfb_timeouts};
         $cfu_priorities = [ split_tuple($data->{cfu_priorities}) ] if exists $data->{cfu_priorities};
@@ -330,11 +330,11 @@ sub update_settings {
         }
 
         $create_lnps_multithreading = $data->{create_lnps_multithreading} if exists $data->{create_lnps_multithreading};
-        $create_lnps_numofthreads = _get_import_numofthreads($cpucount,$data,'create_lnps_numofthreads');
+        $create_lnps_numofthreads = _get_numofthreads($cpucount,$data,'create_lnps_numofthreads');
         $create_lnp_block_txn = $data->{create_lnp_block_txn} if exists $data->{create_lnp_block_txn};
 
         $set_preference_bulk_multithreading = $data->{set_preference_bulk_multithreading} if exists $data->{set_preference_bulk_multithreading};
-        $set_preference_bulk_numofthreads = _get_import_numofthreads($cpucount,$data,'set_preference_bulk_numofthreads');
+        $set_preference_bulk_numofthreads = _get_numofthreads($cpucount,$data,'set_preference_bulk_numofthreads');
         $concurrent_max_total = $data->{concurrent_max_total} if exists $data->{concurrent_max_total};
         if (defined $concurrent_max_total and $concurrent_max_total <= 0) {
             configurationerror($configfile,'empty concurrent_max_total or greater than 0 required',getlogger(__PACKAGE__));
@@ -388,7 +388,7 @@ sub _prepare_working_paths {
 
 }
 
-sub _get_import_numofthreads {
+sub _get_numofthreads {
     my ($default_value,$data,$key) = @_;
     my $import_numofthreads = $default_value;
     $import_numofthreads = $data->{$key} if exists $data->{$key};
