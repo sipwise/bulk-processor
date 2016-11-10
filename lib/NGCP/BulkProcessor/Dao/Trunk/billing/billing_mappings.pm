@@ -25,6 +25,8 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
     insert_row
+
+    findby_contractid_ts
 );
 
 my $tablename = 'billing_mappings';
@@ -53,6 +55,32 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_contractid_ts {
+
+    my ($xa_db,$contract_id,$dt,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contract_id') . ' = ?';
+    my @params = ($contract_id);
+    if (defined $dt) {
+        $stmt .= ' AND (' . $db->columnidentifier('start_date') . ' IS NULL OR ' . $db->columnidentifier('start_date') . ' <= ? ) ' .
+            'AND (' . $db->columnidentifier('end_date') . ' IS NULL OR ' . $db->columnidentifier('end_date') . ' >= ? ) ' .
+            'ORDER BY ' . $db->columnidentifier('start_date') . ' DESC, ' . $db->columnidentifier('id') . ' DESC LIMIT 1';
+        push(@params, $db->datetime_to_string($dt) );
+        push(@params, $db->datetime_to_string($dt) );
+    }
+
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
