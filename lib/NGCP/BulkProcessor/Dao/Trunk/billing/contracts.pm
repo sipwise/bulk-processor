@@ -10,12 +10,15 @@ use NGCP::BulkProcessor::Logging qw(
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
+    destroy_dbs
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     insert_record
     copy_row
+
+    process_table
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -27,6 +30,8 @@ our @EXPORT_OK = qw(
     insert_row
 
     countby_status_resellerid
+
+    rocess_records
 
     $ACTIVE_STATE
     $TERMINATED_STATE
@@ -138,6 +143,44 @@ sub insert_row {
     return undef;
 
 }
+
+sub process_records {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads,
+        $load_recursive) = @params{qw/
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+            load_recursive
+        /};
+
+    check_table();
+
+    return process_table(
+        get_db                      => $get_db,
+        class                       => __PACKAGE__,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,buildrecords_fromrows($rowblock,$load_recursive),$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_dbs,
+        multithreading              => $multithreading,
+        tableprocessing_threads     => $numofthreads,
+    );
+}
+
 
 sub buildrecords_fromrows {
 
