@@ -24,7 +24,7 @@ use NGCP::BulkProcessor::LogError qw(
 
 use NGCP::BulkProcessor::RestConnector qw(_add_headers);
 
-use NGCP::BulkProcessor::FakeTime qw(get_fake_now_string);
+use NGCP::BulkProcessor::Calendar qw(get_fake_now_string);
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::RestConnector);
