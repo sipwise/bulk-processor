@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances;
+package NGCP::BulkProcessor::Dao::mr38::billing::contract_balances;
 use strict;
 
 ## no critic
@@ -42,13 +42,13 @@ my $expected_fieldnames = [
     'cash_balance_interval',
     'free_time_balance',
     'free_time_balance_interval',
-    'topup_count',
-    'timely_topup_count',
+    #'topup_count',
+    #'timely_topup_count',
     'start',
     'end',
     'invoice_id',
-    'underrun_profiles',
-    'underrun_lock',
+    #'underrun_profiles',
+    #'underrun_lock',
 ];
 
 my $indexes = {};
@@ -109,18 +109,20 @@ sub insert_row {
                 $db->columnidentifier('end') . ', ' .
                 $db->columnidentifier('free_time_balance') . ', ' .
                 $db->columnidentifier('free_time_balance_interval') . ', ' .
-                $db->columnidentifier('start') . ', ' .
-                $db->columnidentifier('underrun_lock') . ', ' .
-                $db->columnidentifier('underrun_profiles') . ') VALUES (' .
+                $db->columnidentifier('start') . ') VALUES (' .
+                #$db->columnidentifier('start') . ', ' .
+                #$db->columnidentifier('underrun_lock') . ', ' .
+                #$db->columnidentifier('underrun_profiles') . ') VALUES (' .
                 '0.0, ' .
                 '0.0, ' .
                 '?, ' .
                 'CONCAT(LAST_DAY(NOW()),\' 23:59:59\'), ' .
                 '0, ' .
                 '0, ' .
-                'CONCAT(SUBDATE(CURDATE(),(DAY(CURDATE())-1)),\' 00:00:00\'), ' .
-                'NULL, ' .
-                'NULL)',
+                'CONCAT(SUBDATE(CURDATE(),(DAY(CURDATE())-1)),\' 00:00:00\')',
+                #'CONCAT(SUBDATE(CURDATE(),(DAY(CURDATE())-1)),\' 00:00:00\'), ' .
+                #'NULL, ' .
+                #'NULL)',
                 $contract_id,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
