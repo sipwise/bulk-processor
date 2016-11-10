@@ -3,6 +3,8 @@ use strict;
 
 ## no critic
 
+use DateTime qw();
+
 use NGCP::BulkProcessor::Logging qw(
     getlogger
     rowinserted
@@ -18,6 +20,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
+use NGCP::BulkProcessor::Calendar qw(is_infinite_future datetime_from_string infinite_future set_timezone);
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -25,6 +28,8 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
     insert_row
+    findby_contractid
+    sort_by_end
 );
 
 my $tablename = 'contract_balances';
@@ -59,6 +64,25 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_contractid {
+
+    my ($xa_db,$contract_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contract_id') . ' = ?';
+    my @params = ($contract_id);
+
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
@@ -119,12 +143,48 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            my $end = datetime_from_string($record->{end},undef);
+            if (is_infinite_future($end)) {
+                $record->{_end} = infinite_future();
+            } else {
+                $record->{_end} = set_timezone($end);
+            }
+
+            $record->{_start} = datetime_from_string($record->{start},'local');
 
             push @records,$record;
         }
     }
 
     return \@records;
+
+}
+
+sub sort_by_end ($$) {
+    return _sort_by_date('_end',0,@_);
+}
+
+sub _sort_by_date {
+    my ($ts_field,$desc,$a,$b) = @_;
+    if ($desc) {
+        $desc = -1;
+    } else {
+        $desc = 1;
+    }
+    #use Data::Dumper;
+    #print Dumper($a);
+    #print Dumper($b);
+    my $a_inf = is_infinite_future($a->{$ts_field});
+    my $b_inf = is_infinite_future($b->{$ts_field});
+    if ($a_inf and $b_inf) {
+        return 0;
+    } elsif ($a_inf) {
+        return 1 * $desc;
+    } elsif ($b_inf) {
+        return -1 * $desc;
+    } else {
+        return DateTime->compare($a->{$ts_field}, $b->{$ts_field}) * $desc;
+    }
 
 }
 
