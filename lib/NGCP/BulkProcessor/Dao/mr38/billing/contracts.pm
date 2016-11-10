@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contracts;
+package NGCP::BulkProcessor::Dao::mr38::billing::contracts;
 use strict;
 
 ## no critic
@@ -45,7 +45,7 @@ my $expected_fieldnames = [
     'customer_id',
     'contact_id',
     'order_id',
-    'profile_package_id',
+    #'profile_package_id',
     'status',
     'external_id',
     'modify_timestamp',
