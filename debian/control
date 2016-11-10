@@ -15,7 +15,6 @@ Replaces:
 Breaks:
  ngcp-bulk-processor-pro,
 Depends:
- libany-uri-escape-perl,
  libarchive-zip-perl,
  libconfig-any-perl,
  libdata-dump-perl,
