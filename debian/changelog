@@ -1,3 +1,19 @@
+ngcp-bulk-processor (5.0.1.0+0~mr5.0.1.0) unstable; urgency=medium
+
+  [ Alexander Lutay ]
+  * [d5ed3fd] TT#4910 Rename ngcp-bulk-processor-pro to ngcp-bulk-processor
+
+  [ Rene Krenn ]
+  * [65db122] TT#4910 tap test error
+
+  [ Michael Prokop ]
+  * [47101f8] TT#6428 Build-Depend on libmodule-build-perl
+  * [f561765] TT#5419 Update Debian packaging policy to 3.9.8
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 17 Nov 2016 23:08:10 +0100
+
 ngcp-bulk-processor (5.0.0.0+0~mr5.0.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
