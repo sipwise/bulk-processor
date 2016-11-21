@@ -16,6 +16,24 @@
       "revId": "f1d85f7e627d85f352ebcbb37de8c3c228d624da",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "ba51214e_ff120157",
+        "filename": "lib/NGCP/BulkProcessor/Dao/Trunk/billing/contracts.pm",
+        "patchSetId": 19
+      },
+      "lineNbr": 34,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2016-11-21T13:36:04Z",
+      "side": 1,
+      "message": "ack, thx!",
+      "parentUuid": "ba51214e_d083b2ca",
+      "revId": "f1d85f7e627d85f352ebcbb37de8c3c228d624da",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
