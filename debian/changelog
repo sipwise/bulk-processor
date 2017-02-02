@@ -1,3 +1,12 @@
+ngcp-bulk-processor (5.1.1.0+0~mr5.1.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [c752162] TT#5569 contract_balance gap recovery for mr3.8
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 03 Feb 2017 00:27:22 +0100
+
 ngcp-bulk-processor (5.1.0.0+0~mr5.1.0.0) unstable; urgency=medium
 
   [ Alexander Lutay ]
