@@ -740,6 +740,7 @@ sub transfer_table {
         $texttable_engine,
         $fixtable_statements,
         $multithreading,
+        $blocksize,
         $destroy_source_dbs_code,
         $destroy_target_dbs_code,
         $selectcount,
@@ -755,6 +756,7 @@ sub transfer_table {
             texttable_engine
             fixtable_statements
             multithreading
+            blocksize
             destroy_source_dbs_code
             destroy_target_dbs_code
             selectcount
@@ -813,11 +815,9 @@ sub transfer_table {
 
             my $insertstatement = 'INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . $valueplaceholders . ')';
 
-            my $blocksize;
-
             if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $target_db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
 
-                $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,1,$tabletransfer_threadqueuelength);
+                $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,1,$tabletransfer_threadqueuelength);
 
                 my $reader;
                 my $writer;
@@ -895,7 +895,7 @@ sub transfer_table {
 
             } else {
 
-                $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
+                $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
 
                 #$db->db_disconnect();
                 #undef $db;
@@ -1027,6 +1027,7 @@ sub process_table {
         $init_process_context_code,
         $uninit_process_context_code,
         $multithreading,
+        $blocksize,
         $tableprocessing_threads,
         $destroy_reader_dbs_code,
         $selectcount,
@@ -1039,6 +1040,7 @@ sub process_table {
             init_process_context_code
             uninit_process_context_code
             multithreading
+            blocksize
             tableprocessing_threads
             destroy_reader_dbs_code
             selectcount
@@ -1082,12 +1084,12 @@ sub process_table {
         }
 
         my $errorstate = $RUNNING;
-        my $blocksize;
+        #my $blocksize;
 
         if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
 
             $tableprocessing_threads //= $cpucount;
-            $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,1,$tableprocessing_threadqueuelength);
+            $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,1,$tableprocessing_threadqueuelength);
 
             my $reader;
             #my $processor;
@@ -1196,7 +1198,7 @@ sub process_table {
 
         } else {
 
-            $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
+            $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
             #$db->db_disconnect();
             #undef $db;
             #$db = &$get_db($reader_connection_name);
