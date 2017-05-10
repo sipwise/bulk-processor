@@ -70,6 +70,7 @@ my $builder = Module::Build->new(
         #'DBD::Pg'                                               => '2.17.2',
         #'DBD::ODBC'                                             => '1.50',
         'DBD::SQLite'                                           => '1.29',
+        'IO::Uncompress::Unzip'                                 => 0,
     },
     test_requires => {
         'Module::Runtime'                                       => 0,

@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::FileProcessors::CSVFile;
+package NGCP::BulkProcessor::FileProcessors::CSVFileSimple;
 use strict;
 
 ## no critic
