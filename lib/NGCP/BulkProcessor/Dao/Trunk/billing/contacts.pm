@@ -15,6 +15,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     insert_record
+    update_record
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
@@ -25,6 +26,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
     insert_row
+    update_row
 );
 
 my $tablename = 'contacts';
@@ -78,6 +80,15 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub update_row {
+
+    my ($xa_db,$data) = @_;
+
+    check_table();
+    return update_record($get_db,$xa_db,__PACKAGE__,$data);
 
 }
 
