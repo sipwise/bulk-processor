@@ -30,6 +30,7 @@ our @EXPORT_OK = qw(
     insert_row
     update_row
 
+    findby_subscriberid
     forupdate_cc_ac_sn_subscriberid
     release_subscriber_numbers
 
@@ -66,6 +67,25 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+
+sub findby_subscriberid {
+
+    my ($xa_db,$subscriber_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+        $db->columnidentifier('subscriber_id') . ' = ?';
+    my @params = ($subscriber_id);
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
