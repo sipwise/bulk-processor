@@ -18,7 +18,7 @@ use NGCP::BulkProcessor::Logging qw(
     filethreadingdebug
     fileprocessingstarted
     fileprocessingdone
-    fetching_lines
+    lines_read
     processing_lines
 );
 
@@ -210,7 +210,8 @@ sub process {
 
                 my $i = 0;
                 while (1) {
-                    fetching_lines($file,$i,$self->{blocksize},getlogger(__PACKAGE__));
+                    #fetching_lines($file,$i,$self->{blocksize},undef,getlogger(__PACKAGE__));
+                    my $block_n = 0;
                     my @lines = ();
                     while ((scalar @lines) < $self->{blocksize} and defined ($n = read(INPUTFILE,$chunk,$self->{buffersize})) and $n != 0) {
                         if (defined $buffer) {
@@ -219,8 +220,10 @@ sub process {
                             $buffer = $chunk;
                         }
                         $context->{charsread} += $n;
+                        $block_n += $n;
                         last unless &$extractlines_code($context,\$buffer,\@lines);
                     }
+                    lines_read($file,$i,$self->{blocksize},$block_n,getlogger(__PACKAGE__));
 
                     if (not defined $n) {
                         fileerror('processing file - error reading file ' . $file . ': ' . $!,getlogger(__PACKAGE__));
@@ -233,12 +236,12 @@ sub process {
                         my @rowblock = ();
                         foreach my $line (@lines) {
                             $context->{linesread} += 1;
-                            my $row = &$extractfields_code($context,\$line);
+                            my $row = &$extractfields_code($context,(ref $line ? $line : \$line));
                             push(@rowblock,$row) if defined $row;
                         }
                         my $realblocksize = scalar @rowblock;
                         if ($realblocksize > 0) {
-                            processing_lines($tid,$i,$realblocksize,getlogger(__PACKAGE__));
+                            processing_lines($tid,$i,$realblocksize,undef,getlogger(__PACKAGE__));
                             #processing_rows($tid,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
 
                             $rowblock_result = &$process_code($context,\@rowblock,$i);
@@ -338,7 +341,8 @@ sub _reader {
         my $i = 0;
         my $state = $RUNNING; #start at first
         while (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0) { #as long there is one running consumer and no defunct consumer
-            fetching_lines($context->{filename},$i,$context->{instance}->{blocksize},getlogger(__PACKAGE__));
+            #fetching_lines($context->{filename},$i,$context->{instance}->{blocksize},undef,getlogger(__PACKAGE__));
+            my $block_n = 0;
             my @lines = ();
             while ((scalar @lines) < $context->{instance}->{blocksize} and defined ($n = read(INPUTFILE_READER,$chunk,$context->{instance}->{buffersize})) and $n != 0) {
                 if (defined $buffer) {
@@ -347,9 +351,11 @@ sub _reader {
                     $buffer = $chunk;
                 }
                 $context->{charsread} += 1;
+                $block_n += $n;
                 last unless &$extractlines_code($context,\$buffer,\@lines);
                 yield();
             }
+            lines_read($context->{filename},$i,$context->{instance}->{blocksize},$block_n,getlogger(__PACKAGE__));
             if (not defined $n) {
                 fileerror('processing file - error reading file ' . $context->{filename} . ': ' . $!,getlogger(__PACKAGE__));
                 close(INPUTFILE_READER);
@@ -361,7 +367,7 @@ sub _reader {
                 my @rowblock :shared = ();
                 foreach my $line (@lines) {
                     $context->{linesread} += 1;
-                    my $row = &$extractfields_code($context,\$line);
+                    my $row = &$extractfields_code($context,(ref $line ? $line : \$line));
                     push(@rowblock,shared_clone($row)) if defined $row;
                     yield();
                 }
@@ -370,6 +376,7 @@ sub _reader {
                 $packet{rows} = \@rowblock;
                 $packet{size} = $realblocksize;
                 $packet{row_offset} = $i;
+                $packet{block_n} = $block_n;
                 if ($realblocksize > 0) {
                     $context->{queue}->enqueue(\%packet); #$packet);
                     $blockcount++;
@@ -433,7 +440,7 @@ sub _process {
             if (defined $packet) {
                 if ($packet->{size} > 0) {
 
-                    processing_lines($tid,$packet->{row_offset},$packet->{size},getlogger(__PACKAGE__));
+                    processing_lines($tid,$packet->{row_offset},$packet->{size},undef,getlogger(__PACKAGE__));
 
                     $rowblock_result = &{$context->{process_code}}($context, $packet->{rows},$packet->{row_offset});
 
