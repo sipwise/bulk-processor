@@ -297,7 +297,7 @@ sub update_settings {
         $set_peer_auth_numofthreads = _get_numofthreads($cpucount,$data,'set_peer_auth_numofthreads');
         $peer_auth_realm = $data->{peer_auth_realm} if exists $data->{peer_auth_realm};
 
-        $set_allowed_ips_multithreading = $data->{set_peer_auth_multithreading} if exists $data->{set_allowed_ips_multithreading};
+        $set_allowed_ips_multithreading = $data->{set_allowed_ips_multithreading} if exists $data->{set_allowed_ips_multithreading};
         $set_allowed_ips_numofthreads = _get_numofthreads($cpucount,$data,'set_allowed_ips_numofthreads');
         $allowed_ips = [ split_tuple($data->{allowed_ips}) ] if exists $data->{allowed_ips};
         foreach my $ipnet (@$allowed_ips) {
