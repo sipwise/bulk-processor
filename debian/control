@@ -60,6 +60,7 @@ Depends:
  libxml-dumper-perl,
  libxml-libxml-perl,
  libyaml-libyaml-perl,
+ libio-compress-perl,
  perl,
  ${misc:Depends},
  ${perl:Depends},
