@@ -233,7 +233,7 @@ sub process {
                         my @rowblock = ();
                         foreach my $line (@lines) {
                             $context->{linesread} += 1;
-                            my $row = &$extractfields_code($context,\$line);
+                            my $row = &$extractfields_code($context,(ref $line ? $line : \$line));
                             push(@rowblock,$row) if defined $row;
                         }
                         my $realblocksize = scalar @rowblock;
@@ -361,7 +361,7 @@ sub _reader {
                 my @rowblock :shared = ();
                 foreach my $line (@lines) {
                     $context->{linesread} += 1;
-                    my $row = &$extractfields_code($context,\$line);
+                    my $row = &$extractfields_code($context,(ref $line ? $line : \$line));
                     push(@rowblock,shared_clone($row)) if defined $row;
                     yield();
                 }
