@@ -21,6 +21,7 @@ our @EXPORT_OK = qw(
     check_table
 
     findby_id
+    findby_resellerid_name_handle
 );
 
 my $tablename = 'billing_profiles';
@@ -79,6 +80,38 @@ sub findby_id {
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub findby_resellerid_name_handle {
+
+    my ($reseller_id,$name,$handle,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    if ($reseller_id) {
+        push(@terms,$db->columnidentifier('reseller_id') . ' = ?');
+        push(@params,$reseller_id);
+    }
+    if ($name) {
+        push(@terms,$db->columnidentifier('name') . ' = ?');
+        push(@params,$name);
+    }
+    if ($handle) {
+        push(@terms,$db->columnidentifier('handle') . ' = ?');
+        push(@params,$handle);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
+    }
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
