@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::domains;
+package NGCP::BulkProcessor::Dao::Trunk::billing::resellers;
 use strict;
 
 ## no critic
@@ -20,16 +20,18 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_domain
+    findby_name
     findby_id
 );
 
-my $tablename = 'domains';
+my $tablename = 'resellers';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'domain',
+    'contract_id',
+    'name',
+    'status',
 ];
 
 my $indexes = {};
@@ -46,17 +48,17 @@ sub new {
 
 }
 
-sub findby_domain {
+sub findby_name {
 
-    my ($domain,$load_recursive) = @_;
+    my ($name,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
+            $db->columnidentifier('name') . ' = ?';
+    my @params = ($name);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
