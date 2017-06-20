@@ -33,7 +33,6 @@ my $builder = Module::Build->new(
         'Data::Validate::IP'                                    => 0,
 
         'Config::Any'                                           => 0,
-        'YAML::Tiny'                                            => 0,
         'Log::Log4Perl'                                         => 0,
         'MIME::Base64'                                          => 0,
         'MIME::Lite'                                            => 0,

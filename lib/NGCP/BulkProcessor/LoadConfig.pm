@@ -28,7 +28,7 @@ use NGCP::BulkProcessor::LogError qw(
     configurationerror
 );
 
-use YAML::Tiny qw();
+use YAML::XS qw();
 use Config::Any qw();
 use NGCP::BulkProcessor::Utils qw(format_number trim);
 
@@ -254,7 +254,7 @@ sub _parse_yaml_config {
 
     my $config = undef;
     eval {
-        $config = YAML::Tiny->read($file);
+        $config = YAML::XS::LoadFile($file);
     };
     if ($@) {
         configurationerror($file,'parsing yaml format - error: ' . $@,getlogger(__PACKAGE__));
