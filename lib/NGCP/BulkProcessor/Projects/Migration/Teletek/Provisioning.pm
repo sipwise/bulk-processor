@@ -122,7 +122,8 @@ sub provision_subscribers {
         uninit_process_context_code => sub {
             my ($context)= @_;
             undef $context->{db};
-            print('non-unique contacts: ' . join("\n",keys %{$context->{nonunique_contacts}}));
+            _warn($context,'non-unique contacts: ' . join("\n",keys %{$context->{nonunique_contacts}}))
+                if (scalar keys %{$context->{nonunique_contacts}}) > 0;
             destroy_all_dbs();
             {
                 lock $warning_count;
@@ -240,7 +241,7 @@ sub _provision_subscribers_checks {
                     $context->{reseller_map}->{$resellername} = NGCP::BulkProcessor::Dao::Trunk::billing::resellers::findby_name($resellername);
                 };
                 if ($@ or not $context->{reseller_map}->{$resellername}) {
-                    rowprocessingerror(threadid(),"cannot find reseller $resellername",getlogger(__PACKAGE__));
+                    rowprocessingerror(threadid(),"cannot find reseller '$resellername'",getlogger(__PACKAGE__));
                     $result = 0; #even in skip-error mode..
                 } else {
                     $context->{reseller_map}->{$resellername}->{billingprofile_map} = {};
@@ -251,7 +252,7 @@ sub _provision_subscribers_checks {
                     $context->{domain_map}->{$domain} = NGCP::BulkProcessor::Dao::Trunk::billing::domains::findby_domain($domain);
                 };
                 if ($@ or not $context->{domain_map}->{$domain}) {
-                    rowprocessingerror(threadid(),"cannot find domain $domain (billing)",getlogger(__PACKAGE__));
+                    rowprocessingerror(threadid(),"cannot find domain '$domain' (billing)",getlogger(__PACKAGE__));
                     $result = 0; #even in skip-error mode..
                 } else {
                     eval {
@@ -259,7 +260,7 @@ sub _provision_subscribers_checks {
                             NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_domain($domain);
                     };
                     if ($@ or not $context->{domain_map}->{$domain}->{prov_domain}) {
-                        rowprocessingerror(threadid(),"cannot find domain $domain (provisioning)",getlogger(__PACKAGE__));
+                        rowprocessingerror(threadid(),"cannot find domain '$domain' (provisioning)",getlogger(__PACKAGE__));
                         $result = 0; #even in skip-error mode..
                     }
                 }
@@ -286,7 +287,7 @@ sub _provision_subscribers_checks {
                         )->[0];
                 };
                 if ($@ or not $context->{reseller_map}->{$resellername}->{billingprofile_map}->{$billingprofilename}) {
-                    rowprocessingerror(threadid(),"cannot find billing profile $billingprofilename of reseller $resellername",getlogger(__PACKAGE__));
+                    rowprocessingerror(threadid(),"cannot find billing profile '$billingprofilename' of reseller '$resellername'",getlogger(__PACKAGE__));
                     $result = 0; #even in skip-error mode..
                 }
             }

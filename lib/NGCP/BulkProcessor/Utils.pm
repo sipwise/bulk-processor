@@ -107,7 +107,7 @@ our @EXPORT_OK = qw(
     check_ipnet
 );
 
-our $chmod_umask = 0644;
+our $chmod_umask = 0777;
 
 my $default_epsilon = 1e-3; #float comparison tolerance
 
