@@ -66,6 +66,16 @@ sub new {
 
 }
 
+sub process {
+
+    my $self = shift;
+
+    $self->{line_number} = 1;
+
+    return $self->SUPER::process(@_);
+
+}
+
 sub extractlines {
     my ($context,$buffer_ref,$lines) = @_;
 

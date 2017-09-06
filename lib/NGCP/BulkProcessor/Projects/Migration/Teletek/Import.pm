@@ -51,11 +51,13 @@ our @EXPORT_OK = qw(
 
 sub import_subscriber {
 
-    my ($file) = @_;
+    my (@files) = @_;
 
     my $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::create_table(0);
 
-    $result &= _import_subscriber_checks($file);
+    foreach my $file (@files) {
+        $result &= _import_subscriber_checks($file);
+    }
 
     my $importer = NGCP::BulkProcessor::Projects::Migration::Teletek::FileProcessors::CSVFile->new($subscriber_import_numofthreads);
 
@@ -63,108 +65,112 @@ sub import_subscriber {
 
     destroy_all_dbs(); #close all db connections before forking..
     my $warning_count :shared = 0;
-    return ($result && $importer->process(
-        file => $file,
-        process_code => sub {
-            my ($context,$rows,$row_offset) = @_;
-            my $rownum = $row_offset;
-            my @subscriber_rows = ();
-            foreach my $row (@$rows) {
-                $rownum++;
-                next if (scalar @$row) == 0;
-                my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber->new($row);
-                $record->{rownum} = $rownum;
-                my @subscriber_row;
-                my %r;
-                if ($subscriber_import_unfold_ranges and $record->{sn} =~ /\.+$/) {
-                    #if ($record->{sn} == '2861..') {
-                    #print "x";
-                    #}
-                    my $pow = scalar (() = $record->{sn} =~ /\./g);
-                    _warn($context,"number range $record->{sn} results in " . 10**$pow . ' numbers') if $pow > 2;
-                    $record->{sn} =~ s/\.+$//g;
-                    $record->{range} = 0;
-                    %r = %$record; $record->{contact_hash} = get_rowhash([@r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::contact_fieldnames}]);
-                    my $base_sn = $record->{sn};
-                    %r = %$record; @subscriber_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::fieldnames};
-                    if ($context->{upsert}) {
-                        push(@subscriber_row,$record->{cc},$record->{ac},$record->{sn});
-                    } else {
-                        push(@subscriber_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::added_delta);
-                    }
-                    push(@subscriber_rows, [@subscriber_row]);
-                    for (my $i = 0; $i < 10**$pow; $i++) {
-                        $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber->new($record);
-                        #@subscriber_row = @$row;
-                        $record->{sn} = $base_sn . zerofill($i,$pow);
-                        $record->{range} = 1;
+    foreach my $file (@files) {
+        $result &= $importer->process(
+            file => $file,
+            process_code => sub {
+                my ($context,$rows,$row_offset) = @_;
+                my $rownum = $row_offset;
+                my @subscriber_rows = ();
+                foreach my $row (@$rows) {
+                    $rownum++;
+                    next if (scalar @$row) == 0;
+                    my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber->new($row);
+                    $record->{rownum} = $rownum;
+                    my @subscriber_row;
+                    my %r;
+                    if ($subscriber_import_unfold_ranges and $record->{sn} =~ /\.+$/) {
+                        #if ($record->{sn} == '2861..') {
+                        #print "x";
+                        #}
+                        my $pow = scalar (() = $record->{sn} =~ /\./g);
+                        _warn($context,"number range $record->{sn} results in " . 10**$pow . ' numbers') if $pow > 2;
+                        $record->{sn} =~ s/\.+$//g;
+                        $record->{range} = 0;
+                        %r = %$record; $record->{contact_hash} = get_rowhash([@r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::contact_fieldnames}]);
+                        my $base_sn = $record->{sn};
                         %r = %$record; @subscriber_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::fieldnames};
                         if ($context->{upsert}) {
                             push(@subscriber_row,$record->{cc},$record->{ac},$record->{sn});
                         } else {
                             push(@subscriber_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::added_delta);
                         }
-                        push(@subscriber_rows,[@subscriber_row]);
-                    }
-                    #if ($base_sn == '2861') {
-                    #print "x";
-                    #last;
-                    #}
+                        push(@subscriber_rows, [@subscriber_row]);
+                        for (my $i = 0; $i < 10**$pow; $i++) {
+                            $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber->new($record);
+                            #@subscriber_row = @$row;
+                            $record->{sn} = $base_sn . zerofill($i,$pow);
+                            $record->{range} = 1;
+                            %r = %$record; @subscriber_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::fieldnames};
+                            if ($context->{upsert}) {
+                                push(@subscriber_row,$record->{cc},$record->{ac},$record->{sn});
+                            } else {
+                                push(@subscriber_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::added_delta);
+                            }
+                            push(@subscriber_rows,[@subscriber_row]);
+                        }
+                        #if ($base_sn == '2861') {
+                        #print "x";
+                        #last;
+                        #}
 
-                } else {
-                    $record->{range} = 0;
-                    %r = %$record; $record->{contact_hash} = get_rowhash([@r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::contact_fieldnames}]);
-                    %r = %$record; @subscriber_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::fieldnames};
-                    if ($context->{upsert}) {
-                        push(@subscriber_row,$record->{cc},$record->{ac},$record->{sn});
                     } else {
-                        push(@subscriber_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::added_delta);
+                        $record->{range} = 0;
+                        %r = %$record; $record->{contact_hash} = get_rowhash([@r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::contact_fieldnames}]);
+                        %r = %$record; @subscriber_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::fieldnames};
+                        if ($context->{upsert}) {
+                            push(@subscriber_row,$record->{cc},$record->{ac},$record->{sn});
+                        } else {
+                            push(@subscriber_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::added_delta);
+                        }
+                        push(@subscriber_rows,\@subscriber_row);
                     }
-                    push(@subscriber_rows,\@subscriber_row);
                 }
-            }
 
-            if ((scalar @subscriber_rows) > 0) {
-                if ($subscriber_import_single_row_txn) {
-                    foreach my $subscriber_row (@subscriber_rows) {
+                if ((scalar @subscriber_rows) > 0) {
+                    if ($subscriber_import_single_row_txn) {
+                        foreach my $subscriber_row (@subscriber_rows) {
+                            if ($skip_errors) {
+                                eval { _insert_subscriber_rows($context,[$subscriber_row]); };
+                                _warn($context,$@) if $@;
+                            } else {
+                                _insert_subscriber_rows($context,[$subscriber_row]);
+                            }
+                        }
+                    } else {
                         if ($skip_errors) {
-                            eval { _insert_subscriber_rows($context,[$subscriber_row]); };
+                            eval { _insert_subscriber_rows($context,\@subscriber_rows); };
                             _warn($context,$@) if $@;
                         } else {
-                            _insert_subscriber_rows($context,[$subscriber_row]);
+                            _insert_subscriber_rows($context,\@subscriber_rows);
                         }
                     }
-                } else {
-                    if ($skip_errors) {
-                        eval { _insert_subscriber_rows($context,\@subscriber_rows); };
-                        _warn($context,$@) if $@;
-                    } else {
-                        _insert_subscriber_rows($context,\@subscriber_rows);
-                    }
                 }
-            }
-#use Data::Dumper;
-#print Dumper(\@subscriber_rows);
-            return 1;
-        },
-        init_process_context_code => sub {
-            my ($context)= @_;
-            $context->{db} = &get_import_db(); # keep ref count low..
-            $context->{upsert} = $upsert;
-            $context->{error_count} = 0;
-            $context->{warning_count} = 0;
-        },
-        uninit_process_context_code => sub {
-            my ($context)= @_;
-            undef $context->{db};
-            destroy_all_dbs();
-            {
-                lock $warning_count;
-                $warning_count += $context->{warning_count};
-            }
-        },
-        multithreading => $import_multithreading
-    ),$warning_count);
+    #use Data::Dumper;
+    #print Dumper(\@subscriber_rows);
+                return 1;
+            },
+            init_process_context_code => sub {
+                my ($context)= @_;
+                $context->{db} = &get_import_db(); # keep ref count low..
+                $context->{upsert} = $upsert;
+                $context->{error_count} = 0;
+                $context->{warning_count} = 0;
+            },
+            uninit_process_context_code => sub {
+                my ($context)= @_;
+                undef $context->{db};
+                destroy_all_dbs();
+                {
+                    lock $warning_count;
+                    $warning_count += $context->{warning_count};
+                }
+            },
+            multithreading => $import_multithreading
+        );
+    }
+
+    return ($result,$warning_count);
 
 }
 
@@ -242,11 +248,13 @@ sub _insert_subscriber_rows {
 
 sub import_allowedcli {
 
-    my ($file) = @_;
+    my (@files) = @_;
 
     my $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::create_table(0);
 
-    $result &= _import_allowedcli_checks($file);
+    foreach my $file (@files) {
+        $result &= _import_allowedcli_checks($file);
+    }
 
     my $importer = NGCP::BulkProcessor::Projects::Migration::Teletek::FileProcessors::CSVFile->new($allowedcli_import_numofthreads);
 
@@ -254,67 +262,71 @@ sub import_allowedcli {
 
     destroy_all_dbs(); #close all db connections before forking..
     my $warning_count :shared = 0;
-    return ($result && $importer->process(
-        file => $file,
-        process_code => sub {
-            my ($context,$rows,$row_offset) = @_;
-            my $rownum = $row_offset;
-            my @allowedcli_rows = ();
-            foreach my $row (@$rows) {
-                $rownum++;
-                next if (scalar @$row) == 0;
-                my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli->new($row);
-                $record->{rownum} = $rownum;
-                my %r = %$record; my @allowedcli_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::fieldnames};
-                if ($context->{upsert}) {
-                    push(@allowedcli_row,$record->{cc},$record->{ac},$record->{sn});
-                } else {
-                    push(@allowedcli_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::added_delta);
+    foreach my $file (@files) {
+        $result &= $importer->process(
+            file => $file,
+            process_code => sub {
+                my ($context,$rows,$row_offset) = @_;
+                my $rownum = $row_offset;
+                my @allowedcli_rows = ();
+                foreach my $row (@$rows) {
+                    $rownum++;
+                    next if (scalar @$row) == 0;
+                    my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli->new($row);
+                    $record->{rownum} = $rownum;
+                    my %r = %$record; my @allowedcli_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::fieldnames};
+                    if ($context->{upsert}) {
+                        push(@allowedcli_row,$record->{cc},$record->{ac},$record->{sn});
+                    } else {
+                        push(@allowedcli_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::added_delta);
+                    }
+                    push(@allowedcli_rows,\@allowedcli_row);
                 }
-                push(@allowedcli_rows,\@allowedcli_row);
-            }
 
-            if ((scalar @allowedcli_rows) > 0) {
-                if ($allowedcli_import_single_row_txn) {
-                    foreach my $allowedcli_row (@allowedcli_rows) {
+                if ((scalar @allowedcli_rows) > 0) {
+                    if ($allowedcli_import_single_row_txn) {
+                        foreach my $allowedcli_row (@allowedcli_rows) {
+                            if ($skip_errors) {
+                                eval { _insert_allowedcli_rows($context,[$allowedcli_row]); };
+                                _warn($context,$@) if $@;
+                            } else {
+                                _insert_allowedcli_rows($context,[$allowedcli_row]);
+                            }
+                        }
+                    } else {
                         if ($skip_errors) {
-                            eval { _insert_allowedcli_rows($context,[$allowedcli_row]); };
+                            eval { _insert_allowedcli_rows($context,\@allowedcli_rows); };
                             _warn($context,$@) if $@;
                         } else {
-                            _insert_allowedcli_rows($context,[$allowedcli_row]);
+                            _insert_allowedcli_rows($context,\@allowedcli_rows);
                         }
                     }
-                } else {
-                    if ($skip_errors) {
-                        eval { _insert_allowedcli_rows($context,\@allowedcli_rows); };
-                        _warn($context,$@) if $@;
-                    } else {
-                        _insert_allowedcli_rows($context,\@allowedcli_rows);
-                    }
                 }
-            }
-#use Data::Dumper;
-#print Dumper(\@subscriber_rows);
-            return 1;
-        },
-        init_process_context_code => sub {
-            my ($context)= @_;
-            $context->{db} = &get_import_db(); # keep ref count low..
-            $context->{upsert} = $upsert;
-            $context->{error_count} = 0;
-            $context->{warning_count} = 0;
-        },
-        uninit_process_context_code => sub {
-            my ($context)= @_;
-            undef $context->{db};
-            destroy_all_dbs();
-            {
-                lock $warning_count;
-                $warning_count += $context->{warning_count};
-            }
-        },
-        multithreading => $import_multithreading
-    ),$warning_count);
+    #use Data::Dumper;
+    #print Dumper(\@subscriber_rows);
+                return 1;
+            },
+            init_process_context_code => sub {
+                my ($context)= @_;
+                $context->{db} = &get_import_db(); # keep ref count low..
+                $context->{upsert} = $upsert;
+                $context->{error_count} = 0;
+                $context->{warning_count} = 0;
+            },
+            uninit_process_context_code => sub {
+                my ($context)= @_;
+                undef $context->{db};
+                destroy_all_dbs();
+                {
+                    lock $warning_count;
+                    $warning_count += $context->{warning_count};
+                }
+            },
+            multithreading => $import_multithreading
+        );
+    }
+
+    return ($result,$warning_count);
 
 }
 

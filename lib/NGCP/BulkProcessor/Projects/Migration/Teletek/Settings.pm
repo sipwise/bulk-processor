@@ -47,14 +47,14 @@ our @EXPORT_OK = qw(
     $force
     $import_db_file
 
-    $subscriber_filename
+    @subscriber_filenames
     $subscriber_import_numofthreads
     $ignore_subscriber_unique
     $subscriber_import_single_row_txn
     $subscriber_import_unfold_ranges
 
 
-    $allowedcli_filename
+    @allowedcli_filenames
     $allowedcli_import_numofthreads
     $ignore_allowedcli_unique
     $allowedcli_import_single_row_txn
@@ -101,13 +101,13 @@ our $run_id = '';
 our $import_db_file = _get_import_db_file($run_id,'import');
 our $import_multithreading = $enablemultithreading;
 
-our $subscriber_filename = undef;
+our @subscriber_filenames = ();
 our $subscriber_import_numofthreads = $cpucount;
 our $ignore_subscriber_unique = 0;
 our $subscriber_import_single_row_txn = 1;
 our $subscriber_import_unfold_ranges = 1;
 
-our $allowedcli_filename = undef;
+our @allowedcli_filenames = ();
 our $allowedcli_import_numofthreads = $cpucount;
 our $ignore_allowedcli_unique = 0;
 our $allowedcli_import_single_row_txn = 1;
@@ -158,13 +158,13 @@ sub update_settings {
         $import_db_file = _get_import_db_file($run_id,'import');
         $import_multithreading = $data->{import_multithreading} if exists $data->{import_multithreading};
 
-        $subscriber_filename = _get_import_filename($subscriber_filename,$data,'subscriber_filename');
+        @subscriber_filenames = _get_import_filenames(\@subscriber_filenames,$data,'subscriber_filenames');
         $subscriber_import_numofthreads = _get_numofthreads($cpucount,$data,'subscriber_import_numofthreads');
         $ignore_subscriber_unique = $data->{ignore_subscriber_unique} if exists $data->{ignore_subscriber_unique};
         $subscriber_import_single_row_txn = $data->{subscriber_import_single_row_txn} if exists $data->{subscriber_import_single_row_txn};
         $subscriber_import_unfold_ranges = $data->{subscriber_import_unfold_ranges} if exists $data->{subscriber_import_unfold_ranges};
 
-        $allowedcli_filename = _get_import_filename($allowedcli_filename,$data,'allowedcli_filename');
+        @allowedcli_filenames = _get_import_filenames(\@allowedcli_filenames,$data,'allowedcli_filenames');
         $allowedcli_import_numofthreads = _get_numofthreads($cpucount,$data,'allowedcli_import_numofthreads');
         $ignore_allowedcli_unique = $data->{ignore_allowedcli_unique} if exists $data->{ignore_allowedcli_unique};
         $allowedcli_import_single_row_txn = $data->{allowedcli_import_single_row_txn} if exists $data->{allowedcli_import_single_row_txn};
@@ -249,14 +249,18 @@ sub _get_import_db_file {
     return ((defined $run and length($run) > 0) ? $run . '_' : '') . $name;
 }
 
-sub _get_import_filename {
+sub _get_import_filenames {
     my ($old_value,$data,$key) = @_;
-    my $import_filename = $old_value;
-    $import_filename = $data->{$key} if exists $data->{$key};
-    if (defined $import_filename and length($import_filename) > 0) {
-        $import_filename = $input_path . $import_filename unless -e $import_filename;
+    my @import_filenames = @$old_value;
+    @import_filenames = split_tuple($data->{$key}) if exists $data->{$key};
+    my @result = ();
+    foreach my $import_filename (@import_filenames) {
+        if (defined $import_filename and length($import_filename) > 0) {
+            $import_filename = $input_path . $import_filename unless -e $import_filename;
+            push(@result,$import_filename);
+        }
     }
-    return $import_filename;
+    return @result;
 }
 
 sub check_dry {

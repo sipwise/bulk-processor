@@ -20,10 +20,10 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $skip_errors
     $force
     $run_id
-    $subscriber_filename
+    @subscriber_filenames
 
 
-    $allowedcli_filename
+    @allowedcli_filenames
 );
 #$allowed_ips
 
@@ -313,7 +313,7 @@ sub import_subscriber_task {
     my ($messages) = @_;
     my ($result,$warning_count) = (0,0);
     eval {
-        ($result,$warning_count) = import_subscriber($subscriber_filename);
+        ($result,$warning_count) = import_subscriber(@subscriber_filenames);
     };
     my $err = $@;
     my $stats = ($skip_errors ? ": $warning_count warnings" : '');
@@ -375,7 +375,7 @@ sub import_allowedcli_task {
     my ($messages) = @_;
     my ($result,$warning_count) = (0,0);
     eval {
-        ($result,$warning_count) = import_allowedcli($allowedcli_filename);
+        ($result,$warning_count) = import_allowedcli(@allowedcli_filenames);
     };
     my $err = $@;
     my $stats = ($skip_errors ? ": $warning_count warnings" : '');
