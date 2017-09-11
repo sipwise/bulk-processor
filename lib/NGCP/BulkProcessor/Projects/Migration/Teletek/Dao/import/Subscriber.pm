@@ -38,6 +38,7 @@ our @EXPORT_OK = qw(
     findby_domain_sipusername
     findby_domain_webusername
     list_domain_billingprofilename_resellernames
+    findby_sipusername
 
     update_delta
     findby_delta
@@ -199,6 +200,26 @@ sub findby_domain_sipusername {
             $db->columnidentifier('domain') . ' = ?' .
             ' AND ' . $db->columnidentifier('sip_username') . ' = ?'
     ,$domain,$sip_username);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_sipusername {
+
+    my ($sip_username,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    #return [] unless (defined $cc or defined $ac or defined $sn);
+
+    my $rows = $db->db_get_all_arrayref(
+        'SELECT * FROM ' .
+            $table .
+        ' WHERE ' . $db->columnidentifier('sip_username') . ' = ?'
+    ,$sip_username);
 
     return buildrecords_fromrows($rows,$load_recursive);
 

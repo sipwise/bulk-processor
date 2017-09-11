@@ -12,6 +12,7 @@ use Fcntl qw(LOCK_EX LOCK_NB);
 use NGCP::BulkProcessor::Globals qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     update_settings
+    update_reseller_mapping
     check_dry
     $output_path
     $defaultsettings
@@ -21,7 +22,7 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $force
     $run_id
     @subscriber_filenames
-
+    $reseller_mapping_yml
 
     @allowedcli_filenames
 );
@@ -161,6 +162,7 @@ sub init {
     my $result = load_config($configfile);
     init_log();
     $result &= load_config($settingsfile,\&update_settings,$SIMPLE_CONFIG_TYPE);
+    $result &= load_config($reseller_mapping_yml,\&update_reseller_mapping,$YAML_CONFIG_TYPE);
     return $result;
 
 }
@@ -316,7 +318,7 @@ sub import_subscriber_task {
         ($result,$warning_count) = import_subscriber(@subscriber_filenames);
     };
     my $err = $@;
-    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    my $stats = ": $warning_count warnings";
     eval {
         $stats .= "\n  total subscriber records: " .
             NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::countby_ccacsn() . ' rows';
@@ -378,7 +380,7 @@ sub import_allowedcli_task {
         ($result,$warning_count) = import_allowedcli(@allowedcli_filenames);
     };
     my $err = $@;
-    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    my $stats = ": $warning_count warnings";
     eval {
         $stats .= "\n  total allowed cli records: " .
             NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_ccacsn() . ' rows';
@@ -439,7 +441,7 @@ sub create_subscriber_task {
         ($result,$warning_count) = provision_subscribers();
     };
     my $err = $@;
-    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    my $stats = ": $warning_count warnings";
     eval {
         #$stats .= "\n  total contracts: " .
         #    NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(undef,$reseller_id) . ' rows';

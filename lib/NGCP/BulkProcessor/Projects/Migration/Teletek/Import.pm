@@ -273,6 +273,26 @@ sub import_allowedcli {
                     $rownum++;
                     next if (scalar @$row) == 0;
                     my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli->new($row);
+
+                    if (NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_ccacsn($record->{cc},$record->{ac},$record->{sn})) {
+                        my $number = ($record->{cc} // '') . ($record->{ac} // '') . ($record->{sn} // '');
+                        if ($skip_errors) {
+                            _warn($context,"duplicate number: $number");
+                        } else {
+                            _error($context,"duplicate number: $number");
+                        }
+                        next;
+                    }
+
+                    if ((scalar @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_sipusername($record->{sip_username})}) == 0) {
+                        if ($skip_errors) {
+                            _warn($context,"sip username $record->{sip_username} not found");
+                        } else {
+                            _error($context,"sip username $record->{sip_username} not found");
+                        }
+                        next;
+                    }
+
                     $record->{rownum} = $rownum;
                     my %r = %$record; my @allowedcli_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::fieldnames};
                     if ($context->{upsert}) {
@@ -333,14 +353,14 @@ sub import_allowedcli {
 sub _import_allowedcli_checks {
     my ($file) = @_;
     my $result = 1;
-    #my $optioncount = 0;
-    #eval {
-    #    $optioncount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::FeatureOption::countby_subscribernumber_option();
-    #};
-    #if ($@ or $optioncount == 0) {
-    #    fileprocessingerror($file,'please import subscriber features first',getlogger(__PACKAGE__));
-    #    $result = 0; #even in skip-error mode..
-    #}
+    my $subscribercount = 0;
+    eval {
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::countby_ccacsn();
+    };
+    if ($@ or $subscribercount == 0) {
+        fileprocessingerror($file,'please import subscribers first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
     #my $userpasswordcount = 0;
     #eval {
     #    $userpasswordcount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::UsernamePassword::countby_fqdn();

@@ -32,6 +32,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     update_settings
+    update_reseller_mapping
     check_dry
 
     $input_path
@@ -52,7 +53,8 @@ our @EXPORT_OK = qw(
     $ignore_subscriber_unique
     $subscriber_import_single_row_txn
     $subscriber_import_unfold_ranges
-
+    $reseller_mapping_yml
+    $reseller_mapping
 
     @allowedcli_filenames
     $allowedcli_import_numofthreads
@@ -106,6 +108,8 @@ our $subscriber_import_numofthreads = $cpucount;
 our $ignore_subscriber_unique = 0;
 our $subscriber_import_single_row_txn = 1;
 our $subscriber_import_unfold_ranges = 1;
+our $reseller_mapping_yml = undef;
+our $reseller_mapping = {};
 
 our @allowedcli_filenames = ();
 our $allowedcli_import_numofthreads = $cpucount;
@@ -163,6 +167,7 @@ sub update_settings {
         $ignore_subscriber_unique = $data->{ignore_subscriber_unique} if exists $data->{ignore_subscriber_unique};
         $subscriber_import_single_row_txn = $data->{subscriber_import_single_row_txn} if exists $data->{subscriber_import_single_row_txn};
         $subscriber_import_unfold_ranges = $data->{subscriber_import_unfold_ranges} if exists $data->{subscriber_import_unfold_ranges};
+        $reseller_mapping_yml = $data->{reseller_mapping_yml} if exists $data->{reseller_mapping_yml};
 
         @allowedcli_filenames = _get_import_filenames(\@allowedcli_filenames,$data,'allowedcli_filenames');
         $allowedcli_import_numofthreads = _get_numofthreads($cpucount,$data,'allowedcli_import_numofthreads');
@@ -281,6 +286,29 @@ sub check_dry {
             return 1;
         }
     }
+
+}
+
+sub update_reseller_mapping {
+
+    my ($data,$configfile) = @_;
+
+    if (defined $data) {
+
+        my $result = 1;
+
+        eval {
+            $reseller_mapping = $data->{'mapping'};
+        };
+        if ($@ or 'HASH' ne ref $reseller_mapping) { # or (scalar keys %$reseller_mapping) == 0) {
+            $reseller_mapping //= {};
+            configurationerror($configfile,'invalid reseller mapping',getlogger(__PACKAGE__));
+            $result = 0;
+        }
+
+        return $result;
+    }
+    return 0;
 
 }
 

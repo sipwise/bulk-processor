@@ -158,7 +158,7 @@ sub findby_ccacsn {
 
 }
 
-sub findby_domain_sipusername {
+sub findby_sipusername {
 
     my ($sip_username,$load_recursive) = @_;
 

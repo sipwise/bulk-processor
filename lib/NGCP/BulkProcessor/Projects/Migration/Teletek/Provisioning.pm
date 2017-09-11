@@ -17,6 +17,8 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $provision_subscriber_multithreading
     $provision_subscriber_numofthreads
 
+    $reseller_mapping
+
 );
 #$batch
 
@@ -42,7 +44,7 @@ use NGCP::BulkProcessor::LogError qw(
 );
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
-#use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::products qw();
@@ -231,7 +233,7 @@ sub _provision_subscribers_checks {
                 rowprocessingerror(threadid(),"empty billing profile name detected",getlogger(__PACKAGE__));
                 $result = 0; #even in skip-error mode..
             }
-            my $resellername = $domain_billingprofilename_resellername->{reseller_name};
+            my $resellername = _apply_reseller_mapping($domain_billingprofilename_resellername->{reseller_name});
             unless ($resellername) {
                 rowprocessingerror(threadid(),"empty reseller name detected",getlogger(__PACKAGE__));
                 $result = 0; #even in skip-error mode..
@@ -617,7 +619,7 @@ sub _provision_susbcriber_init_context {
     }
 
     $context->{domain} = $context->{domain_map}->{$first->{domain}};
-    $context->{reseller} = $context->{reseller_map}->{$first->{reseller_name}};
+    $context->{reseller} = $context->{reseller_map}->{_apply_reseller_mapping($first->{reseller_name})};
     $context->{billing_profile} = $context->{reseller}->{billingprofile_map}->{$first->{billing_profile_name}};
 
     $context->{prov_subscriber} = {};
@@ -631,7 +633,7 @@ sub _provision_susbcriber_init_context {
             @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_webusername(
             $first->{domain},$context->{prov_subscriber}->{webusername})};
         if ((scalar keys %webusername_dupes) > 1) {
-            _warn($context,"duplicate web_username $context->{prov_subscriber}->{webusername}, using sip_username");
+            #_warn($context,"duplicate web_username $context->{prov_subscriber}->{webusername}, using sip_username");
             $context->{prov_subscriber}->{webusername} = $first->{sip_username};
         }
     }
@@ -658,10 +660,11 @@ sub _provision_susbcriber_init_context {
                 sn => $subscriber->{sn} // '',
                 number => $number,
                 delta => $subscriber->{delta},
+                additional => 0,
             });
             $number_dupes{$number} = 1;
         } else {
-            _warn($context,'duplicate number $number ignored');
+            _warn($context,'duplicate number $number (subscriber table) ignored');
         }
 
         if (not exists $contact_dupes{$subscriber->{contact_hash}}) {
@@ -692,8 +695,37 @@ sub _provision_susbcriber_init_context {
         }
     }
 
+    foreach my $allowed_cli (@{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::findby_sipusername($first->{sip_username})}) {
+        my $number = ($allowed_cli->{cc} // '') . ($allowed_cli->{ac} // '') . ($allowed_cli->{sn} // '');
+        if (not exists $number_dupes{$number}) {
+            push(@numbers,{
+                cc => $allowed_cli->{cc} // '',
+                ac => $allowed_cli->{ac} // '',
+                sn => $allowed_cli->{sn} // '',
+                number => $number,
+                delta => $allowed_cli->{delta},
+                additional => 1,
+            });
+            $number_dupes{$number} = 1;
+        } else {
+            _warn($context,'duplicate number $number (allowed_cli table) ignored');
+        }
+    }
+
     $context->{numbers} = {};
     $context->{numbers}->{other} = sort_by_configs(\@numbers,[
+        {   numeric     => 1,
+            dir         => 1, #-1,
+            memberchain => [ 'additional' ],
+        },
+        {   numeric     => 0,
+            dir         => 1, #-1,
+            memberchain => [ 'cc' ],
+        },
+        {   numeric     => 0,
+            dir         => 1, #-1,
+            memberchain => [ 'ac' ],
+        },
         {   numeric     => 0,
             dir         => 1, #-1,
             memberchain => [ 'sn' ],
@@ -726,6 +758,14 @@ sub _provision_susbcriber_init_context {
 #        -distribute => 1, -fatal => 1,
 #    );
 #}
+
+sub _apply_reseller_mapping {
+    my $reseller_name = shift;
+    if (defined $reseller_name and exists $reseller_mapping->{$reseller_name}) {
+        return $reseller_mapping->{$reseller_name};
+    }
+    return $reseller_name;
+}
 
 sub _error {
 
