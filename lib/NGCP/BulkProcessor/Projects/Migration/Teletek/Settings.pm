@@ -26,7 +26,8 @@ use NGCP::BulkProcessor::LoadConfig qw(
     split_tuple
     parse_regexp
 );
-use NGCP::BulkProcessor::Utils qw(format_number check_ipnet prompt);
+use NGCP::BulkProcessor::Utils qw(prompt);
+#format_number check_ipnet
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -61,14 +62,16 @@ our @EXPORT_OK = qw(
     $ignore_allowedcli_unique
     $allowedcli_import_single_row_txn
 
+    @clir_filenames
+    $clir_import_numofthreads
+    $ignore_clir_unique
+    $clir_import_single_row_txn
 
     $provision_subscriber_multithreading
     $provision_subscriber_numofthreads
-    $always_update_subscriber
+    $webpassword_length
+    $webusername_length
 
-    $set_allowed_ips_multithreading
-    $set_allowed_ips_numofthreads
-    $allowed_ips
 
     $set_call_forwards_multithreading
     $set_call_forwards_numofthreads
@@ -89,6 +92,9 @@ our @EXPORT_OK = qw(
 
 );
 #$concurrent_max_total
+#    $set_allowed_ips_multithreading
+#    $set_allowed_ips_numofthreads
+#    $allowed_ips
 
 our $defaultconfig = 'config.cfg';
 our $defaultsettings = 'settings.cfg';
@@ -116,15 +122,18 @@ our $allowedcli_import_numofthreads = $cpucount;
 our $ignore_allowedcli_unique = 0;
 our $allowedcli_import_single_row_txn = 1;
 
-
+our @clir_filenames = ();
+our $clir_import_numofthreads = $cpucount;
+our $ignore_clir_unique = 0;
+our $clir_import_single_row_txn = 1;
 
 our $provision_subscriber_multithreading = $enablemultithreading;
 our $provision_subscriber_numofthreads = $cpucount;
-our $always_update_subscriber = 0;
-
-our $set_allowed_ips_multithreading = $enablemultithreading;
-our $set_allowed_ips_numofthreads = $cpucount;
-our $allowed_ips = [];
+our $webpassword_length = 8;
+our $webusername_length = 8;
+#our $set_allowed_ips_multithreading = $enablemultithreading;
+#our $set_allowed_ips_numofthreads = $cpucount;
+#our $allowed_ips = [];
 
 our $set_call_forwards_multithreading = $enablemultithreading;
 our $set_call_forwards_numofthreads = $cpucount;
@@ -140,9 +149,9 @@ our $cfnumber_exclude_pattern = undef;
 our $cfnumber_trim_pattern = undef;
 our $ringtimeout = undef;
 
-our $set_preference_bulk_multithreading = $enablemultithreading;
-our $set_preference_bulk_numofthreads = $cpucount;
-our $concurrent_max_total = undef;
+#our $set_preference_bulk_multithreading = $enablemultithreading;
+#our $set_preference_bulk_numofthreads = $cpucount;
+#our $concurrent_max_total = undef;
 
 sub update_settings {
 
@@ -174,20 +183,32 @@ sub update_settings {
         $ignore_allowedcli_unique = $data->{ignore_allowedcli_unique} if exists $data->{ignore_allowedcli_unique};
         $allowedcli_import_single_row_txn = $data->{allowedcli_import_single_row_txn} if exists $data->{allowedcli_import_single_row_txn};
 
+        @clir_filenames = _get_import_filenames(\@clir_filenames,$data,'clir_filenames');
+        $clir_import_numofthreads = _get_numofthreads($cpucount,$data,'clir_import_numofthreads');
+        $ignore_clir_unique = $data->{ignore_clir_unique} if exists $data->{ignore_clir_unique};
+        $clir_import_single_row_txn = $data->{clir_import_single_row_txn} if exists $data->{clir_import_single_row_txn};
 
         $provision_subscriber_multithreading = $data->{provision_subscriber_multithreading} if exists $data->{provision_subscriber_multithreading};
         $provision_subscriber_numofthreads = _get_numofthreads($cpucount,$data,'provision_subscriber_numofthreads');
-        $always_update_subscriber = $data->{always_update_subscriber} if exists $data->{always_update_subscriber};
-
-        $set_allowed_ips_multithreading = $data->{set_allowed_ips_multithreading} if exists $data->{set_allowed_ips_multithreading};
-        $set_allowed_ips_numofthreads = _get_numofthreads($cpucount,$data,'set_allowed_ips_numofthreads');
-        $allowed_ips = [ split_tuple($data->{allowed_ips}) ] if exists $data->{allowed_ips};
-        foreach my $ipnet (@$allowed_ips) {
-            if (not check_ipnet($ipnet)) {
-                configurationerror($configfile,"invalid allowed_ip '$ipnet'",getlogger(__PACKAGE__));
-                $result = 0;
-            }
+        $webpassword_length = $data->{webpassword_length} if exists $data->{webpassword_length};
+        if (not defined $webpassword_length or $webpassword_length <= 7) {
+            configurationerror($configfile,'webpassword_length greater than 7 required',getlogger(__PACKAGE__));
+            $result = 0;
         }
+        $webusername_length = $data->{webusername_length} if exists $data->{webusername_length};
+        if (not defined $webusername_length or $webusername_length <= 7) {
+            configurationerror($configfile,'webusername_length greater than 7 required',getlogger(__PACKAGE__));
+            $result = 0;
+        }
+        #$set_allowed_ips_multithreading = $data->{set_allowed_ips_multithreading} if exists $data->{set_allowed_ips_multithreading};
+        #$set_allowed_ips_numofthreads = _get_numofthreads($cpucount,$data,'set_allowed_ips_numofthreads');
+        #$allowed_ips = [ split_tuple($data->{allowed_ips}) ] if exists $data->{allowed_ips};
+        #foreach my $ipnet (@$allowed_ips) {
+        #    if (not check_ipnet($ipnet)) {
+        #        configurationerror($configfile,"invalid allowed_ip '$ipnet'",getlogger(__PACKAGE__));
+        #        $result = 0;
+        #    }
+        #}
 
         $set_call_forwards_multithreading = $data->{set_call_forwards_multithreading} if exists $data->{set_call_forwards_multithreading};
         $set_call_forwards_numofthreads = _get_numofthreads($cpucount,$data,'set_call_forwards_numofthreads');
@@ -211,8 +232,8 @@ sub update_settings {
             $result = 0;
         }
 
-        $set_preference_bulk_multithreading = $data->{set_preference_bulk_multithreading} if exists $data->{set_preference_bulk_multithreading};
-        $set_preference_bulk_numofthreads = _get_numofthreads($cpucount,$data,'set_preference_bulk_numofthreads');
+        #$set_preference_bulk_multithreading = $data->{set_preference_bulk_multithreading} if exists $data->{set_preference_bulk_multithreading};
+        #$set_preference_bulk_numofthreads = _get_numofthreads($cpucount,$data,'set_preference_bulk_numofthreads');
         #$concurrent_max_total = $data->{concurrent_max_total} if exists $data->{concurrent_max_total};
         #if (defined $concurrent_max_total and $concurrent_max_total <= 0) {
         #    configurationerror($configfile,'empty concurrent_max_total or greater than 0 required',getlogger(__PACKAGE__));

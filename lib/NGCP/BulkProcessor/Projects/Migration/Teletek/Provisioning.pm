@@ -16,6 +16,8 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
 
     $provision_subscriber_multithreading
     $provision_subscriber_numofthreads
+    $webpassword_length
+    $webusername_length
 
     $reseller_mapping
 
@@ -45,6 +47,7 @@ use NGCP::BulkProcessor::LogError qw(
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::products qw();
@@ -70,9 +73,11 @@ use NGCP::BulkProcessor::RestRequests::Trunk::Subscribers qw();
 use NGCP::BulkProcessor::RestRequests::Trunk::Customers qw();
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Preferences qw(
-    set_preference
-    clear_preferences
-    delete_preference
+    set_subscriber_preference
+    clear_subscriber_preferences
+    delete_subscriber_preference
+    set_allowed_ips_preferences
+    cleanup_aig_sequence_ids
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
@@ -83,8 +88,9 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::ProjectConnectorPool qw(
     destroy_all_dbs
 );
 
-use NGCP::BulkProcessor::Utils qw(create_uuid threadid timestamp);
+use NGCP::BulkProcessor::Utils qw(create_uuid threadid timestamp stringtobool);
 use NGCP::BulkProcessor::DSSorter qw(sort_by_configs);
+use NGCP::BulkProcessor::RandomString qw(createtmpstring);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -109,7 +115,7 @@ sub provision_subscribers {
                 next unless _provision_susbcriber($context,
                     NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_sipusername(@$domain_sipusername));
             }
-
+            cleanup_aig_sequence_ids($context);
             return 1;
         },
         init_process_context_code => sub {
@@ -211,6 +217,33 @@ sub _provision_subscribers_checks {
     my ($context) = @_;
 
     my $result = 1;
+
+    my $subscribercount = 0;
+    eval {
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::countby_ccacsn();
+    };
+    if ($@ or $subscribercount == 0) {
+        rowprocessingerror(threadid(),'please import subscribers first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
+    my $allowedclicount = 0;
+    eval {
+        $allowedclicount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_ccacsn();
+    };
+    if ($@ or $allowedclicount == 0) {
+        rowprocessingerror(threadid(),'please import allowed clis first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
+    my $clircount = 0;
+    eval {
+        $clircount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_clir();
+    };
+    if ($@ or $clircount == 0) {
+        rowprocessingerror(threadid(),'please import clir first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
 
     my $domain_billingprofilename_resellernames = [];
     eval {
@@ -352,15 +385,32 @@ sub _provision_subscribers_checks {
         $result = 0; #even in skip-error mode..
     }
 
-    #eval {
-    #    $context->{peer_auth_pass_attribute} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-    #        $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_PASS);
-    #};
+    eval {
+        $context->{attributes}->{concurrent_max_total} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CONCURRENT_MAX_TOTAL_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{concurrent_max_total}) {
+        rowprocessingerror(threadid(),'cannot find concurrent_max_total attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
 
-    #if ($@ or not defined $context->{peer_auth_pass_attribute}) {
-    #    rowprocessingerror(threadid(),'cannot find peer_auth_pass attribute',getlogger(__PACKAGE__));
-    #    $result = 0; #even in skip-error mode..
-    #}
+    eval {
+        $context->{attributes}->{clir} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CLIR_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{clir}) {
+        rowprocessingerror(threadid(),'cannot find clir attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
+    eval {
+        $context->{attributes}->{allowed_ips_grp} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ALLOWED_IPS_GRP_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{allowed_ips_grp}) {
+        rowprocessingerror(threadid(),'cannot find allowed_ips_grp attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
 
     return $result;
 }
@@ -407,6 +457,7 @@ sub _update_contract {
         $context->{contract}->{contract_balance_id} = NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances::insert_row($context->{db},
             contract_id => $context->{contract}->{id},
         );
+
     }
     return 1;
 
@@ -454,7 +505,7 @@ sub _update_subscriber {
             );
         }
 
-        $context->{preferences}->{cli} = { id => set_preference($context,
+        $context->{preferences}->{cli} = { id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{cli},
             $number->{number}), value => $number->{number} };
@@ -472,7 +523,7 @@ sub _update_subscriber {
         );
 
         my @allowed_clis = ();
-        push(@allowed_clis,{ id => set_preference($context,
+        push(@allowed_clis,{ id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
             $number->{number}), value => $number->{number}});
@@ -484,7 +535,7 @@ sub _update_subscriber {
         NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::delete_dbaliases($context->{db},
             $context->{prov_subscriber}->{id},{ 'NOT IN' => $number->{number} });
 
-        clear_preferences($context,
+        clear_subscriber_preferences($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
             $number->{number});
@@ -493,23 +544,48 @@ sub _update_subscriber {
             $context->{voicemail_user},
         );
 
-        $context->{preferences}->{account_id} = { id => set_preference($context,
+        $context->{preferences}->{account_id} = { id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{account_id},
             $context->{contract}->{id}), value => $context->{contract}->{id} };
 
         if (length($number->{ac}) > 0) {
-            $context->{preferences}->{ac} = { id => set_preference($context,
+            $context->{preferences}->{ac} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{ac},
                 $number->{ac}), value => $number->{ac} };
         }
         if (length($number->{cc}) > 0) {
-            $context->{preferences}->{cc} = { id => set_preference($context,
+            $context->{preferences}->{cc} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{cc},
                 $number->{cc}), value => $number->{cc} };
         }
+
+        if (defined $context->{channels}) {
+            $context->{preferences}->{concurrent_max_total} = { id => set_subscriber_preference($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{concurrent_max_total},
+                $context->{channels}), value => $context->{channels} };
+        }
+
+        if ($context->{clir}) {
+            $context->{preferences}->{concurrent_max_total} = { id => set_subscriber_preference($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{clir},
+                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::TRUE), value => $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::TRUE };
+        }
+
+        if ((scalar @{$context->{allowed_ips}}) > 0) {
+            my ($allowed_ip_group_preferrence_id, $allowed_ip_group_id) = set_allowed_ips_preferences($context,
+                $context->{prov_subscriber}->{id},
+                $context->{prov_subscriber}->{username},
+                $context->{attributes}->{allowed_ips_grp},
+                $context->{allowed_ips},
+            );
+            $context->{preferences}->{allowed_ips_grp} = { id => $allowed_ip_group_preferrence_id, value => $allowed_ip_group_id };
+        }
+
     }
 
     return $result;
@@ -576,11 +652,11 @@ sub _create_aliases {
             push(@{$context->{aliases}->{other}},$alias);
             push(@usernames,$number->{number});
 
-            delete_preference($context,
+            delete_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{allowed_clis},
                 $number->{number});
-            push(@{$context->{preferences}->{allowed_clis}},{ id => set_preference($context,
+            push(@{$context->{preferences}->{allowed_clis}},{ id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{allowed_clis},
                 $number->{number}), value => $number->{number}});
@@ -596,7 +672,7 @@ sub _create_aliases {
         NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::delete_dbaliases($context->{db},$context->{prov_subscriber}->{id},
             { 'NOT IN' => \@usernames });
 
-        clear_preferences($context,
+        clear_subscriber_preferences($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
              \@usernames );
@@ -626,18 +702,29 @@ sub _provision_susbcriber_init_context {
     $context->{prov_subscriber}->{username} = $first->{sip_username};
     $context->{prov_subscriber}->{password} = $first->{sip_password};
     $context->{prov_subscriber}->{webusername} = $first->{web_username};
+    $context->{prov_subscriber}->{webpassword} = $first->{web_password};
     if (not (defined $first->{web_username} and length($first->{web_username}) > 0)) {
         $context->{prov_subscriber}->{webusername} = undef;
+        $context->{prov_subscriber}->{webpassword} = undef;
+        _info($context,"empty web_username for sip_username '$first->{sip_username}'");
     } else {
         my %webusername_dupes = map { $_->{sip_username} => 1; }
             @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_webusername(
-            $first->{domain},$context->{prov_subscriber}->{webusername})};
+            $first->{domain},$first->{web_username})};
         if ((scalar keys %webusername_dupes) > 1) {
-            #_warn($context,"duplicate web_username $context->{prov_subscriber}->{webusername}, using sip_username");
-            $context->{prov_subscriber}->{webusername} = $first->{sip_username};
+            $context->{prov_subscriber}->{webusername} = _generate_webusername(); #$first->{sip_username};
+            _info($context,"duplicate web_username '$first->{web_username}', using generated '$context->{prov_subscriber}->{webusername}'");
+        }
+        $context->{prov_subscriber}->{webpassword} = $first->{web_password};
+        if (not (defined $first->{web_password} and length($first->{web_password}) > 0)) {
+            $context->{prov_subscriber}->{webpassword} = _generate_webpassword();
+            _info($context,"empty web_password for web_username '$first->{web_username}', using generated '$context->{prov_subscriber}->{webpassword}'");
+        #} elsif (defined $first->{web_password} and length($first->{web_password}) < 8) {
+        #    $context->{prov_subscriber}->{webpassword} = _generate_webpassword();
+        #    _info($context,"web_password for web_username '$first->{web_username}' is too short, using '$context->{prov_subscriber}->{webpassword}'");
         }
     }
-    $context->{prov_subscriber}->{webpassword} = $first->{web_password};
+
     $context->{prov_subscriber}->{uuid} = create_uuid();
     $context->{prov_subscriber}->{domain_id} = $context->{domain}->{prov_domain}->{id};
 
@@ -652,12 +739,12 @@ sub _provision_susbcriber_init_context {
     my %number_dupes = ();
     my %contact_dupes = ();
     foreach my $subscriber (@$subscriber_group) {
-        my $number = ($subscriber->{cc} // '') . ($subscriber->{ac} // '') . ($subscriber->{sn} // '');
+        my $number = $subscriber->{cc} . $subscriber->{ac} . $subscriber->{sn};
         if (not exists $number_dupes{$number}) {
             push(@numbers,{
-                cc => $subscriber->{cc} // '',
-                ac => $subscriber->{ac} // '',
-                sn => $subscriber->{sn} // '',
+                cc => $subscriber->{cc},
+                ac => $subscriber->{ac},
+                sn => $subscriber->{sn},
                 number => $number,
                 delta => $subscriber->{delta},
                 additional => 0,
@@ -696,12 +783,12 @@ sub _provision_susbcriber_init_context {
     }
 
     foreach my $allowed_cli (@{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::findby_sipusername($first->{sip_username})}) {
-        my $number = ($allowed_cli->{cc} // '') . ($allowed_cli->{ac} // '') . ($allowed_cli->{sn} // '');
+        my $number = $allowed_cli->{cc} . $allowed_cli->{ac} . $allowed_cli->{sn};
         if (not exists $number_dupes{$number}) {
             push(@numbers,{
-                cc => $allowed_cli->{cc} // '',
-                ac => $allowed_cli->{ac} // '',
-                sn => $allowed_cli->{sn} // '',
+                cc => $allowed_cli->{cc},
+                ac => $allowed_cli->{ac},
+                sn => $allowed_cli->{sn},
                 number => $number,
                 delta => $allowed_cli->{delta},
                 additional => 1,
@@ -741,6 +828,22 @@ sub _provision_susbcriber_init_context {
     $context->{aliases}->{other} = [];
 
     $context->{preferences} = {};
+    $context->{channels} = undef;
+    my $channels = $first->{channels};
+    if (defined $channels and length($channels) > 0) {
+        if (not ($channels > 0)) {
+            _warn($context,"invalid number of channels $first->{channels}, ignoring");
+        } else {
+            $context->{channels} = $channels;
+        }
+    }
+
+    $context->{clir} = 0;
+    if (my $clir = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::findby_sipusername($first->{sip_username})) {
+        $context->{clir} = stringtobool($clir->{clir});
+    }
+
+    $context->{allowed_ips}
 
     $context->{voicemail_user} = {};
     $context->{voicemail_user}->{customer_id} = $context->{prov_subscriber}->{uuid};
@@ -751,13 +854,17 @@ sub _provision_susbcriber_init_context {
 
 }
 
-#sub _generate_webpassword {
-#    return String::MkPasswd::mkpasswd(
-#        -length => $webpassword_length,
-#        -minnum => 1, -minlower => 1, -minupper => 1, -minspecial => 1,
-#        -distribute => 1, -fatal => 1,
-#    );
-#}
+sub _generate_webpassword {
+    return String::MkPasswd::mkpasswd(
+        -length => $webpassword_length,
+        -minnum => 1, -minlower => 1, -minupper => 1, -minspecial => 1,
+        -distribute => 1, -fatal => 1,
+    );
+}
+
+sub _generate_webusername {
+    return createtmpstring($webusername_length);
+}
 
 sub _apply_reseller_mapping {
     my $reseller_name = shift;
