@@ -25,6 +25,8 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $reseller_mapping_yml
 
     @allowedcli_filenames
+
+    @clir_filenames
 );
 #$allowed_ips
 
@@ -123,6 +125,11 @@ push(@TASK_OPTS,$import_allowedcli_task_opt);
 my $import_truncate_allowedcli_task_opt = 'truncate_allowedcli';
 push(@TASK_OPTS,$import_truncate_allowedcli_task_opt);
 
+my $import_clir_task_opt = 'import_clir';
+push(@TASK_OPTS,$import_clir_task_opt);
+my $import_truncate_clir_task_opt = 'truncate_clir';
+push(@TASK_OPTS,$import_truncate_clir_task_opt);
+
 my $create_subscriber_task_opt = 'create_subscriber';
 push(@TASK_OPTS,$create_subscriber_task_opt);
 
@@ -197,6 +204,10 @@ sub main() {
             } elsif (lc($import_truncate_allowedcli_task_opt) eq lc($task)) {
                 $result &= import_truncate_allowedcli_task(\@messages) if taskinfo($import_truncate_allowedcli_task_opt,$result);
 
+            } elsif (lc($import_clir_task_opt) eq lc($task)) {
+                $result &= import_clir_task(\@messages) if taskinfo($import_clir_task_opt,$result);
+            } elsif (lc($import_truncate_clir_task_opt) eq lc($task)) {
+                $result &= import_truncate_clir_task(\@messages) if taskinfo($import_truncate_clir_task_opt,$result);
 
             } elsif (lc($create_subscriber_task_opt) eq lc($task)) {
                 if (taskinfo($create_subscriber_task_opt,$result,1)) {
@@ -430,6 +441,66 @@ sub import_truncate_allowedcli_task {
 
 }
 
+
+
+
+sub import_clir_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        ($result,$warning_count) = import_clir(@clir_filenames);
+    };
+    my $err = $@;
+    my $stats = ": $warning_count warnings";
+    eval {
+        $stats .= "\n  total allowed cli records: " .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_ccacsn() . ' rows';
+        my $added_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::added_delta
+        );
+        $stats .= "\n    new: $added_count rows";
+        my $existing_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::updated_delta
+        );
+        $stats .= "\n    existing: $existing_count rows";
+        my $deleted_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::deleted_delta
+        );
+        $stats .= "\n    removed: $deleted_count rows";
+    };
+    if ($err or !$result) {
+        push(@$messages,"importing allowed clis INCOMPLETE$stats");
+    } else {
+        push(@$messages,"importing allowed clis completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+sub import_truncate_allowedcli_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::create_table(1);
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        $stats .= "\n  total allowed cli records: " .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_ccacsn() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"truncating imported allowed clis INCOMPLETE$stats");
+    } else {
+        push(@$messages,"truncating imported allowed clis completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
 
 
 
