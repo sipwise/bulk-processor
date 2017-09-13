@@ -71,9 +71,12 @@ sub findby_subscriberid_username {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('subscriber_id') . ' = ?' .
-            ' AND ' . $db->columnidentifier('username') . ' = ?';
-    my @params = ($subscriber_id,$username);
+            $db->columnidentifier('subscriber_id') . ' = ?';
+    my @params = ($subscriber_id);
+    if (defined $username) {
+        $stmt .= ' AND ' . $db->columnidentifier('username') . ' = ?';
+        push(@params,$username);
+    }
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);

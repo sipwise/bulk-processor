@@ -13,6 +13,7 @@ use NGCP::BulkProcessor::Globals qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     update_settings
     update_reseller_mapping
+    update_barring_profiles
     check_dry
     $output_path
     $defaultsettings
@@ -23,8 +24,11 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $run_id
     @subscriber_filenames
     $reseller_mapping_yml
+    $barring_profiles_yml
 
     @allowedcli_filenames
+
+    @clir_filenames
 );
 #$allowed_ips
 
@@ -62,6 +66,8 @@ use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw(cleanupcertfiles);
 use NGCP::BulkProcessor::Projects::Migration::Teletek::ProjectConnectorPool qw(destroy_all_dbs);
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
@@ -83,6 +89,7 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Check qw(
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Import qw(
     import_subscriber
     import_allowedcli
+    import_clir
 );
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Provisioning qw(
@@ -123,17 +130,13 @@ push(@TASK_OPTS,$import_allowedcli_task_opt);
 my $import_truncate_allowedcli_task_opt = 'truncate_allowedcli';
 push(@TASK_OPTS,$import_truncate_allowedcli_task_opt);
 
+my $import_clir_task_opt = 'import_clir';
+push(@TASK_OPTS,$import_clir_task_opt);
+my $import_truncate_clir_task_opt = 'truncate_clir';
+push(@TASK_OPTS,$import_truncate_clir_task_opt);
+
 my $create_subscriber_task_opt = 'create_subscriber';
 push(@TASK_OPTS,$create_subscriber_task_opt);
-
-#my $set_allowed_ips_task_opt = 'set_allowed_ips';
-#push(@TASK_OPTS,$set_allowed_ips_task_opt);
-
-#my $set_call_forwards_task_opt = 'set_call_forwards';
-#push(@TASK_OPTS,$set_call_forwards_task_opt);
-
-#my $set_concurrent_max_total_task_opt = 'set_concurrent_max_total';
-#push(@TASK_OPTS,$set_concurrent_max_total_task_opt);
 
 if (init()) {
     main();
@@ -163,6 +166,7 @@ sub init {
     init_log();
     $result &= load_config($settingsfile,\&update_settings,$SIMPLE_CONFIG_TYPE);
     $result &= load_config($reseller_mapping_yml,\&update_reseller_mapping,$YAML_CONFIG_TYPE);
+    $result &= load_config($barring_profiles_yml,\&update_barring_profiles,$YAML_CONFIG_TYPE);
     return $result;
 
 }
@@ -197,6 +201,10 @@ sub main() {
             } elsif (lc($import_truncate_allowedcli_task_opt) eq lc($task)) {
                 $result &= import_truncate_allowedcli_task(\@messages) if taskinfo($import_truncate_allowedcli_task_opt,$result);
 
+            } elsif (lc($import_clir_task_opt) eq lc($task)) {
+                $result &= import_clir_task(\@messages) if taskinfo($import_clir_task_opt,$result);
+            } elsif (lc($import_truncate_clir_task_opt) eq lc($task)) {
+                $result &= import_truncate_clir_task(\@messages) if taskinfo($import_truncate_clir_task_opt,$result);
 
             } elsif (lc($create_subscriber_task_opt) eq lc($task)) {
                 if (taskinfo($create_subscriber_task_opt,$result,1)) {
@@ -205,28 +213,6 @@ sub main() {
                     $completion |= 1;
                 }
 
-            #} elsif (lc($set_allowed_ips_task_opt) eq lc($task)) {
-            #    if (taskinfo($set_allowed_ips_task_opt,$result,1) and ($result = batchinfo($result))) {
-            #        next unless check_dry();
-            #        $result &= set_allowed_ips_task(\@messages);
-            #        $completion |= 1;
-            #    }
-
-            #} elsif (lc($set_call_forwards_task_opt) eq lc($task)) {
-            #    if (taskinfo($set_call_forwards_task_opt,$result,1) and ($result = batchinfo($result))) {
-            #        next unless check_dry();
-            #        $result &= set_call_forwards_task(\@messages);
-            #        $completion |= 1;
-            #    }
-
-            #} elsif (lc($set_concurrent_max_total_task_opt) eq lc($task)) {
-            #    if (taskinfo($set_concurrent_max_total_task_opt,$result,1) and ($result = batchinfo($result))) {
-            #        next unless check_dry();
-            #        $result &= set_preference_bulk_task(\@messages,
-            #            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CONCURRENT_MAX_TOTAL_ATTRIBUTE,
-            #            $concurrent_max_total);
-            #        $completion |= 1;
-            #    }
 
             } else {
                 $result = 0;
@@ -369,9 +355,6 @@ sub import_truncate_subscriber_task {
 }
 
 
-
-
-
 sub import_allowedcli_task {
 
     my ($messages) = @_;
@@ -431,6 +414,65 @@ sub import_truncate_allowedcli_task {
 }
 
 
+sub import_clir_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        ($result,$warning_count) = import_clir(@clir_filenames);
+    };
+    my $err = $@;
+    my $stats = ": $warning_count warnings";
+    eval {
+        $stats .= "\n  total clir records: " .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_clir() . ' rows';
+        my $added_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::added_delta
+        );
+        $stats .= "\n    new: $added_count rows";
+        my $existing_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::updated_delta
+        );
+        $stats .= "\n    existing: $existing_count rows";
+        my $deleted_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::deleted_delta
+        );
+        $stats .= "\n    removed: $deleted_count rows";
+    };
+    if ($err or !$result) {
+        push(@$messages,"importing clir INCOMPLETE$stats");
+    } else {
+        push(@$messages,"importing clir completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
+sub import_truncate_clir_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::create_table(1);
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        $stats .= "\n  total clir records: " .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_clir() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"truncating imported clir INCOMPLETE$stats");
+    } else {
+        push(@$messages,"truncating imported clir completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
 
 
 sub create_subscriber_task {
@@ -482,42 +524,6 @@ sub create_subscriber_task {
 
 }
 
-#sub set_allowed_ips_task {
-#
-#    my ($messages) = @_;
-#    my ($result,$warning_count) = (0,0);
-#    eval {
-#        if ($batch) {
-#            ($result,$warning_count) = set_allowed_ips_batch();
-#        } else {
-#            ($result,$warning_count) = set_allowed_ips();
-#        }
-#    };
-#    my $err = $@;
-#    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
-#    eval {
-#
-#        my $allowed_ips_grp_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-#            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ALLOWED_IPS_GRP_ATTRIBUTE);
-#        $stats .= "\n  '" . $allowed_ips_grp_attribute->{attribute} . "': " .
-#            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
-#                $allowed_ips_grp_attribute->{id},undef) . ' rows';
-#        foreach my $ipnet (@$allowed_ips) {
-#            $stats .= "\n    '$ipnet': " . NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_allowed_ip_groups::countby_groupid_ipnet(undef,$ipnet) . ' rows';
-#        }
-#        $stats .= "\n  voip_aig_sequence: " . NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_aig_sequence::get_id();
-#
-#    };
-#    if ($err or !$result) {
-#        push(@$messages,"set subscribers\' allowed_ips preference INCOMPLETE$stats");
-#    } else {
-#        push(@$messages,"set subscribers\' allowed_ips preference completed$stats");
-#    }
-#    destroy_all_dbs(); #every task should leave with closed connections.
-#    return $result;
-#
-#}
-
 #sub set_call_forwards_task {
 #
 #    my ($messages,$mode) = @_;
@@ -552,37 +558,6 @@ sub create_subscriber_task {
 #        push(@$messages,"set subscribers\' call forwards INCOMPLETE$stats");
 #    } else {
 #        push(@$messages,"set subscribers\' call forwards completed$stats");
-#    }
-#    destroy_all_dbs(); #every task should leave with closed connections.
-#    return $result;
-#
-#}
-
-#sub set_preference_bulk_task {
-#
-#    my ($messages,$bulk_attribute_name,$value) = @_;
-#    my ($result,$warning_count) = (0,0);
-#    eval {
-#        if ($batch) {
-#            ($result,$warning_count) = set_preference_bulk_batch($bulk_attribute_name,$value);
-#        } else {
-#            ($result,$warning_count) = set_preference_bulk($bulk_attribute_name,$value);
-#        }
-#    };
-#    my $err = $@;
-#    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
-#    eval {
-#        my $bulk_attribute = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute($bulk_attribute_name);
-#
-#        $stats .= "\n  '" . $bulk_attribute->{attribute} . "': " .
-#            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::countby_subscriberid_attributeid_value(undef,
-#                $bulk_attribute->{id},undef) . ' rows';
-#
-#    };
-#    if ($err or !$result) {
-#        push(@$messages,"set subscribers\' $bulk_attribute_name preference INCOMPLETE$stats");
-#    } else {
-#        push(@$messages,"set subscribers\' $bulk_attribute_name preference completed$stats");
 #    }
 #    destroy_all_dbs(); #every task should leave with closed connections.
 #    return $result;
