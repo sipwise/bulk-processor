@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli;
+package NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir;
 use strict;
 
 ## no critic
@@ -36,8 +36,7 @@ our @EXPORT_OK = qw(
     @fieldnames
 
     findby_sipusername
-    findby_ccacsn
-    countby_ccacsn
+    countby_clir
 
     update_delta
     findby_delta
@@ -55,15 +54,13 @@ our @EXPORT_OK = qw(
 #countby_ccacsn
 #list_domain_billingprofilename_resellernames
 
-my $tablename = 'allowed_cli';
+my $tablename = 'clir';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 
 our @fieldnames = (
     "sip_username",
-    "cc",
-    "ac",
-    "sn",
+    "clir",
 
     #calculated fields at the end!
     'rownum',
@@ -76,13 +73,8 @@ my $expected_fieldnames = [
 ];
 
 # table creation:
-my $primarykey_fieldnames = [ 'cc','ac','sn' ];
+my $primarykey_fieldnames = [ 'sip_username' ];
 my $indexes = {
-    #$tablename . '_reseller_name' => [ 'reseller_name(32)' ],
-    #$tablename . '_customer_id' => [ 'customer_id(32)' ],
-    #$tablename . '_billing_profile_name' => [ 'billing_profile_name(64)' ],
-    $tablename . '_username' => [ 'sip_username(32)' ],
-    #$tablename . '_web_username_password' => [ 'web_username(32),web_password(32)' ],
     $tablename . '_rownum' => [ 'rownum(11)' ],
     $tablename . '_delta' => [ 'delta(7)' ],
 };
@@ -136,29 +128,6 @@ sub findby_delta {
 
 }
 
-sub findby_ccacsn {
-
-    my ($cc,$ac,$sn,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    return [] unless (defined $cc or defined $ac or defined $sn);
-
-    my $rows = $db->db_get_all_arrayref(
-        'SELECT * FROM ' .
-            $table .
-        ' WHERE ' .
-            $db->columnidentifier('cc') . ' = ?' .
-            ' AND ' . $db->columnidentifier('ac') . ' = ?' .
-            ' AND ' . $db->columnidentifier('sn') . ' = ?'
-    ,$cc,$ac,$sn);
-
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
-
-}
-
 sub findby_sipusername {
 
     my ($sip_username,$load_recursive) = @_;
@@ -176,13 +145,33 @@ sub findby_sipusername {
             $db->columnidentifier('sip_username') . ' = ?'
     ,$sip_username);
 
-    return buildrecords_fromrows($rows,$load_recursive);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub countby_clir {
+
+    my ($clir) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my @params = ();
+    if (defined $clir) {
+        $stmt .= ' WHERE ' .
+            $db->columnidentifier('clir') . ' = ?';
+        push(@params,$clir);
+    }
+
+    return $db->db_get_value($stmt,@params);
 
 }
 
 sub update_delta {
 
-    my ($cc,$ac,$sn,$delta) = @_;
+    my ($sip_username,$delta) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -191,39 +180,16 @@ sub update_delta {
     my $stmt = 'UPDATE ' . $table . ' SET delta = ?';
     my @params = ();
     push(@params,$delta);
-    if (defined $cc or defined $ac or defined $sn) {
+    if (defined $sip_username) {
         $stmt .= ' WHERE ' .
-            $db->columnidentifier('cc') . ' = ?' .
-            ' AND ' . $db->columnidentifier('ac') . ' = ?' .
-            ' AND ' . $db->columnidentifier('sn') . ' = ?';
-        push(@params,$cc,$ac,$sn);
+            $db->columnidentifier('sip_username') . ' = ?';
+        push(@params,$sip_username);
     }
 
     return $db->db_do($stmt,@params);
 
 }
 
-sub countby_ccacsn {
-
-    my ($cc,$ac,$sn) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
-    my @params = ();
-    if (defined $cc or defined $ac or defined $sn) {
-        $stmt .= ' WHERE ' .
-            $db->columnidentifier('cc') . ' = ?' .
-            ' AND ' . $db->columnidentifier('ac') . ' = ?' .
-            ' AND ' . $db->columnidentifier('sn') . ' = ?';
-        push(@params,$cc,$ac,$sn);
-    }
-
-    return $db->db_get_value($stmt,@params);
-
-}
 
 sub countby_delta {
 
@@ -250,19 +216,6 @@ sub countby_delta {
 
 }
 
-#sub list_domain_billingprofilename_resellernames {
-#
-#    check_table();
-#    my $db = &$get_db();
-#    my $table = $db->tableidentifier($tablename);
-#
-#    my @cols = map { $db->columnidentifier($_); } qw/domain billing_profile_name reseller_name/;
-#    my $stmt = 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols);
-#    my @params = ();
-#
-#    return $db->db_get_all_arrayref($stmt,@params);
-#
-#}
 
 sub buildrecords_fromrows {
 
@@ -285,46 +238,6 @@ sub buildrecords_fromrows {
 
 }
 
-#sub process_records {
-#
-#    my %params = @_;
-#    my ($process_code,
-#        $static_context,
-#        $init_process_context_code,
-#        $uninit_process_context_code,
-#        $multithreading,
-#        $numofthreads) = @params{qw/
-#            process_code
-#            static_context
-#            init_process_context_code
-#            uninit_process_context_code
-#            multithreading
-#            numofthreads
-#        /};
-#
-#    check_table();
-#    my $db = &$get_db();
-#    my $table = $db->tableidentifier($tablename);
-#
-#    my @cols = map { $db->columnidentifier($_); } qw/domain sip_username/;
-#
-#    return process_table(
-#        get_db                      => $get_db,
-#        class                       => __PACKAGE__,
-#        process_code                => sub {
-#                my ($context,$rowblock,$row_offset) = @_;
-#                return &$process_code($context,$rowblock,$row_offset);
-#            },
-#        static_context              => $static_context,
-#        init_process_context_code   => $init_process_context_code,
-#        uninit_process_context_code => $uninit_process_context_code,
-#        destroy_reader_dbs_code     => \&destroy_all_dbs,
-#        multithreading              => $multithreading,
-#        tableprocessing_threads     => $numofthreads,
-#        'select'                    => 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),
-#        'select_count'              => 'SELECT COUNT(DISTINCT(' . join(',',@cols) . ')) FROM ' . $table,
-#    );
-#}
 
 sub getinsertstatement {
 
@@ -345,9 +258,7 @@ sub getupsertstatement {
     foreach my $fieldname (@$expected_fieldnames) {
         if ('delta' eq $fieldname) {
             my $stmt = 'SELECT \'' . $updated_delta . '\' FROM ' . $table . ' WHERE ' .
-                $db->columnidentifier('cc') . ' = ?' .
-                ' AND ' . $db->columnidentifier('ac') . ' = ?' .
-                ' AND ' . $db->columnidentifier('sn') . ' = ?';
+                $db->columnidentifier('sip_username') . ' = ?';
             push(@values,'COALESCE((' . $stmt . '), \'' . $added_delta . '\')');
         } else {
             push(@values,'?');
