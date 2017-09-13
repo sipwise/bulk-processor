@@ -3,6 +3,8 @@ use strict;
 
 ## no critic
 
+no strict 'refs';
+
 use threads::shared qw();
 #use List::Util qw();
 
@@ -69,10 +71,10 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
 
-    clear_preferences
-    delete_preference
-    set_preference
-    get_preference
+    clear_subscriber_preferences
+    delete_subscriber_preference
+    set_subscriber_preference
+    get_subscriber_preference
 
 );
 #    set_barring_profiles
@@ -554,59 +556,80 @@ our @EXPORT_OK = qw(
 #}
 
 
+my %get_preference_sub_names = (
+    voip_usr_preferences => 'findby_subscriberid_attributeid',
+);
+my %preference_id_cols = (
+    voip_usr_preferences => 'subscriber_id',
+);
 
-
-
-sub clear_preferences {
+sub clear_subscriber_preferences {
     my ($context,$subscriber_id,$attribute,$except_value) = @_;
+    return _clear_preferences($context,'voip_usr_preferences',$subscriber_id,$attribute,$except_value);
+}
+sub delete_subscriber_preference {
+    my ($context,$subscriber_id,$attribute,$value) = @_;
+    return _delete_preference($context,'voip_usr_preferences',$subscriber_id,$attribute,$value);
+}
+sub set_subscriber_preference {
+    my ($context,$subscriber_id,$attribute,$value) = @_;
+    return _set_preference($context,'voip_usr_preferences',$subscriber_id,$attribute,$value);
+}
+sub get_subscriber_preference {
+    my ($context,$subscriber_id,$attribute) = @_;
+    return _get_preference($context,'voip_usr_preferences',$subscriber_id,$attribute);
+}
 
-    return NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::delete_preferences($context->{db},
-        $subscriber_id, $attribute->{id}, defined $except_value ? { 'NOT IN' => $except_value } : undef);
+sub _clear_preferences {
+    my ($context,$pref_type,$id,$attribute,$except_value) = @_;
+
+    return &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::delete_preferences'}($context->{db},
+        $id, $attribute->{id}, defined $except_value ? { 'NOT IN' => $except_value } : undef);
 
 }
 
-sub delete_preference {
-    my ($context,$subscriber_id,$attribute,$value) = @_;
+sub _delete_preference {
+    my ($context,$pref_type,$id,$attribute,$value) = @_;
 
-    return NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::delete_preferences($context->{db},
-        $subscriber_id, $attribute->{id}, { 'IN' => $value } );
+    return &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::delete_preferences'}($context->{db},
+        $id, $attribute->{id}, { 'IN' => $value } );
 
 }
 
-sub set_preference {
-    my ($context,$subscriber_id,$attribute,$value) = @_;
+sub _set_preference {
+    my ($context,$pref_type,$id,$attribute,$value) = @_;
 
     if ($attribute->{max_occur} == 1) {
-        my $old_preferences = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::findby_subscriberid_attributeid($context->{db},
-            $subscriber_id,$attribute->{id});
+        my $old_preferences = &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::' . $get_preference_sub_names{$pref_type}}($context->{db},
+            $id,$attribute->{id});
         if (defined $value) {
             if ((scalar @$old_preferences) == 1) {
-                NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::update_row($context->{db},{
+                &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::update_row'}($context->{db},{
                     id => $old_preferences->[0]->{id},
                     value => $value,
                 });
                 return $old_preferences->[0]->{id};
             } else {
                 if ((scalar @$old_preferences) > 1) {
-                    NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::delete_preferences($context->{db},
+                    &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::delete_preferences'}($context->{db},
                         $subscriber_id,$attribute->{id});
                 }
-                return NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::insert_row($context->{db},
+                return &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::insert_row'}($context->{db},
                     attribute_id => $attribute->{id},
-                    subscriber_id => $subscriber_id,
+                    $preference_id_cols{$pref_type} => $id,
                     value => $value,
                 );
             }
         } else {
-            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::delete_preferences($context->{db},
-                $subscriber_id,$attribute->{id});
+            &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::delete_preferences'}($context->{db},
+                $id,$attribute->{id});
             return undef;
         }
     } else {
         if (defined $value) {
-            return NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::insert_row($context->{db},
+            return &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::insert_row'}($context->{db},
                 attribute_id => $attribute->{id},
-                subscriber_id => $subscriber_id,
+                $preference_id_cols{$pref_type} => $id,
                 value => $value,
             );
         } else {
@@ -616,8 +639,11 @@ sub set_preference {
 
 }
 
-sub get_preference {
-    my ($context,$subscriber_id,$attribute) = @_;
+sub _get_preference {
+    my ($context,$pref_type,$id,$attribute) = @_;
+
+    my $preferences = &{'NGCP::BulkProcessor::Dao::Trunk::provisioning::' . $pref_type . '::' . $get_preference_sub_names{$pref_type}}($context->{db},
+            $id,$attribute->{id});
 
     my $preferences = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::findby_subscriberid_attributeid($context->{db},
             $subscriber_id,$attribute->{id});
