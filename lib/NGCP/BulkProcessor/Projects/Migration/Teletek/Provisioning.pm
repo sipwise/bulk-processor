@@ -16,8 +16,11 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
 
     $provision_subscriber_multithreading
     $provision_subscriber_numofthreads
+    $webpassword_length
+    $webusername_length
 
     $reseller_mapping
+    $barring_profiles
 
 );
 #$batch
@@ -45,6 +48,7 @@ use NGCP::BulkProcessor::LogError qw(
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::products qw();
@@ -57,6 +61,7 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::resellers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_numbers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::domain_resellers qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
@@ -70,9 +75,11 @@ use NGCP::BulkProcessor::RestRequests::Trunk::Subscribers qw();
 use NGCP::BulkProcessor::RestRequests::Trunk::Customers qw();
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Preferences qw(
-    set_preference
-    clear_preferences
-    delete_preference
+    set_subscriber_preference
+    clear_subscriber_preferences
+    delete_subscriber_preference
+    set_allowed_ips_preferences
+    cleanup_aig_sequence_ids
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
@@ -83,8 +90,9 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::ProjectConnectorPool qw(
     destroy_all_dbs
 );
 
-use NGCP::BulkProcessor::Utils qw(create_uuid threadid timestamp);
+use NGCP::BulkProcessor::Utils qw(create_uuid threadid timestamp stringtobool check_ipnet trim);
 use NGCP::BulkProcessor::DSSorter qw(sort_by_configs);
+use NGCP::BulkProcessor::RandomString qw(createtmpstring);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -92,6 +100,12 @@ our @EXPORT_OK = qw(
     provision_subscribers
 
 );
+
+my $split_ipnets_pattern =  join('|',(
+    quotemeta(','),
+    quotemeta(';'),
+    #quotemeta('/')
+));
 
 sub provision_subscribers {
 
@@ -109,7 +123,7 @@ sub provision_subscribers {
                 next unless _provision_susbcriber($context,
                     NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_sipusername(@$domain_sipusername));
             }
-
+            cleanup_aig_sequence_ids($context);
             return 1;
         },
         init_process_context_code => sub {
@@ -212,6 +226,39 @@ sub _provision_subscribers_checks {
 
     my $result = 1;
 
+    my $subscribercount = 0;
+    eval {
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::countby_ccacsn();
+    };
+    if ($@ or $subscribercount == 0) {
+        rowprocessingerror(threadid(),'please import subscribers first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"$subscribercount subscriber found",getlogger(__PACKAGE__));
+    }
+
+    my $allowedclicount = 0;
+    eval {
+        $allowedclicount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_ccacsn();
+    };
+    if ($@ or $allowedclicount == 0) {
+        rowprocessingerror(threadid(),'please import allowed clis first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"$allowedclicount allowed clis found",getlogger(__PACKAGE__));
+    }
+
+    my $clircount = 0;
+    eval {
+        $clircount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_clir();
+    };
+    if ($@ or $clircount == 0) {
+        rowprocessingerror(threadid(),'please import clir first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"$clircount clir records found",getlogger(__PACKAGE__));
+    }
+
     my $domain_billingprofilename_resellernames = [];
     eval {
         $domain_billingprofilename_resellernames = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::list_domain_billingprofilename_resellernames();
@@ -247,6 +294,7 @@ sub _provision_subscribers_checks {
                     $result = 0; #even in skip-error mode..
                 } else {
                     $context->{reseller_map}->{$resellername}->{billingprofile_map} = {};
+                    processing_info(threadid(),"reseller '$resellername' found",getlogger(__PACKAGE__));
                 }
             }
             if (not exists $context->{domain_map}->{$domain}) {
@@ -254,16 +302,19 @@ sub _provision_subscribers_checks {
                     $context->{domain_map}->{$domain} = NGCP::BulkProcessor::Dao::Trunk::billing::domains::findby_domain($domain);
                 };
                 if ($@ or not $context->{domain_map}->{$domain}) {
-                    rowprocessingerror(threadid(),"cannot find domain '$domain' (billing)",getlogger(__PACKAGE__));
+                    rowprocessingerror(threadid(),"cannot find billing domain '$domain'",getlogger(__PACKAGE__));
                     $result = 0; #even in skip-error mode..
                 } else {
+                    processing_info(threadid(),"billing domain '$domain' found",getlogger(__PACKAGE__));
                     eval {
                         $context->{domain_map}->{$domain}->{prov_domain} =
                             NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_domain($domain);
                     };
                     if ($@ or not $context->{domain_map}->{$domain}->{prov_domain}) {
-                        rowprocessingerror(threadid(),"cannot find domain '$domain' (provisioning)",getlogger(__PACKAGE__));
+                        rowprocessingerror(threadid(),"cannot find provisioning domain '$domain'",getlogger(__PACKAGE__));
                         $result = 0; #even in skip-error mode..
+                    } else {
+                        processing_info(threadid(),"provisioning domain '$domain' found",getlogger(__PACKAGE__));
                     }
                 }
             }
@@ -276,6 +327,8 @@ sub _provision_subscribers_checks {
             if ($@ or not $domain_reseller) {
                 rowprocessingerror(threadid(),"domain $domain does not belong to reseller $resellername",getlogger(__PACKAGE__));
                 $result = 0; #even in skip-error mode..
+            } else {
+                processing_info(threadid(),"domain $domain belongs to reseller $resellername",getlogger(__PACKAGE__));
             }
 
             if ($context->{reseller_map}->{$resellername}->{billingprofile_map} and
@@ -291,6 +344,8 @@ sub _provision_subscribers_checks {
                 if ($@ or not $context->{reseller_map}->{$resellername}->{billingprofile_map}->{$billingprofilename}) {
                     rowprocessingerror(threadid(),"cannot find billing profile '$billingprofilename' of reseller '$resellername'",getlogger(__PACKAGE__));
                     $result = 0; #even in skip-error mode..
+                } else {
+                    processing_info(threadid(),"billing profile '$billingprofilename' of reseller '$resellername' found",getlogger(__PACKAGE__));
                 }
             }
         }
@@ -303,6 +358,8 @@ sub _provision_subscribers_checks {
     if ($@ or not defined $context->{sip_account_product}) {
         rowprocessingerror(threadid(),"cannot find $NGCP::BulkProcessor::Dao::Trunk::billing::products::SIP_ACCOUNT_HANDLE product",getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"$NGCP::BulkProcessor::Dao::Trunk::billing::products::SIP_ACCOUNT_HANDLE product found",getlogger(__PACKAGE__));
     }
 
     $context->{attributes} = {};
@@ -314,6 +371,8 @@ sub _provision_subscribers_checks {
     if ($@ or not defined $context->{attributes}->{allowed_clis}) {
         rowprocessingerror(threadid(),'cannot find allowed_clis attribute',getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"allowed_clis attribute found",getlogger(__PACKAGE__));
     }
 
     eval {
@@ -323,6 +382,8 @@ sub _provision_subscribers_checks {
     if ($@ or not defined $context->{attributes}->{cli}) {
         rowprocessingerror(threadid(),'cannot find cli attribute',getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"cli attribute found",getlogger(__PACKAGE__));
     }
 
     eval {
@@ -332,6 +393,8 @@ sub _provision_subscribers_checks {
     if ($@ or not defined $context->{attributes}->{ac}) {
         rowprocessingerror(threadid(),'cannot find ac attribute',getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"ac attribute found",getlogger(__PACKAGE__));
     }
 
     eval {
@@ -341,6 +404,8 @@ sub _provision_subscribers_checks {
     if ($@ or not defined $context->{attributes}->{cc}) {
         rowprocessingerror(threadid(),'cannot find cc attribute',getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"cc attribute found",getlogger(__PACKAGE__));
     }
 
     eval {
@@ -350,18 +415,107 @@ sub _provision_subscribers_checks {
     if ($@ or not defined $context->{attributes}->{account_id}) {
         rowprocessingerror(threadid(),'cannot find account_id attribute',getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"account_id attribute found",getlogger(__PACKAGE__));
     }
 
-    #eval {
-    #    $context->{peer_auth_pass_attribute} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-    #        $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_PASS);
-    #};
+    eval {
+        $context->{attributes}->{concurrent_max_total} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CONCURRENT_MAX_TOTAL_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{concurrent_max_total}) {
+        rowprocessingerror(threadid(),'cannot find concurrent_max_total attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"concurrent_max_total attribute found",getlogger(__PACKAGE__));
+    }
 
-    #if ($@ or not defined $context->{peer_auth_pass_attribute}) {
-    #    rowprocessingerror(threadid(),'cannot find peer_auth_pass attribute',getlogger(__PACKAGE__));
-    #    $result = 0; #even in skip-error mode..
-    #}
+    eval {
+        $context->{attributes}->{clir} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CLIR_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{clir}) {
+        rowprocessingerror(threadid(),'cannot find clir attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"clir attribute found",getlogger(__PACKAGE__));
+    }
 
+    eval {
+        $context->{attributes}->{allowed_ips_grp} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ALLOWED_IPS_GRP_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{allowed_ips_grp}) {
+        rowprocessingerror(threadid(),'cannot find allowed_ips_grp attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"allowed_ips_grp attribute found",getlogger(__PACKAGE__));
+    }
+
+
+    my $barring_resellernames = [];
+    eval {
+        $barring_resellernames = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::list_barring_resellernames();
+    };
+    if ($@) {
+        rowprocessingerror(threadid(),'error retrieving barrings',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        $context->{ncos_level_map} = {};
+        foreach my $barring_resellername (@$barring_resellernames) {
+            my $resellername = _apply_reseller_mapping($barring_resellername->{reseller_name});
+            #unless ($resellername) {
+            #    rowprocessingerror(threadid(),"empty reseller name detected",getlogger(__PACKAGE__));
+            #    $result = 0; #even in skip-error mode..
+            #}
+            my $barring = $barring_resellername->{barrings};
+            next unless ($barring);
+            $result &= _check_ncos_level($context,$resellername,$barring);
+        }
+    }
+
+    eval {
+        $context->{attributes}->{adm_ncos_id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ADM_NCOS_ID_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{adm_ncos_id}) {
+        rowprocessingerror(threadid(),'cannot find adm_ncos_id attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"adm_ncos_id attribute found",getlogger(__PACKAGE__));
+    }
+
+    return $result;
+}
+
+sub _check_ncos_level {
+    my ($context,$resellername,$barring) = @_;
+    my $result = 1;
+    if (not exists $barring_profiles->{$resellername}) {
+        rowprocessingerror(threadid(),"barring mappings for reseller $resellername missing",getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } elsif (not exists $barring_profiles->{$resellername}->{$barring}) {
+        rowprocessingerror(threadid(),"mappings for barring '" . $barring . "' of reseller $resellername missing",getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        my $reseller_id = $context->{reseller_map}->{$resellername}->{id};
+        $context->{ncos_level_map}->{$reseller_id} = {} unless exists $context->{ncos_level_map}->{$reseller_id};
+        my $level = $barring_profiles->{$resellername}->{$barring};
+        if (not defined $level or length($level) == 0) {
+            $context->{ncos_level_map}->{$reseller_id}->{$barring} = undef;
+        } else {
+            eval {
+                $context->{ncos_level_map}->{$reseller_id}->{$barring} = NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels::findby_resellerid_level(
+                    $reseller_id,$level);
+            };
+            if ($@ or not defined $context->{ncos_level_map}->{$reseller_id}->{$barring}) {
+                rowprocessingerror(threadid(),"cannot find ncos level '$level' of reseller $resellername",getlogger(__PACKAGE__));
+                $result = 0; #even in skip-error mode..
+            } else {
+                processing_info(threadid(),"ncos level '$level' of reseller $resellername found",getlogger(__PACKAGE__));
+            }
+        }
+    }
     return $result;
 }
 
@@ -407,6 +561,7 @@ sub _update_contract {
         $context->{contract}->{contract_balance_id} = NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances::insert_row($context->{db},
             contract_id => $context->{contract}->{id},
         );
+
     }
     return 1;
 
@@ -454,7 +609,7 @@ sub _update_subscriber {
             );
         }
 
-        $context->{preferences}->{cli} = { id => set_preference($context,
+        $context->{preferences}->{cli} = { id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{cli},
             $number->{number}), value => $number->{number} };
@@ -472,7 +627,7 @@ sub _update_subscriber {
         );
 
         my @allowed_clis = ();
-        push(@allowed_clis,{ id => set_preference($context,
+        push(@allowed_clis,{ id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
             $number->{number}), value => $number->{number}});
@@ -484,7 +639,7 @@ sub _update_subscriber {
         NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::delete_dbaliases($context->{db},
             $context->{prov_subscriber}->{id},{ 'NOT IN' => $number->{number} });
 
-        clear_preferences($context,
+        clear_subscriber_preferences($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
             $number->{number});
@@ -493,23 +648,48 @@ sub _update_subscriber {
             $context->{voicemail_user},
         );
 
-        $context->{preferences}->{account_id} = { id => set_preference($context,
+        $context->{preferences}->{account_id} = { id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{account_id},
             $context->{contract}->{id}), value => $context->{contract}->{id} };
 
         if (length($number->{ac}) > 0) {
-            $context->{preferences}->{ac} = { id => set_preference($context,
+            $context->{preferences}->{ac} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{ac},
                 $number->{ac}), value => $number->{ac} };
         }
         if (length($number->{cc}) > 0) {
-            $context->{preferences}->{cc} = { id => set_preference($context,
+            $context->{preferences}->{cc} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{cc},
                 $number->{cc}), value => $number->{cc} };
         }
+
+        if (defined $context->{channels}) {
+            $context->{preferences}->{concurrent_max_total} = { id => set_subscriber_preference($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{concurrent_max_total},
+                $context->{channels}), value => $context->{channels} };
+        }
+
+        if ($context->{clir}) {
+            $context->{preferences}->{concurrent_max_total} = { id => set_subscriber_preference($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{clir},
+                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::TRUE), value => $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::TRUE };
+        }
+
+        if ((scalar @{$context->{allowed_ips}}) > 0) {
+            my ($allowed_ip_group_preferrence_id, $allowed_ip_group_id) = set_allowed_ips_preferences($context,
+                $context->{prov_subscriber}->{id},
+                $context->{prov_subscriber}->{username},
+                $context->{attributes}->{allowed_ips_grp},
+                $context->{allowed_ips},
+            );
+            $context->{preferences}->{allowed_ips_grp} = { id => $allowed_ip_group_preferrence_id, value => $allowed_ip_group_id };
+        }
+
     }
 
     return $result;
@@ -576,11 +756,11 @@ sub _create_aliases {
             push(@{$context->{aliases}->{other}},$alias);
             push(@usernames,$number->{number});
 
-            delete_preference($context,
+            delete_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{allowed_clis},
                 $number->{number});
-            push(@{$context->{preferences}->{allowed_clis}},{ id => set_preference($context,
+            push(@{$context->{preferences}->{allowed_clis}},{ id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{allowed_clis},
                 $number->{number}), value => $number->{number}});
@@ -596,7 +776,7 @@ sub _create_aliases {
         NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::delete_dbaliases($context->{db},$context->{prov_subscriber}->{id},
             { 'NOT IN' => \@usernames });
 
-        clear_preferences($context,
+        clear_subscriber_preferences($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
              \@usernames );
@@ -619,25 +799,17 @@ sub _provision_susbcriber_init_context {
     }
 
     $context->{domain} = $context->{domain_map}->{$first->{domain}};
-    $context->{reseller} = $context->{reseller_map}->{_apply_reseller_mapping($first->{reseller_name})};
+    my $resellername = _apply_reseller_mapping($first->{reseller_name});
+    $context->{reseller} = $context->{reseller_map}->{$resellername};
     $context->{billing_profile} = $context->{reseller}->{billingprofile_map}->{$first->{billing_profile_name}};
 
     $context->{prov_subscriber} = {};
     $context->{prov_subscriber}->{username} = $first->{sip_username};
     $context->{prov_subscriber}->{password} = $first->{sip_password};
     $context->{prov_subscriber}->{webusername} = $first->{web_username};
-    if (not (defined $first->{web_username} and length($first->{web_username}) > 0)) {
-        $context->{prov_subscriber}->{webusername} = undef;
-    } else {
-        my %webusername_dupes = map { $_->{sip_username} => 1; }
-            @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_webusername(
-            $first->{domain},$context->{prov_subscriber}->{webusername})};
-        if ((scalar keys %webusername_dupes) > 1) {
-            #_warn($context,"duplicate web_username $context->{prov_subscriber}->{webusername}, using sip_username");
-            $context->{prov_subscriber}->{webusername} = $first->{sip_username};
-        }
-    }
     $context->{prov_subscriber}->{webpassword} = $first->{web_password};
+    my $webusername = $first->{web_username};
+
     $context->{prov_subscriber}->{uuid} = create_uuid();
     $context->{prov_subscriber}->{domain_id} = $context->{domain}->{prov_domain}->{id};
 
@@ -647,17 +819,20 @@ sub _provision_susbcriber_init_context {
     $context->{bill_subscriber}->{uuid} = $context->{prov_subscriber}->{uuid};
 
     undef $context->{contract};
+    undef $context->{channels};
 
     my @numbers = ();
     my %number_dupes = ();
     my %contact_dupes = ();
+    my %allowed_ips = ();
+    my %barrings = ();
     foreach my $subscriber (@$subscriber_group) {
-        my $number = ($subscriber->{cc} // '') . ($subscriber->{ac} // '') . ($subscriber->{sn} // '');
+        my $number = $subscriber->{cc} . $subscriber->{ac} . $subscriber->{sn};
         if (not exists $number_dupes{$number}) {
             push(@numbers,{
-                cc => $subscriber->{cc} // '',
-                ac => $subscriber->{ac} // '',
-                sn => $subscriber->{sn} // '',
+                cc => $subscriber->{cc},
+                ac => $subscriber->{ac},
+                sn => $subscriber->{sn},
                 number => $number,
                 delta => $subscriber->{delta},
                 additional => 0,
@@ -693,15 +868,99 @@ sub _provision_susbcriber_init_context {
                 _warn($context,'non-unique contact hash, skipped');
             }
         }
+
+        my $channels = $subscriber->{channels};
+        if (defined $channels and length($channels) > 0) {
+            if (not ($channels > 0)) {
+                _warn($context,"invalid number of channels $subscriber->{channels}, ignoring");
+            } elsif (not defined $context->{channels} or $channels > $context->{channels}) {
+                $context->{channels} = $channels;
+            }
+        }
+        #print $subscriber->{allowed_ips} . "\n";
+        if (defined $subscriber->{allowed_ips} and length($subscriber->{allowed_ips}) > 0) {
+            foreach my $ipnet (map { local $_ = $_; trim($_); } split(/$split_ipnets_pattern/,$subscriber->{allowed_ips})) {
+                if (check_ipnet($ipnet)) {
+                    if ('0.0.0.0' ne $ipnet) {
+                        $allowed_ips{$ipnet} = 1;
+                    } else {
+                        _info($context,"allowed_ip '$ipnet' ignored",1);
+                    }
+                } else {
+                    _warn($context,"invalid allowed_ip '$ipnet', ignored");
+                }
+            }
+        }
+        #$context->{allowed_ips} = \@allowed_ips;
+        unless (defined $context->{prov_subscriber}->{password} and length($context->{prov_subscriber}->{password}) > 0) {
+            $context->{prov_subscriber}->{password} = $subscriber->{sip_password};
+        }
+
+        unless (defined $context->{prov_subscriber}->{webusername} and length($context->{prov_subscriber}->{webusername}) > 0
+            and defined $context->{prov_subscriber}->{webpassword} and length($context->{prov_subscriber}->{webpassword}) > 0) {
+            $context->{prov_subscriber}->{webusername} = $subscriber->{web_username};
+            $context->{prov_subscriber}->{webpassword} = $subscriber->{web_password};
+        }
+
+        unless (defined $webusername and length($webusername) > 0) {
+            $webusername = $subscriber->{web_username};
+        }
+
+        if (defined $subscriber->{barrings} and length($subscriber->{barrings}) > 0) {
+            $barrings{$subscriber->{barrings}} = 1;
+        }
+
+    }
+
+    unless (defined $context->{prov_subscriber}->{webusername} and length($context->{prov_subscriber}->{webusername}) > 0) {
+        $context->{prov_subscriber}->{webusername} = $webusername;
+        $context->{prov_subscriber}->{webpassword} = undef;
+    }
+
+    if (not (defined $context->{prov_subscriber}->{webusername} and length($context->{prov_subscriber}->{webusername}) > 0)) {
+        $context->{prov_subscriber}->{webusername} = undef;
+        $context->{prov_subscriber}->{webpassword} = undef;
+        _info($context,"empty web_username for sip_username '$first->{sip_username}'",1);
+    } else {
+        $webusername = $context->{prov_subscriber}->{webusername};
+        my %webusername_dupes = map { $_->{sip_username} => 1; }
+            @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_webusername(
+            $first->{domain},$webusername)};
+        if ((scalar keys %webusername_dupes) > 1) {
+            my $generated = _generate_webusername(); #$first->{sip_username};
+            _info($context,"duplicate web_username '$webusername', using generated '$generated'");
+            $context->{prov_subscriber}->{webusername} = $generated;
+        }
+
+        #$context->{prov_subscriber}->{webpassword} = $first->{web_password};
+        if (not (defined $context->{prov_subscriber}->{webpassword} and length($context->{prov_subscriber}->{webpassword}) > 0)) {
+            my $generated = _generate_webpassword();
+            _info($context,"empty web_password for web_username '$webusername', using generated '$generated'");
+            $context->{prov_subscriber}->{webpassword} = $generated;
+        #} elsif (defined $first->{web_password} and length($first->{web_password}) < 8) {
+        #    $context->{prov_subscriber}->{webpassword} = _generate_webpassword();
+        #    _info($context,"web_password for web_username '$first->{web_username}' is too short, using '$context->{prov_subscriber}->{webpassword}'");
+        }
+    }
+    $context->{allowed_ips} = [ keys %allowed_ips ];
+    $context->{ncos_level} = undef;
+    if ((scalar keys %barrings) > 1) {
+        my $combined_barring = join('_',sort keys %barrings);
+        $result &= _check_ncos_level($context,$resellername,$combined_barring);
+        _info($context,"$first->{sip_username}: barrings combination $combined_barring");
+        $context->{ncos_level} = $context->{ncos_level_map}->{$context->{reseller}->{id}}->{$combined_barring};
+    } elsif ((scalar keys %barrings) == 1) {
+        my ($barring) = keys %barrings;
+        $context->{ncos_level} = $context->{ncos_level_map}->{$context->{reseller}->{id}}->{$barring};
     }
 
     foreach my $allowed_cli (@{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::findby_sipusername($first->{sip_username})}) {
-        my $number = ($allowed_cli->{cc} // '') . ($allowed_cli->{ac} // '') . ($allowed_cli->{sn} // '');
+        my $number = $allowed_cli->{cc} . $allowed_cli->{ac} . $allowed_cli->{sn};
         if (not exists $number_dupes{$number}) {
             push(@numbers,{
-                cc => $allowed_cli->{cc} // '',
-                ac => $allowed_cli->{ac} // '',
-                sn => $allowed_cli->{sn} // '',
+                cc => $allowed_cli->{cc},
+                ac => $allowed_cli->{ac},
+                sn => $allowed_cli->{sn},
                 number => $number,
                 delta => $allowed_cli->{delta},
                 additional => 1,
@@ -740,24 +999,32 @@ sub _provision_susbcriber_init_context {
     $context->{aliases}->{primary} = undef;
     $context->{aliases}->{other} = [];
 
-    $context->{preferences} = {};
-
     $context->{voicemail_user} = {};
     $context->{voicemail_user}->{customer_id} = $context->{prov_subscriber}->{uuid};
     $context->{voicemail_user}->{mailbox} = $context->{numbers}->{primary}->{number};
     $context->{voicemail_user}->{password} = sprintf("%04d", int(rand 10000));
 
+    $context->{preferences} = {};
+    $context->{clir} = 0;
+    if (my $clir = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::findby_sipusername($first->{sip_username})) {
+        $context->{clir} = stringtobool($clir->{clir});
+    }
+
     return $result;
 
 }
 
-#sub _generate_webpassword {
-#    return String::MkPasswd::mkpasswd(
-#        -length => $webpassword_length,
-#        -minnum => 1, -minlower => 1, -minupper => 1, -minspecial => 1,
-#        -distribute => 1, -fatal => 1,
-#    );
-#}
+sub _generate_webpassword {
+    return String::MkPasswd::mkpasswd(
+        -length => $webpassword_length,
+        -minnum => 1, -minlower => 1, -minupper => 1, -minspecial => 1,
+        -distribute => 1, -fatal => 1,
+    );
+}
+
+sub _generate_webusername {
+    return createtmpstring($webusername_length);
+}
 
 sub _apply_reseller_mapping {
     my $reseller_name = shift;

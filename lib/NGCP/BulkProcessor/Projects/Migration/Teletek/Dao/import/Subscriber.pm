@@ -39,6 +39,7 @@ our @EXPORT_OK = qw(
     findby_domain_webusername
     list_domain_billingprofilename_resellernames
     findby_sipusername
+    list_barring_resellernames
 
     update_delta
     findby_delta
@@ -92,6 +93,7 @@ our @fieldnames = (
     'rownum',
     'range',
     'contact_hash',
+    'filename',
 );
 my $expected_fieldnames = [
     @fieldnames,
@@ -324,6 +326,20 @@ sub list_domain_billingprofilename_resellernames {
     my $table = $db->tableidentifier($tablename);
 
     my @cols = map { $db->columnidentifier($_); } qw/domain billing_profile_name reseller_name/;
+    my $stmt = 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols);
+    my @params = ();
+
+    return $db->db_get_all_arrayref($stmt,@params);
+
+}
+
+sub list_barring_resellernames {
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my @cols = map { $db->columnidentifier($_); } qw/barrings reseller_name/;
     my $stmt = 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols);
     my @params = ();
 

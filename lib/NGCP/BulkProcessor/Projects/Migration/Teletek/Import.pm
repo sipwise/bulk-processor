@@ -16,6 +16,10 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $ignore_allowedcli_unique
     $allowedcli_import_single_row_txn
 
+    $clir_import_numofthreads
+    $ignore_clir_unique
+    $clir_import_single_row_txn
+
     $skip_errors
 );
 use NGCP::BulkProcessor::Logging qw (
@@ -37,9 +41,10 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::ProjectConnectorPool qw(
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
 
 use NGCP::BulkProcessor::Array qw(removeduplicates);
-use NGCP::BulkProcessor::Utils qw(threadid zerofill);
+use NGCP::BulkProcessor::Utils qw(threadid zerofill trim);
 use NGCP::BulkProcessor::Table qw(get_rowhash);
 
 require Exporter;
@@ -47,6 +52,7 @@ our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     import_subscriber
     import_allowedcli
+    import_clir
 );
 
 sub import_subscriber {
@@ -75,8 +81,13 @@ sub import_subscriber {
                 foreach my $row (@$rows) {
                     $rownum++;
                     next if (scalar @$row) == 0;
+                    $row = [ map { local $_ = $_; trim($_); } @$row ];
                     my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber->new($row);
+                    $record->{cc} //= '';
+                    $record->{ac} //= '';
+                    $record->{sn} //= '';
                     $record->{rownum} = $rownum;
+                    $record->{filename} = $file;
                     my @subscriber_row;
                     my %r;
                     if ($subscriber_import_unfold_ranges and $record->{sn} =~ /\.+$/) {
@@ -272,10 +283,16 @@ sub import_allowedcli {
                 foreach my $row (@$rows) {
                     $rownum++;
                     next if (scalar @$row) == 0;
+                    $row = [ map { local $_ = $_; trim($_); } @$row ];
                     my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli->new($row);
+                    $record->{cc} //= '';
+                    $record->{ac} //= '';
+                    $record->{sn} //= '';
+                    $record->{rownum} = $rownum;
+                    $record->{filename} = $file;
 
                     if (NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_ccacsn($record->{cc},$record->{ac},$record->{sn})) {
-                        my $number = ($record->{cc} // '') . ($record->{ac} // '') . ($record->{sn} // '');
+                        my $number = $record->{cc} . $record->{ac} . $record->{sn};
                         if ($skip_errors) {
                             _warn($context,"duplicate number: $number");
                         } else {
@@ -293,7 +310,6 @@ sub import_allowedcli {
                         next;
                     }
 
-                    $record->{rownum} = $rownum;
                     my %r = %$record; my @allowedcli_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::fieldnames};
                     if ($context->{upsert}) {
                         push(@allowedcli_row,$record->{cc},$record->{ac},$record->{sn});
@@ -406,6 +422,174 @@ sub _insert_allowedcli_rows {
     }
 }
 
+
+
+
+
+
+
+
+
+sub import_clir {
+
+    my (@files) = @_;
+
+    my $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::create_table(0);
+
+    foreach my $file (@files) {
+        $result &= _import_clir_checks($file);
+    }
+
+    my $importer = NGCP::BulkProcessor::Projects::Migration::Teletek::FileProcessors::CSVFile->new($clir_import_numofthreads);
+
+    my $upsert = _import_clir_reset_delta();
+
+    destroy_all_dbs(); #close all db connections before forking..
+    my $warning_count :shared = 0;
+    foreach my $file (@files) {
+        $result &= $importer->process(
+            file => $file,
+            process_code => sub {
+                my ($context,$rows,$row_offset) = @_;
+                my $rownum = $row_offset;
+                my @clir_rows = ();
+                foreach my $row (@$rows) {
+                    $rownum++;
+                    next if (scalar @$row) == 0;
+                    $row = [ map { local $_ = $_; trim($_); } @$row ];
+                    my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir->new($row);
+                    $record->{rownum} = $rownum;
+                    $record->{filename} = $file;
+
+                    if ((scalar @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_sipusername($record->{sip_username})}) == 0) {
+                        if ($skip_errors) {
+                            _warn($context,"sip username $record->{sip_username} not found");
+                        } else {
+                            _error($context,"sip username $record->{sip_username} not found");
+                        }
+                        next;
+                    }
+
+                    my %r = %$record; my @clir_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::fieldnames};
+                    if ($context->{upsert}) {
+                        push(@clir_row,$record->{sip_username});
+                    } else {
+                        push(@clir_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::added_delta);
+                    }
+                    push(@clir_rows,\@clir_row);
+                }
+
+                if ((scalar @clir_rows) > 0) {
+                    if ($clir_import_single_row_txn) {
+                        foreach my $clir_row (@clir_rows) {
+                            if ($skip_errors) {
+                                eval { _insert_clir_rows($context,[$clir_row]); };
+                                _warn($context,$@) if $@;
+                            } else {
+                                _insert_clir_rows($context,[$clir_row]);
+                            }
+                        }
+                    } else {
+                        if ($skip_errors) {
+                            eval { _insert_clir_rows($context,\@clir_rows); };
+                            _warn($context,$@) if $@;
+                        } else {
+                            _insert_clir_rows($context,\@clir_rows);
+                        }
+                    }
+                }
+    #use Data::Dumper;
+    #print Dumper(\@subscriber_rows);
+                return 1;
+            },
+            init_process_context_code => sub {
+                my ($context)= @_;
+                $context->{db} = &get_import_db(); # keep ref count low..
+                $context->{upsert} = $upsert;
+                $context->{error_count} = 0;
+                $context->{warning_count} = 0;
+            },
+            uninit_process_context_code => sub {
+                my ($context)= @_;
+                undef $context->{db};
+                destroy_all_dbs();
+                {
+                    lock $warning_count;
+                    $warning_count += $context->{warning_count};
+                }
+            },
+            multithreading => $import_multithreading
+        );
+    }
+
+    return ($result,$warning_count);
+
+}
+
+sub _import_clir_checks {
+    my ($file) = @_;
+    my $result = 1;
+    my $subscribercount = 0;
+    eval {
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::countby_ccacsn();
+    };
+    if ($@ or $subscribercount == 0) {
+        fileprocessingerror($file,'please import subscribers first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+    #my $allowedclicount = 0;
+    #eval {
+    #    $allowedclicount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_ccacsn();
+    #};
+    #if ($@ or $allowedclicount == 0) {
+    #    fileprocessingerror($file,'please import allowed clis first',getlogger(__PACKAGE__));
+    #    $result = 0; #even in skip-error mode..
+    #}
+
+    #my $userpasswordcount = 0;
+    #eval {
+    #    $userpasswordcount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::UsernamePassword::countby_fqdn();
+    #};
+    #if ($@ or $userpasswordcount == 0) {
+    #    fileprocessingerror($file,'please import user passwords first',getlogger(__PACKAGE__));
+    #    $result = 0; #even in skip-error mode..
+    #}
+    return $result;
+}
+
+sub _import_clir_reset_delta {
+    my $upsert = 0;
+    if (NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_clir() > 0) {
+        processing_info(threadid(),'resetting delta of ' .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::update_delta(undef,
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::deleted_delta) .
+            ' clir records',getlogger(__PACKAGE__));
+        $upsert |= 1;
+    }
+    return $upsert;
+}
+
+sub _insert_clir_rows {
+    my ($context,$clir_rows) = @_;
+    $context->{db}->db_do_begin(
+        ($context->{upsert} ?
+           NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::getupsertstatement()
+         : NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::getinsertstatement($ignore_clir_unique)),
+        #NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::gettablename(),
+        #lock
+    );
+    eval {
+        $context->{db}->db_do_rowblock($clir_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_finish(1);
+        };
+        die($err);
+    }
+}
 
 
 

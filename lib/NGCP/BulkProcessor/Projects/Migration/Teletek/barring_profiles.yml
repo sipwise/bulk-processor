@@ -1,0 +1,27 @@
+mapping:
+  Junet:
+    21: 'Junet 21'
+    25: 'Junet 25'
+    29: 'Junet 29'
+    33: 'Junet 33'
+  Teleman:
+    21: 'Teleman 21'
+    25: 'Teleman 25'
+    29: 'Teleman 29'
+    33: 'Teleman 33'
+  Teletek:
+    21: 'Teletek 21'
+    25: 'Teletek 25'
+    27: 'Teletek 27'
+    29: 'Teletek 29'
+    33: 'Teletek 33'
+  No_Mobile_Calls: 'my first ncos level'
+  No_Mobile_Int_Calls: 'my first ncos level'
+  No_Local_Mobile_Int_Calls: 'my first ncos level'
+  No_International_Calls: 'my first ncos level'
+  No_Maltacom_Calls: 'my first ncos level'
+  No_Premium_Numbers: 'my first ncos level'
+  No_Vodafone_Calls: 'my first ncos level'
+  Sub_Disconnect_Total: 'my first ncos level'
+  No_Go_Calls: 'my first ncos level'
+  No_Fixed_Mobile_Calls: 'my first ncos level'

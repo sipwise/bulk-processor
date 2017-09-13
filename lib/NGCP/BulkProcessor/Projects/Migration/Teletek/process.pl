@@ -13,6 +13,7 @@ use NGCP::BulkProcessor::Globals qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     update_settings
     update_reseller_mapping
+    update_barring_profiles
     check_dry
     $output_path
     $defaultsettings
@@ -23,8 +24,11 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $run_id
     @subscriber_filenames
     $reseller_mapping_yml
+    $barring_profiles_yml
 
     @allowedcli_filenames
+
+    @clir_filenames
 );
 #$allowed_ips
 
@@ -62,6 +66,8 @@ use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw(cleanupcertfiles);
 use NGCP::BulkProcessor::Projects::Migration::Teletek::ProjectConnectorPool qw(destroy_all_dbs);
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
@@ -83,6 +89,7 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Check qw(
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Import qw(
     import_subscriber
     import_allowedcli
+    import_clir
 );
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Provisioning qw(
@@ -122,6 +129,11 @@ my $import_allowedcli_task_opt = 'import_allowedcli';
 push(@TASK_OPTS,$import_allowedcli_task_opt);
 my $import_truncate_allowedcli_task_opt = 'truncate_allowedcli';
 push(@TASK_OPTS,$import_truncate_allowedcli_task_opt);
+
+my $import_clir_task_opt = 'import_clir';
+push(@TASK_OPTS,$import_clir_task_opt);
+my $import_truncate_clir_task_opt = 'truncate_clir';
+push(@TASK_OPTS,$import_truncate_clir_task_opt);
 
 my $create_subscriber_task_opt = 'create_subscriber';
 push(@TASK_OPTS,$create_subscriber_task_opt);
@@ -163,6 +175,7 @@ sub init {
     init_log();
     $result &= load_config($settingsfile,\&update_settings,$SIMPLE_CONFIG_TYPE);
     $result &= load_config($reseller_mapping_yml,\&update_reseller_mapping,$YAML_CONFIG_TYPE);
+    $result &= load_config($barring_profiles_yml,\&update_barring_profiles,$YAML_CONFIG_TYPE);
     return $result;
 
 }
@@ -197,6 +210,10 @@ sub main() {
             } elsif (lc($import_truncate_allowedcli_task_opt) eq lc($task)) {
                 $result &= import_truncate_allowedcli_task(\@messages) if taskinfo($import_truncate_allowedcli_task_opt,$result);
 
+            } elsif (lc($import_clir_task_opt) eq lc($task)) {
+                $result &= import_clir_task(\@messages) if taskinfo($import_clir_task_opt,$result);
+            } elsif (lc($import_truncate_clir_task_opt) eq lc($task)) {
+                $result &= import_truncate_clir_task(\@messages) if taskinfo($import_truncate_clir_task_opt,$result);
 
             } elsif (lc($create_subscriber_task_opt) eq lc($task)) {
                 if (taskinfo($create_subscriber_task_opt,$result,1)) {
@@ -430,6 +447,66 @@ sub import_truncate_allowedcli_task {
 
 }
 
+
+
+
+sub import_clir_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        ($result,$warning_count) = import_clir(@clir_filenames);
+    };
+    my $err = $@;
+    my $stats = ": $warning_count warnings";
+    eval {
+        $stats .= "\n  total clir records: " .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_clir() . ' rows';
+        my $added_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::added_delta
+        );
+        $stats .= "\n    new: $added_count rows";
+        my $existing_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::updated_delta
+        );
+        $stats .= "\n    existing: $existing_count rows";
+        my $deleted_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::deleted_delta
+        );
+        $stats .= "\n    removed: $deleted_count rows";
+    };
+    if ($err or !$result) {
+        push(@$messages,"importing clir INCOMPLETE$stats");
+    } else {
+        push(@$messages,"importing clir completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+sub import_truncate_clir_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::create_table(1);
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        $stats .= "\n  total clir records: " .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::countby_clir() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"truncating imported clir INCOMPLETE$stats");
+    } else {
+        push(@$messages,"truncating imported clir completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
 
 
 

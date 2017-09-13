@@ -40,6 +40,8 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
 
 use NGCP::BulkProcessor::RestRequests::Trunk::Resellers qw();
 use NGCP::BulkProcessor::RestRequests::Trunk::Domains qw();
@@ -97,8 +99,8 @@ sub check_billing_db_tables {
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers');
     $result &= $check_result; push(@$messages,$message);
 
-    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels');
-    #$result &= $check_result; push(@$messages,$message);
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels');
+    $result &= $check_result; push(@$messages,$message);
 
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::voip_numbers');
     $result &= $check_result; push(@$messages,$message);
@@ -127,6 +129,12 @@ sub check_import_db_tables {
     my $message_prefix = 'import db tables - ';
 
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir');
     $result &= $check_result; push(@$messages,$message);
 
     return $result;
