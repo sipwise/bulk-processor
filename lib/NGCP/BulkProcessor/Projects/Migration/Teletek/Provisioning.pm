@@ -70,9 +70,9 @@ use NGCP::BulkProcessor::RestRequests::Trunk::Subscribers qw();
 use NGCP::BulkProcessor::RestRequests::Trunk::Customers qw();
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Preferences qw(
-    set_preference
-    clear_preferences
-    delete_preference
+    set_subscriber_preference
+    clear_subscriber_vpreferences
+    delete_subscriber_preference
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
@@ -352,6 +352,15 @@ sub _provision_subscribers_checks {
         $result = 0; #even in skip-error mode..
     }
 
+    eval {
+        $context->{attributes}->{concurrent_max_total} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CONCURRENT_MAX_TOTAL_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{concurrent_max_total}) {
+        rowprocessingerror(threadid(),'cannot find concurrent_max_total attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
     #eval {
     #    $context->{peer_auth_pass_attribute} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
     #        $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::PEER_AUTH_PASS);
@@ -407,6 +416,7 @@ sub _update_contract {
         $context->{contract}->{contract_balance_id} = NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances::insert_row($context->{db},
             contract_id => $context->{contract}->{id},
         );
+
     }
     return 1;
 
@@ -454,7 +464,7 @@ sub _update_subscriber {
             );
         }
 
-        $context->{preferences}->{cli} = { id => set_preference($context,
+        $context->{preferences}->{cli} = { id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{cli},
             $number->{number}), value => $number->{number} };
@@ -484,7 +494,7 @@ sub _update_subscriber {
         NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::delete_dbaliases($context->{db},
             $context->{prov_subscriber}->{id},{ 'NOT IN' => $number->{number} });
 
-        clear_preferences($context,
+        clear_subscriber_preferences($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
             $number->{number});
@@ -493,22 +503,29 @@ sub _update_subscriber {
             $context->{voicemail_user},
         );
 
-        $context->{preferences}->{account_id} = { id => set_preference($context,
+        $context->{preferences}->{account_id} = { id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{account_id},
             $context->{contract}->{id}), value => $context->{contract}->{id} };
 
         if (length($number->{ac}) > 0) {
-            $context->{preferences}->{ac} = { id => set_preference($context,
+            $context->{preferences}->{ac} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{ac},
                 $number->{ac}), value => $number->{ac} };
         }
         if (length($number->{cc}) > 0) {
-            $context->{preferences}->{cc} = { id => set_preference($context,
+            $context->{preferences}->{cc} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{cc},
                 $number->{cc}), value => $number->{cc} };
+        }
+
+        if (defined $context->{channels}) {
+            $context->{preferences}->{concurrent_max_total} = { id => set_subscriber_preference($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{concurrent_max_total},
+                $context->{channels}), value => $context->{channels} };
         }
     }
 
@@ -576,11 +593,11 @@ sub _create_aliases {
             push(@{$context->{aliases}->{other}},$alias);
             push(@usernames,$number->{number});
 
-            delete_preference($context,
+            delete_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{allowed_clis},
                 $number->{number});
-            push(@{$context->{preferences}->{allowed_clis}},{ id => set_preference($context,
+            push(@{$context->{preferences}->{allowed_clis}},{ id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{allowed_clis},
                 $number->{number}), value => $number->{number}});
@@ -596,7 +613,7 @@ sub _create_aliases {
         NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::delete_dbaliases($context->{db},$context->{prov_subscriber}->{id},
             { 'NOT IN' => \@usernames });
 
-        clear_preferences($context,
+        clear_subscriber_preferences($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
              \@usernames );
@@ -741,6 +758,14 @@ sub _provision_susbcriber_init_context {
     $context->{aliases}->{other} = [];
 
     $context->{preferences} = {};
+    $context->{channels} = undef;
+    if (defined (my $channels = $first->{channels})) {
+        unless ($channels > 0) {
+            _warn($context,"invalid number of channels $first->{channels}, ignoring");
+        } else {
+            $context->{channels} = $channelsvv;
+        }
+    }
 
     $context->{voicemail_user} = {};
     $context->{voicemail_user}->{customer_id} = $context->{prov_subscriber}->{uuid};

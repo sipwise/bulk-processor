@@ -37,6 +37,7 @@ our @EXPORT_OK = qw(
 
     $ALLOWED_IPS_GRP_ATTRIBUTE
     $CONCURRENT_MAX_TOTAL_ATTRIBUTE
+    $CONCURRENT_MAX_PER_ACCOUNT
 );
 #$FORCE_OUTBOUND_CALLS_TO_PEER
 
@@ -84,6 +85,7 @@ our $FORCE_INBOUND_CALLS_TO_PEER = 'force_inbound_calls_to_peer';
 our $ALLOWED_IPS_GRP_ATTRIBUTE = 'allowed_ips_grp';
 
 our $CONCURRENT_MAX_TOTAL_ATTRIBUTE = 'concurrent_max_total';
+our $CONCURRENT_MAX_PER_ACCOUNT_ATTRIBUTE = 'concurrent_max_per_account';
 
 sub new {
 
