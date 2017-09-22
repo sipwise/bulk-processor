@@ -71,6 +71,11 @@ our @EXPORT_OK = qw(
     $ignore_clir_unique
     $clir_import_single_row_txn
 
+    @callforward_filenames
+    $callforward_import_numofthreads
+    $ignore_callforward_unique
+    $callforward_import_single_row_txn
+
     $provision_subscriber_multithreading
     $provision_subscriber_numofthreads
     $webpassword_length
@@ -134,6 +139,11 @@ our $clir_import_numofthreads = $cpucount;
 our $ignore_clir_unique = 0;
 our $clir_import_single_row_txn = 1;
 
+our @callforward_filenames = ();
+our $callforward_import_numofthreads = $cpucount;
+our $ignore_callforward_unique = 0;
+our $callforward_import_single_row_txn = 1;
+
 our $provision_subscriber_multithreading = $enablemultithreading;
 our $provision_subscriber_numofthreads = $cpucount;
 our $webpassword_length = 8;
@@ -196,6 +206,11 @@ sub update_settings {
         $clir_import_numofthreads = _get_numofthreads($cpucount,$data,'clir_import_numofthreads');
         $ignore_clir_unique = $data->{ignore_clir_unique} if exists $data->{ignore_clir_unique};
         $clir_import_single_row_txn = $data->{clir_import_single_row_txn} if exists $data->{clir_import_single_row_txn};
+
+        @callforward_filenames = _get_import_filenames(\@callforward_filenames,$data,'callforward_filenames');
+        $callforward_import_numofthreads = _get_numofthreads($cpucount,$data,'callforward_import_numofthreads');
+        $ignore_callforward_unique = $data->{ignore_callforward_unique} if exists $data->{ignore_callforward_unique};
+        $callforward_import_single_row_txn = $data->{callforward_import_single_row_txn} if exists $data->{callforward_import_single_row_txn};
 
         $provision_subscriber_multithreading = $data->{provision_subscriber_multithreading} if exists $data->{provision_subscriber_multithreading};
         $provision_subscriber_numofthreads = _get_numofthreads($cpucount,$data,'provision_subscriber_numofthreads');

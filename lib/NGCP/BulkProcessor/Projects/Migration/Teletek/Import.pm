@@ -21,6 +21,10 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $ignore_clir_unique
     $clir_import_single_row_txn
 
+    $callforward_import_numofthreads
+    $ignore_callforward_unique
+    $callforward_import_single_row_txn
+
     $skip_errors
 );
 use NGCP::BulkProcessor::Logging qw (
@@ -54,6 +58,7 @@ our @EXPORT_OK = qw(
     import_subscriber
     import_allowedcli
     import_clir
+    import_callforward
 );
 
 sub import_subscriber {
@@ -87,9 +92,6 @@ sub import_subscriber {
                     $record->{cc} //= '';
                     $record->{ac} //= '';
                     $record->{sn} //= '';
-                    $record->{cc} = trim($record->{cc});
-                    $record->{ac} = trim($record->{ac});
-                    $record->{sn} = trim($record->{sn});
                     $record->{rownum} = $rownum;
                     $record->{filename} = $file;
                     my %r = %$record;
@@ -237,9 +239,6 @@ sub import_allowedcli {
                     $record->{cc} //= '';
                     $record->{ac} //= '';
                     $record->{sn} //= '';
-                    $record->{cc} = trim($record->{cc});
-                    $record->{ac} = trim($record->{ac});
-                    $record->{sn} = trim($record->{sn});
                     $record->{rownum} = $rownum;
                     $record->{filename} = $file;
 
@@ -602,6 +601,184 @@ sub _insert_clir_rows {
         die($err);
     }
 }
+
+
+
+
+
+
+
+
+
+sub import_callforward {
+
+    my (@files) = @_;
+
+    my $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::create_table(0);
+
+    foreach my $file (@files) {
+        $result &= _import_callforward_checks($file);
+    }
+
+    my $importer = NGCP::BulkProcessor::Projects::Migration::Teletek::FileProcessors::CSVFile->new($callforward_import_numofthreads);
+
+    my $upsert = _import_callforward_reset_delta();
+
+    destroy_all_dbs(); #close all db connections before forking..
+    my $warning_count :shared = 0;
+    foreach my $file (@files) {
+        $result &= $importer->process(
+            file => $file,
+            process_code => sub {
+                my ($context,$rows,$row_offset) = @_;
+                my $rownum = $row_offset;
+                my @callforward_rows = ();
+                foreach my $row (@$rows) {
+                    $rownum++;
+                    next if (scalar @$row) == 0;
+                    $row = [ map { local $_ = $_; trim($_); } @$row ];
+                    my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward->new($row);
+                    $record->{cc} //= '';
+                    $record->{ac} //= '';
+                    $record->{sn} //= '';
+                    $record->{rownum} = $rownum;
+                    $record->{filename} = $file;
+                    
+                    if (my $subscriber = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_ccacsn($record->{cc},$record->{ac},$record->{sn})) {
+                        $record->{sip_username} = $subscriber->{sip_username};
+                    } elsif (my $allowedcli = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::findby_ccacsn($record->{cc},$record->{ac},$record->{sn})) {
+                        $record->{sip_username} = $subscriber->{sip_username};
+                    } else {
+                        my $number = $record->{cc} . $record->{ac} . $record->{sn};
+                        if ($skip_errors) {
+                            _warn($context,"no sip username found for number $number");
+                        } else {
+                            _error($context,"no sip username found for number $number");
+                        }
+                        next;
+                    }
+
+                    my %r = %$record; my @callforward_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::fieldnames};
+                    if ($context->{upsert}) {
+                        push(@callforward_row,$record->{cc},$record->{ac},$record->{sn},$record->{type},$record->{destination});
+                    } else {
+                        push(@callforward_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::added_delta);
+                    }
+                    push(@callforward_rows,\@callforward_row);
+                    if ($callforward_import_single_row_txn and (scalar @callforward_rows) > 0) {
+                        while (defined (my $callforward_row = shift @callforward_rows)) {
+                            if ($skip_errors) {
+                                eval { _insert_callforward_rows($context,[$callforward_row]); };
+                                _warn($context,$@) if $@;
+                            } else {
+                                _insert_callforward_rows($context,[$callforward_row]);
+                            }
+                        }
+                    }
+                }
+
+                if (not $callforward_import_single_row_txn and (scalar @callforward_rows) > 0) {
+                    if ($skip_errors) {
+                        eval { _insert_callforward_rows($context,\@callforward_rows); };
+                        _warn($context,$@) if $@;
+                    } else {
+                        _insert_callforward_rows($context,\@callforward_rows);
+                    }
+                }
+                #use Data::Dumper;
+                #print Dumper(\@subscriber_rows);
+                return 1;
+            },
+            init_process_context_code => sub {
+                my ($context)= @_;
+                $context->{db} = &get_import_db(); # keep ref count low..
+                $context->{upsert} = $upsert;
+                $context->{error_count} = 0;
+                $context->{warning_count} = 0;
+            },
+            uninit_process_context_code => sub {
+                my ($context)= @_;
+                undef $context->{db};
+                destroy_all_dbs();
+                {
+                    lock $warning_count;
+                    $warning_count += $context->{warning_count};
+                }
+            },
+            multithreading => $import_multithreading
+        );
+    }
+
+    return ($result,$warning_count);
+
+}
+
+sub _import_callforward_checks {
+    my ($file) = @_;
+    my $result = 1;
+    my $subscribercount = 0;
+    eval {
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::countby_ccacsn();
+    };
+    if ($@ or $subscribercount == 0) {
+        fileprocessingerror($file,'please import subscribers first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+    my $allowedclicount = 0;
+    eval {
+        $allowedclicount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_ccacsn();
+    };
+    if ($@ or $allowedclicount == 0) {
+        fileprocessingerror($file,'please import allowedclis first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
+    return $result;
+}
+
+sub _import_callforward_reset_delta {
+    my $upsert = 0;
+    if (NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::countby_ccacsntype() > 0) {
+        processing_info(threadid(),'resetting delta of ' .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::update_delta(undef,
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::deleted_delta) .
+            ' callforward records',getlogger(__PACKAGE__));
+        $upsert |= 1;
+    }
+    return $upsert;
+}
+
+sub _insert_callforward_rows {
+    my ($context,$callforward_rows) = @_;
+    $context->{db}->db_do_begin(
+        ($context->{upsert} ?
+           NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::getupsertstatement()
+         : NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::getinsertstatement($ignore_callforward_unique)),
+        #NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::gettablename(),
+        #lock
+    );
+    eval {
+        $context->{db}->db_do_rowblock($callforward_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_finish(1);
+        };
+        die($err);
+    }
+}
+
+
+
+
+
+
+
+
+
+
 
 
 sub _error {
