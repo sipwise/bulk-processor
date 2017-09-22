@@ -18,6 +18,7 @@ use NGCP::BulkProcessor::Logging qw(
 
 use NGCP::BulkProcessor::LogError qw(
     fileerror
+    filewarn
     configurationwarn
     configurationerror
 );
@@ -26,7 +27,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     split_tuple
     parse_regexp
 );
-use NGCP::BulkProcessor::Utils qw(prompt);
+use NGCP::BulkProcessor::Utils qw(prompt timestampdigits);
 #format_number check_ipnet
 
 require Exporter;
@@ -39,6 +40,7 @@ our @EXPORT_OK = qw(
 
     $input_path
     $output_path
+    $report_filename
 
     $defaultsettings
     $defaultconfig
@@ -85,43 +87,27 @@ our @EXPORT_OK = qw(
     $provision_subscriber_numofthreads
     $webpassword_length
     $webusername_length
+    $default_channels_map
 
-
-    $set_call_forwards_multithreading
-    $set_call_forwards_numofthreads
-    $cfb_priorities
-    $cfb_timeouts
-    $cfu_priorities
-    $cfu_timeouts
-    $cft_priorities
-    $cft_timeouts
-    $cfna_priorities
-    $cfna_timeouts
-    $cfnumber_exclude_pattern
-    $cfnumber_trim_pattern
-    $ringtimeout
-
-    $set_preference_bulk_multithreading
-    $set_preference_bulk_numofthreads
+    $cf_default_priority
+    $cf_default_timeout
+    $cft_default_ringtimeout
 
 );
-#$concurrent_max_total
-#    $set_allowed_ips_multithreading
-#    $set_allowed_ips_numofthreads
-#    $allowed_ips
 
 our $defaultconfig = 'config.cfg';
 our $defaultsettings = 'settings.cfg';
 
 our $input_path = $working_path . 'input/';
 our $output_path = $working_path . 'output/';
+our $report_filename = undef;
 
 our $force = 0;
 our $dry = 0;
 our $skip_errors = 0;
 our $run_id = '';
 our $import_db_file = _get_import_db_file($run_id,'import');
-our $import_multithreading = $enablemultithreading;
+our $import_multithreading = 0; #$enablemultithreading;
 
 our @subscriber_filenames = ();
 our $subscriber_import_numofthreads = $cpucount;
@@ -158,27 +144,15 @@ our $provision_subscriber_multithreading = $enablemultithreading;
 our $provision_subscriber_numofthreads = $cpucount;
 our $webpassword_length = 8;
 our $webusername_length = 8;
-#our $set_allowed_ips_multithreading = $enablemultithreading;
-#our $set_allowed_ips_numofthreads = $cpucount;
-#our $allowed_ips = [];
+our $default_channels_map = {
+    0 => 1,
+    4 => 10,
+    8 => 25, # "more than 10 numbers" => concurrent_max = 25
+};
 
-our $set_call_forwards_multithreading = $enablemultithreading;
-our $set_call_forwards_numofthreads = $cpucount;
-our $cfb_priorities = [];
-our $cfb_timeouts = [];
-our $cfu_priorities = [];
-our $cfu_timeouts = [];
-our $cft_priorities = [];
-our $cft_timeouts = [];
-our $cfna_priorities = [];
-our $cfna_timeouts = [];
-our $cfnumber_exclude_pattern = undef;
-our $cfnumber_trim_pattern = undef;
-our $ringtimeout = undef;
-
-#our $set_preference_bulk_multithreading = $enablemultithreading;
-#our $set_preference_bulk_numofthreads = $cpucount;
-#our $concurrent_max_total = undef;
+our $cf_default_priority = 1;
+our $cf_default_timeout = 300;
+our $cft_default_ringtimeout = 20;
 
 sub update_settings {
 
@@ -192,11 +166,23 @@ sub update_settings {
         #&$configurationinfocode("testinfomessage",$configlogger);
 
         $result &= _prepare_working_paths(1);
+        if ($data->{report_filename}) {
+            $report_filename = $output_path . sprintf('/' . $data->{report_filename},timestampdigits());
+            if (-e $report_filename and (unlink $report_filename) == 0) {
+                filewarn('cannot remove ' . $report_filename . ': ' . $!,getlogger(__PACKAGE__));
+                $report_filename = undef;
+            }
+        } else {
+            $report_filename = undef;
+        }
 
         $dry = $data->{dry} if exists $data->{dry};
         $skip_errors = $data->{skip_errors} if exists $data->{skip_errors};
         $import_db_file = _get_import_db_file($run_id,'import');
         $import_multithreading = $data->{import_multithreading} if exists $data->{import_multithreading};
+        #if ($import_multithreading) {
+        #    configurationerror($configfile,"import_multithreading must be disabled to preserve record order",getlogger(__PACKAGE__));
+        #}
 
         @subscriber_filenames = _get_import_filenames(\@subscriber_filenames,$data,'subscriber_filenames');
         $subscriber_import_numofthreads = _get_numofthreads($cpucount,$data,'subscriber_import_numofthreads');
@@ -239,45 +225,11 @@ sub update_settings {
             configurationerror($configfile,'webusername_length greater than 7 required',getlogger(__PACKAGE__));
             $result = 0;
         }
-        #$set_allowed_ips_multithreading = $data->{set_allowed_ips_multithreading} if exists $data->{set_allowed_ips_multithreading};
-        #$set_allowed_ips_numofthreads = _get_numofthreads($cpucount,$data,'set_allowed_ips_numofthreads');
-        #$allowed_ips = [ split_tuple($data->{allowed_ips}) ] if exists $data->{allowed_ips};
-        #foreach my $ipnet (@$allowed_ips) {
-        #    if (not check_ipnet($ipnet)) {
-        #        configurationerror($configfile,"invalid allowed_ip '$ipnet'",getlogger(__PACKAGE__));
-        #        $result = 0;
-        #    }
-        #}
+        #$default_channels = $data->{default_channels} if exists $data->{default_channels};
 
-        $set_call_forwards_multithreading = $data->{set_call_forwards_multithreading} if exists $data->{set_call_forwards_multithreading};
-        $set_call_forwards_numofthreads = _get_numofthreads($cpucount,$data,'set_call_forwards_numofthreads');
-        $cfb_priorities = [ split_tuple($data->{cfb_priorities}) ] if exists $data->{cfb_priorities};
-        $cfb_timeouts = [ split_tuple($data->{cfb_timeouts}) ] if exists $data->{cfb_timeouts};
-        $cfu_priorities = [ split_tuple($data->{cfu_priorities}) ] if exists $data->{cfu_priorities};
-        $cfu_timeouts = [ split_tuple($data->{cfu_timeouts}) ] if exists $data->{cfu_timeouts};
-        $cft_priorities = [ split_tuple($data->{cft_priorities}) ] if exists $data->{cft_priorities};
-        $cft_timeouts = [ split_tuple($data->{cft_timeouts}) ] if exists $data->{cft_timeouts};
-        $cfna_priorities = [ split_tuple($data->{cfna_priorities}) ] if exists $data->{cfna_priorities};
-        $cfna_timeouts = [ split_tuple($data->{cfna_timeouts}) ] if exists $data->{cfna_timeouts};
-        $cfnumber_exclude_pattern = $data->{cfnumber_exclude_pattern} if exists $data->{cfnumber_exclude_pattern};
-        ($regexp_result,$cfnumber_exclude_pattern) = parse_regexp($cfnumber_exclude_pattern,$configfile);
-        $result &= $regexp_result;
-        $cfnumber_trim_pattern = $data->{cfnumber_trim_pattern} if exists $data->{cfnumber_trim_pattern};
-        ($regexp_result,$cfnumber_trim_pattern) = parse_regexp($cfnumber_trim_pattern,$configfile);
-        $result &= $regexp_result;
-        $ringtimeout = $data->{ringtimeout} if exists $data->{ringtimeout};
-        if (not defined $ringtimeout or $ringtimeout <= 0) {
-            configurationerror($configfile,'ringtimeout greater than 0 required',getlogger(__PACKAGE__));
-            $result = 0;
-        }
-
-        #$set_preference_bulk_multithreading = $data->{set_preference_bulk_multithreading} if exists $data->{set_preference_bulk_multithreading};
-        #$set_preference_bulk_numofthreads = _get_numofthreads($cpucount,$data,'set_preference_bulk_numofthreads');
-        #$concurrent_max_total = $data->{concurrent_max_total} if exists $data->{concurrent_max_total};
-        #if (defined $concurrent_max_total and $concurrent_max_total <= 0) {
-        #    configurationerror($configfile,'empty concurrent_max_total or greater than 0 required',getlogger(__PACKAGE__));
-        #    $result = 0;
-        #}
+        $cf_default_priority = $data->{cf_default_priority} if exists $data->{cf_default_priority};
+        $cf_default_timeout = $data->{cf_default_timeout} if exists $data->{cf_default_timeout};
+        $cft_default_ringtimeout = $data->{cft_default_ringtimeout} if exists $data->{cft_default_ringtimeout};
 
         return $result;
 
@@ -303,10 +255,10 @@ sub _prepare_working_paths {
 
 sub _get_numofthreads {
     my ($default_value,$data,$key) = @_;
-    my $_numofthreads = $default_value;
-    $_numofthreads = $data->{$key} if exists $data->{$key};
-    $_numofthreads = $cpucount if $_numofthreads > $cpucount;
-    return $_numofthreads;
+    my $numofthreads = $default_value;
+    $numofthreads = $data->{$key} if exists $data->{$key};
+    $numofthreads = $cpucount if $numofthreads > $cpucount;
+    return $numofthreads;
 }
 
 sub _get_import_db_file {

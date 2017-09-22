@@ -740,7 +740,6 @@ sub transfer_table {
         $texttable_engine,
         $fixtable_statements,
         $multithreading,
-        $blocksize,
         $destroy_source_dbs_code,
         $destroy_target_dbs_code,
         $selectcount,
@@ -756,7 +755,6 @@ sub transfer_table {
             texttable_engine
             fixtable_statements
             multithreading
-            blocksize
             destroy_source_dbs_code
             destroy_target_dbs_code
             selectcount
@@ -815,9 +813,11 @@ sub transfer_table {
 
             my $insertstatement = 'INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . $valueplaceholders . ')';
 
+            my $blocksize;
+
             if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $target_db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
 
-                $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,1,$tabletransfer_threadqueuelength);
+                $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,1,$tabletransfer_threadqueuelength);
 
                 my $reader;
                 my $writer;
@@ -895,7 +895,7 @@ sub transfer_table {
 
             } else {
 
-                $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
+                $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
 
                 #$db->db_disconnect();
                 #undef $db;
@@ -905,12 +905,14 @@ sub transfer_table {
                 #$target_db = &$get_target_db($writer_connection_name);
 
                 eval {
-                    $db->db_get_begin($selectstatement,@$values); #$tablename
+                    $db->db_get_begin($selectstatement,@$values) if $db->rowblock_transactional; #$tablename
 
                     my $i = 0;
                     while (1) {
                         fetching_rows($db,$tablename,$i,$blocksize,$rowcount,getlogger(__PACKAGE__));
+                        $db->db_get_begin($selectstatement,$i,$blocksize,@$values) unless $db->rowblock_transactional;
                         my $rowblock = $db->db_get_rowblock($blocksize);
+                        $db->db_finish() unless $db->rowblock_transactional;
                         my $realblocksize = scalar @$rowblock;
                         if ($realblocksize > 0) {
                             writing_rows($target_db,$targettablename,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
@@ -931,7 +933,7 @@ sub transfer_table {
                             last;
                         }
                     }
-                    $db->db_finish();
+                    $db->db_finish() if $db->rowblock_transactional;
 
                 };
 
@@ -1027,7 +1029,6 @@ sub process_table {
         $init_process_context_code,
         $uninit_process_context_code,
         $multithreading,
-        $blocksize,
         $tableprocessing_threads,
         $destroy_reader_dbs_code,
         $selectcount,
@@ -1040,7 +1041,6 @@ sub process_table {
             init_process_context_code
             uninit_process_context_code
             multithreading
-            blocksize
             tableprocessing_threads
             destroy_reader_dbs_code
             selectcount
@@ -1084,12 +1084,12 @@ sub process_table {
         }
 
         my $errorstate = $RUNNING;
-        #my $blocksize;
+        my $blocksize;
 
         if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
 
             $tableprocessing_threads //= $cpucount;
-            $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,1,$tableprocessing_threadqueuelength);
+            $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,1,$tableprocessing_threadqueuelength);
 
             my $reader;
             #my $processor;
@@ -1198,7 +1198,7 @@ sub process_table {
 
         } else {
 
-            $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
+            $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
             #$db->db_disconnect();
             #undef $db;
             #$db = &$get_db($reader_connection_name);
@@ -1209,12 +1209,14 @@ sub process_table {
                     &$init_process_context_code($context);
                 }
 
-                $db->db_get_begin($selectstatement,@$values); #$tablename
+                $db->db_get_begin($selectstatement,@$values) if $db->rowblock_transactional; #$tablename
 
                 my $i = 0;
                 while (1) {
                     fetching_rows($db,$tablename,$i,$blocksize,$rowcount,getlogger(__PACKAGE__));
+                    $db->db_get_begin($selectstatement,$i,$blocksize,@$values) unless $db->rowblock_transactional;
                     my $rowblock = $db->db_get_rowblock($blocksize);
+                    $db->db_finish() unless $db->rowblock_transactional;
                     my $realblocksize = scalar @$rowblock;
                     if ($realblocksize > 0) {
                         processing_rows($tid,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
@@ -1233,7 +1235,7 @@ sub process_table {
                         last;
                     }
                 }
-                $db->db_finish();
+                $db->db_finish() if $db->rowblock_transactional;
 
             };
 
@@ -1374,7 +1376,7 @@ sub _reader {
     my $blockcount = 0;
     eval {
         $reader_db = &{$context->{get_db}}(); #$reader_connection_name);
-        $reader_db->db_get_begin($context->{selectstatement},@{$context->{values_ref}}); #$context->{tablename}
+        $reader_db->db_get_begin($context->{selectstatement},@{$context->{values_ref}}) if $reader_db->rowblock_transactional; #$context->{tablename}
         tablethreadingdebug('[' . $tid . '] reader thread waiting for consumer threads',getlogger(__PACKAGE__));
         while ((_get_other_threads_state($context->{errorstates},$tid) & $RUNNING) == 0) { #wait on cosumers to come up
             #yield();
@@ -1384,7 +1386,9 @@ sub _reader {
         my $state = $RUNNING; #start at first
         while (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0) { #as long there is one running consumer and no defunct consumer
             fetching_rows($reader_db,$context->{tablename},$i,$context->{blocksize},$context->{rowcount},getlogger(__PACKAGE__));
+            $reader_db->db_get_begin($context->{selectstatement},$i,$context->{blocksize},@{$context->{values_ref}}) unless $reader_db->rowblock_transactional;
             my $rowblock = $reader_db->db_get_rowblock($context->{blocksize});
+            $reader_db->db_finish() unless $reader_db->rowblock_transactional;
             my $realblocksize = scalar @$rowblock;
             #my $packet = {rows     => $rowblock,
             #              size     => $realblocksize,
@@ -1419,7 +1423,7 @@ sub _reader {
                               (($state & $ERROR) == 0 ? 'no defunct thread(s)' : 'defunct thread(s)') . ') ...'
             ,getlogger(__PACKAGE__));
         }
-        $reader_db->db_finish();
+        $reader_db->db_finish() if $reader_db->rowblock_transactional;
     };
     tablethreadingdebug($@ ? '[' . $tid . '] reader thread error: ' . $@ : '[' . $tid . '] reader thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     # stop the consumer:
