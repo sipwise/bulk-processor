@@ -86,6 +86,9 @@ our @EXPORT_OK = qw(
     $webpassword_length
     $webusername_length
 
+    $cf_default_priority
+    $cf_default_timeout
+    $cft_default_ringtimeout
 
     $set_call_forwards_multithreading
     $set_call_forwards_numofthreads
@@ -103,6 +106,8 @@ our @EXPORT_OK = qw(
 
     $set_preference_bulk_multithreading
     $set_preference_bulk_numofthreads
+
+
 
 );
 #$concurrent_max_total
@@ -161,6 +166,10 @@ our $webusername_length = 8;
 #our $set_allowed_ips_multithreading = $enablemultithreading;
 #our $set_allowed_ips_numofthreads = $cpucount;
 #our $allowed_ips = [];
+
+our $cf_default_priority = 1;
+our $cf_default_timeout = 300;
+our $cft_default_ringtimeout = 20;
 
 our $set_call_forwards_multithreading = $enablemultithreading;
 our $set_call_forwards_numofthreads = $cpucount;
@@ -248,6 +257,10 @@ sub update_settings {
         #        $result = 0;
         #    }
         #}
+
+        $cf_default_priority = $data->{cf_default_priority} if exists $data->{cf_default_priority};
+        $cf_default_timeout = $data->{cf_default_timeout} if exists $data->{cf_default_timeout};
+        $cft_default_ringtimeout = $data->{cft_default_ringtimeout} if exists $data->{cft_default_ringtimeout};
 
         $set_call_forwards_multithreading = $data->{set_call_forwards_multithreading} if exists $data->{set_call_forwards_multithreading};
         $set_call_forwards_numofthreads = _get_numofthreads($cpucount,$data,'set_call_forwards_numofthreads');
