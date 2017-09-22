@@ -1,17 +1,21 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings;
+package NGCP::BulkProcessor::Dao::Trunk::kamailio::location;
 use strict;
 
 ## no critic
 
-use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+);
 
+use NGCP::BulkProcessor::ConnectorPool qw(
+    get_kamailio_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
-    copy_row
     insert_record
+    copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -21,34 +25,43 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    countby_subscriberid_type
-    $CFB_TYPE
-    $CFT_TYPE
-    $CFU_TYPE
-    $CFNA_TYPE
-
     insert_row
+    countby_usernamedomain
 );
 
-my $tablename = 'voip_cf_mappings';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'location';
+my $get_db = \&get_kamailio_db;
 
 my $expected_fieldnames = [
-    'id',
-    'subscriber_id',
-    'type',
-    'destination_set_id',
-    'time_set_id',
+  'id',
+  'username',
+  'domain',
+  'contact',
+  'received',
+  'path',
+  'expires',
+  'q',
+  'callid',
+  'cseq',
+  'last_modified',
+  'flags',
+  'cflags',
+  'user_agent',
+  'socket',
+  'methods',
+  'ruid',
+  'reg_id',
+  'instance',
+  'server_id',
+  'connection_id',
+  'keepalive',
+  'partition',
+
 ];
 
 my $indexes = {};
 
 my $insert_unique_fields = [];
-
-our $CFB_TYPE = 'cfb';
-our $CFT_TYPE = 'cft';
-our $CFU_TYPE = 'cfu';
-our $CFNA_TYPE = 'cfna';
 
 sub new {
 
@@ -62,9 +75,9 @@ sub new {
 
 }
 
-sub countby_subscriberid_type {
+sub countby_usernamedomain {
 
-    my ($subscriber_id,$type,$load_recursive) = @_;
+    my ($username,$domain) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -73,13 +86,13 @@ sub countby_subscriberid_type {
     my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @params = ();
     my @terms = ();
-    if ($subscriber_id) {
-        push(@terms,$db->columnidentifier('subscriber_id') . ' = ?');
-        push(@params,$subscriber_id);
+    if (defined $username) {
+        push(@terms,'username = ?');
+        push(@params,$username);
     }
-    if ($type) {
-        push(@terms,$db->columnidentifier('type') . ' = ?');
-        push(@params,$type);
+    if (defined $domain) {
+        push(@terms,'domain = ?');
+        push(@params,$domain);
     }
     if ((scalar @terms) > 0) {
         $stmt .= ' WHERE ' . join(' AND ',@terms);
@@ -101,29 +114,39 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($subscriber_id,
-            $type,
-            $destination_set_id,
-            $time_set_id) = @params{qw/
-                subscriber_id
-                type
-                destination_set_id
-                time_set_id
+        my ($username,
+            $domain,
+            $contact,
+            $q,
+            $expires) = @params{qw/
+                username
+                domain
+                contact
+                q
+                expires
             /};
 
+        $expires //= 4294967295;
+        $q //= 1.0;
+
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('subscriber_id') . ', ' .
-                $db->columnidentifier('type') . ', ' .
-                $db->columnidentifier('destination_set_id') . ', ' .
-                $db->columnidentifier('time_set_id') . ') VALUES (' .
+                $db->columnidentifier('username') . ', ' .
+                $db->columnidentifier('domain') . ', ' .
+                $db->columnidentifier('contact') . ', ' .
+                $db->columnidentifier('path') . ', ' .
+                $db->columnidentifier('q') . ', ' .
+                $db->columnidentifier('expires') . ') VALUES (' .
                 '?, ' .
                 '?, ' .
+                '?, ' .
+                '"<sip:127.0.0.1:5060;lr>", ' .
                 '?, ' .
                 '?)',
-                $subscriber_id,
-                $type,
-                $destination_set_id,
-                $time_set_id
+                $username,
+                $domain,
+                $contact,
+                $q,
+                $expires,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();

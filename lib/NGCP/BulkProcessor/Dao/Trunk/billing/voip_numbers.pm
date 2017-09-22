@@ -109,6 +109,23 @@ sub forupdate_cc_ac_sn_subscriberid {
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
 
+    #my $stmt = $db->paginate_sort_query('SELECT ' . $db->columnidentifier('id') . ' FROM ' . $table . ' WHERE ' .
+    #        $db->columnidentifier('cc') . ' = ?' .
+    #        ' AND ' . $db->columnidentifier('ac') . ' = ?' .
+    #        ' AND ' . $db->columnidentifier('sn') . ' = ?' .
+    #        ' AND (' . $db->columnidentifier('subscriber_id') . ' = ? OR ' . $db->columnidentifier('subscriber_id') . ' IS NULL)',undef,undef,[{
+    #        column => 'id',
+    #        numeric => 1,
+    #        dir => 1,
+    #    }]);
+    #my @params = ($cc,$ac,$sn,$subscriber_id);
+    #foreach my $id (@{$xa_db->db_get_col($stmt,@params)}) {
+    #    return buildrecords_fromrows([
+    #        $xa_db->db_get_row('SELECT * FROM ' . $table . ' WHERE ' . $db->columnidentifier('id') . ' = ? FOR UPDATE',$id)
+    #    ],$load_recursive)->[0];
+    #}
+    #return undef;
+
 }
 
 sub release_subscriber_numbers {

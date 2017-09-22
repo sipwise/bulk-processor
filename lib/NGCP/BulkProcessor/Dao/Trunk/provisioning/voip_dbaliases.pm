@@ -31,6 +31,7 @@ our @EXPORT_OK = qw(
 
     findby_subscriberid_username
     findby_domainid_username
+    countby_subscriberidisprimary
 );
 
 my $tablename = 'voip_dbaliases';
@@ -99,6 +100,33 @@ sub findby_domainid_username {
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub countby_subscriberidisprimary {
+
+    my ($subscriber_id,$is_primary) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    if (defined $subscriber_id) {
+        push(@terms,$db->columnidentifier('subscriber_id') . ' = ?');
+        push(@params,$subscriber_id);
+    }
+    if (defined $is_primary) {
+        push(@terms,$db->columnidentifier('is_primary') . ' = ?');
+        push(@params,$is_primary);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
+    }
+
+    return $db->db_get_value($stmt,@params);
 
 }
 
