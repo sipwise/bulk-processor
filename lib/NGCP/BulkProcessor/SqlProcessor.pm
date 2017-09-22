@@ -905,12 +905,14 @@ sub transfer_table {
                 #$target_db = &$get_target_db($writer_connection_name);
 
                 eval {
-                    $db->db_get_begin($selectstatement,@$values); #$tablename
+                    $db->db_get_begin($selectstatement,@$values) if $db->rowblock_transactional; #$tablename
 
                     my $i = 0;
                     while (1) {
                         fetching_rows($db,$tablename,$i,$blocksize,$rowcount,getlogger(__PACKAGE__));
+                        $db->db_get_begin($selectstatement,$i,$blocksize,@$values) unless $db->rowblock_transactional;
                         my $rowblock = $db->db_get_rowblock($blocksize);
+                        $db->db_finish() unless $db->rowblock_transactional;
                         my $realblocksize = scalar @$rowblock;
                         if ($realblocksize > 0) {
                             writing_rows($target_db,$targettablename,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
@@ -931,7 +933,299 @@ sub transfer_table {
                             last;
                         }
                     }
-                    $db->db_finish();
+                    $db->db_finish() if $db->rowblock_transactional;
+
+                };
+
+                if ($@) {
+                    $errorstate = $ERROR;
+                } else {
+                    $errorstate = $COMPLETED;
+                }
+
+                $db->db_disconnect();
+                #undef $db;
+                #$target_db->db_disconnect();
+                #undef $target_db;
+
+            }
+
+            #$db = &$get_db($controller_name,1);
+            #$target_db = &$get_target_db($controller_name,1);
+
+            if ($errorstate == $COMPLETED and ref $fixtable_statements eq 'ARRAY' and (scalar @$fixtable_statements) > 0) {
+                eval {
+                    foreach my $fixtable_statement (@$fixtable_statements) {
+                        if (ref $fixtable_statement eq '') {
+                            $target_db->db_do($fixtable_statement);
+                            tablefixed($target_db,$targettablename,$fixtable_statement,getlogger(__PACKAGE__));
+                        } else {
+                            $fixtable_statement = &$fixtable_statement($target_db->tableidentifier($targettablename));
+                            $target_db->db_do($fixtable_statement);
+                            tablefixed($target_db,$targettablename,$fixtable_statement,getlogger(__PACKAGE__));
+                        }
+
+                    }
+                };
+                if ($@) {
+                    $errorstate = $ERROR;
+                #} else {
+                #    $errorstate = $COMPLETED;
+                }
+            }
+
+            if ($errorstate == $COMPLETED and $create_indexes) {
+
+                eval {
+                    $target_db->create_primarykey($targettablename,
+                        $table_primarykeys->{$tid}->{$connectidentifier}->{$class},
+                        $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class});
+
+                    $target_db->create_indexes($targettablename,
+                        $table_target_indexes->{$tid}->{$connectidentifier}->{$class},
+                        $table_primarykeys->{$tid}->{$connectidentifier}->{$class});
+
+
+                    delete $table_primarykeys->{$tid}->{$target_db->connectidentifier()}->{$targetclass};
+                    checktableinfo($target_db,$targetclass,$targettablename,$table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class},$table_target_indexes->{$tid}->{$connectidentifier}->{$class});
+
+                    $target_db->vacuum($targettablename);
+
+                };
+
+                if ($@) {
+                    $errorstate = $ERROR;
+                #} else {
+                #    $errorstate = $COMPLETED;
+                }
+            }
+
+        }
+
+        if ($errorstate == $COMPLETED) {
+            tabletransferdone($db,$tablename,$target_db,$targettablename,$rowcount,getlogger(__PACKAGE__));
+            #$db->db_disconnect();
+            #$target_db->db_disconnect();
+            return 1;
+        } else {
+            tabletransferfailed($db,$tablename,$target_db,$targettablename,$rowcount,getlogger(__PACKAGE__));
+            #$db->db_disconnect();
+            #$target_db->db_disconnect();
+        }
+
+    }
+
+    return 0;
+
+}
+
+sub transfer_table {
+
+    my %params = @_;
+    my ($get_db,
+        $class,
+        $get_target_db,
+        $targetclass,
+        $targettablename,
+        $truncate_targettable,
+        $create_indexes,
+        $texttable_engine,
+        $fixtable_statements,
+        $multithreading,
+        $destroy_source_dbs_code,
+        $destroy_target_dbs_code,
+        $selectcount,
+        $select,
+        $values) = @params{qw/
+            get_db
+            class
+            get_target_db
+            targetclass
+            targettablename
+            truncate_targettable
+            create_indexes
+            texttable_engine
+            fixtable_statements
+            multithreading
+            destroy_source_dbs_code
+            destroy_target_dbs_code
+            selectcount
+            select
+            values
+        /};
+
+    #my ($get_db,$tablename,$get_target_db,$targettablename,$truncate_targettable,$create_indexes,$texttable_engine,$fixtable_statements,$selectcount,$select,@values) = @_;
+
+    if (ref $get_db eq 'CODE' and ref $get_target_db eq 'CODE') {
+
+        my $db = &$get_db($reader_connection_name,1);
+        my $target_db = &$get_target_db(); #$writer_connection_name);
+
+        my $connectidentifier = $db->connectidentifier();
+        my $tid = threadid();
+        my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
+
+        my $countstatement;
+        if (defined $selectcount) {
+            $countstatement = $selectcount;
+        } else {
+            $countstatement = 'SELECT COUNT(*) FROM ' . $db->tableidentifier($tablename);
+        }
+
+        my $rowcount = $db->db_get_value($countstatement,@$values);
+
+        #my $targettablename = _gettargettablename($db,$tablename,$target_db); #$target_db->getsafetablename($db->tableidentifier($tablename));
+
+        if ($rowcount > 0) {
+            tabletransferstarted($db,$tablename,$target_db,$targettablename,$rowcount,getlogger(__PACKAGE__));
+        } else {
+            transferzerorowcount($db,$tablename,$target_db,$targettablename,$rowcount,getlogger(__PACKAGE__));
+            return;
+        }
+
+        my $errorstate = $RUNNING; # 1;
+
+        $create_indexes = ((defined $create_indexes) ? $create_indexes : $transfer_defer_indexes);
+
+        if (create_targettable($db,$class,$target_db,$targetclass,$targettablename,$truncate_targettable,$create_indexes,$texttable_engine)) {
+
+            my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
+
+            my @fieldnames = @$expected_fieldnames;
+
+            #my $setfieldnames = join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fieldnames);
+            my $valueplaceholders = substr(',?' x scalar @fieldnames,1);
+
+            my $selectstatement;
+            if (length($select) > 0) {
+                $selectstatement = $select;
+            } else {
+                $selectstatement = 'SELECT ' . join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @fieldnames) . ' FROM ' . $db->tableidentifier($tablename)
+            }
+
+            my $insertstatement = 'INSERT INTO ' . $target_db->tableidentifier($targettablename) . ' (' . join(', ',map { local $_ = $_; $_ = $target_db->columnidentifier($_); $_; } @fieldnames) . ') VALUES (' . $valueplaceholders . ')';
+
+            my $blocksize;
+
+            if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $target_db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
+
+                $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,1,$tabletransfer_threadqueuelength);
+
+                my $reader;
+                my $writer;
+
+                my %errorstates :shared = ();
+                #$errorstates{$tid} = $errorstate;
+
+                #my $readererrorstate :shared = 1;
+                #my $writererrorstate :shared = 1;
+
+                my $queue = Thread::Queue->new();
+
+                tablethreadingdebug('shutting down db connections ...',getlogger(__PACKAGE__));
+
+                $db->db_disconnect();
+                #undef $db;
+                $target_db->db_disconnect();
+                #undef $target_db;
+                my $default_connection = &$get_db(undef,0);
+                my $default_connection_reconnect = $default_connection->is_connected();
+                $default_connection->db_disconnect();
+
+                tablethreadingdebug('starting reader thread',getlogger(__PACKAGE__));
+
+                $reader = threads->create(\&_reader,
+                                          { queue                => $queue,
+                                            errorstates          => \%errorstates,
+                                            #readererrorstate_ref => \$readererrorstate,
+                                            #writererrorstate_ref => \$writererrorstate,
+                                            threadqueuelength    => $tabletransfer_threadqueuelength,
+                                            get_db               => $get_db,
+                                            tablename            => $tablename,
+                                            class                => $class,
+                                            selectstatement      => $selectstatement,
+                                            blocksize            => $blocksize,
+                                            rowcount             => $rowcount,
+                                            #logger               => $logger,
+                                            values_ref           => $values,
+                                            destroy_dbs_code   => $destroy_source_dbs_code,
+                                          });
+
+                tablethreadingdebug('starting writer thread',getlogger(__PACKAGE__));
+
+                $writer = threads->create(\&_writer,
+                                          { queue                => $queue,
+                                            errorstates          => \%errorstates,
+                                            readertid              => $reader->tid(),
+                                            #readererrorstate_ref => \$readererrorstate,
+                                            #writererrorstate_ref => \$writererrorstate,
+                                            get_target_db        => $get_target_db,
+                                            targettablename      => $targettablename,
+                                            targetclass         => $targetclass,
+                                            insertstatement      => $insertstatement,
+                                            blocksize            => $blocksize,
+                                            rowcount             => $rowcount,
+                                            #logger               => $logger,
+                                            destroy_dbs_code   => $destroy_target_dbs_code,
+                                          });
+
+                $reader->join();
+                tablethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
+                $writer->join();
+                tablethreadingdebug('writer thread joined',getlogger(__PACKAGE__));
+
+                #$errorstate = $readererrorstate | $writererrorstate;
+                $errorstate = _get_other_threads_state(\%errorstates,$tid);
+
+                tablethreadingdebug('restoring db connections ...',getlogger(__PACKAGE__));
+
+                #$db = &$get_db($reader_connection_name,1);
+                $target_db = &$get_target_db(undef,1);
+                if ($default_connection_reconnect) {
+                    $default_connection = &$get_db(undef,1);
+                }
+
+            } else {
+
+                $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
+
+                #$db->db_disconnect();
+                #undef $db;
+                #$db = &$get_db($reader_connection_name);
+                #$target_db->db_disconnect();
+                #undef $target_db;
+                #$target_db = &$get_target_db($writer_connection_name);
+
+                eval {
+                    $db->db_get_begin($selectstatement,@$values) if $db->rowblock_transactional; #$tablename
+
+                    my $i = 0;
+                    while (1) {
+                        fetching_rows($db,$tablename,$i,$blocksize,$rowcount,getlogger(__PACKAGE__));
+                        $db->db_get_begin($selectstatement,$i,$blocksize,@$values) unless $db->rowblock_transactional;
+                        my $rowblock = $db->db_get_rowblock($blocksize);
+                        $db->db_finish() unless $db->rowblock_transactional;
+                        my $realblocksize = scalar @$rowblock;
+                        if ($realblocksize > 0) {
+                            writing_rows($target_db,$targettablename,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
+                            $target_db->db_do_begin($insertstatement); #,$targettablename);
+                            $target_db->db_do_rowblock($rowblock);
+                            $target_db->db_finish();
+                            $i += $realblocksize;
+
+                            #foreach my $row (@$rowblock) {
+                            #    undef $row;
+                            #}
+                            #undef $rowblock;
+
+                            if ($realblocksize < $blocksize) {
+                                last;
+                            }
+                        } else {
+                            last;
+                        }
+                    }
+                    $db->db_finish() if $db->rowblock_transactional;
 
                 };
 
@@ -1027,7 +1321,6 @@ sub process_table {
         $init_process_context_code,
         $uninit_process_context_code,
         $multithreading,
-        $blocksize,
         $tableprocessing_threads,
         $destroy_reader_dbs_code,
         $selectcount,
@@ -1040,7 +1333,6 @@ sub process_table {
             init_process_context_code
             uninit_process_context_code
             multithreading
-            blocksize
             tableprocessing_threads
             destroy_reader_dbs_code
             selectcount
@@ -1084,12 +1376,12 @@ sub process_table {
         }
 
         my $errorstate = $RUNNING;
-        #my $blocksize;
+        my $blocksize;
 
         if ($enablemultithreading and $multithreading and $db->multithreading_supported() and $cpucount > 1) { # and $multithreaded) { # definitely no multithreading when CSVDB is involved
 
             $tableprocessing_threads //= $cpucount;
-            $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,1,$tableprocessing_threadqueuelength);
+            $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,1,$tableprocessing_threadqueuelength);
 
             my $reader;
             #my $processor;
@@ -1198,7 +1490,7 @@ sub process_table {
 
         } else {
 
-            $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
+            $blocksize = _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
             #$db->db_disconnect();
             #undef $db;
             #$db = &$get_db($reader_connection_name);
@@ -1209,12 +1501,14 @@ sub process_table {
                     &$init_process_context_code($context);
                 }
 
-                $db->db_get_begin($selectstatement,@$values); #$tablename
+                $db->db_get_begin($selectstatement,@$values) if $db->rowblock_transactional; #$tablename
 
                 my $i = 0;
                 while (1) {
                     fetching_rows($db,$tablename,$i,$blocksize,$rowcount,getlogger(__PACKAGE__));
+                    $db->db_get_begin($selectstatement,$i,$blocksize,@$values) unless $db->rowblock_transactional;
                     my $rowblock = $db->db_get_rowblock($blocksize);
+                    $db->db_finish() unless $db->rowblock_transactional;
                     my $realblocksize = scalar @$rowblock;
                     if ($realblocksize > 0) {
                         processing_rows($tid,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
@@ -1233,7 +1527,7 @@ sub process_table {
                         last;
                     }
                 }
-                $db->db_finish();
+                $db->db_finish() if $db->rowblock_transactional;
 
             };
 
@@ -1374,7 +1668,7 @@ sub _reader {
     my $blockcount = 0;
     eval {
         $reader_db = &{$context->{get_db}}(); #$reader_connection_name);
-        $reader_db->db_get_begin($context->{selectstatement},@{$context->{values_ref}}); #$context->{tablename}
+        $reader_db->db_get_begin($context->{selectstatement},@{$context->{values_ref}}) if $reader_db->rowblock_transactional; #$context->{tablename}
         tablethreadingdebug('[' . $tid . '] reader thread waiting for consumer threads',getlogger(__PACKAGE__));
         while ((_get_other_threads_state($context->{errorstates},$tid) & $RUNNING) == 0) { #wait on cosumers to come up
             #yield();
@@ -1384,7 +1678,9 @@ sub _reader {
         my $state = $RUNNING; #start at first
         while (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0) { #as long there is one running consumer and no defunct consumer
             fetching_rows($reader_db,$context->{tablename},$i,$context->{blocksize},$context->{rowcount},getlogger(__PACKAGE__));
+            $reader_db->db_get_begin($context->{selectstatement},$i,$context->{blocksize},@{$context->{values_ref}}) unless $reader_db->rowblock_transactional;
             my $rowblock = $reader_db->db_get_rowblock($context->{blocksize});
+            $reader_db->db_finish() unless $reader_db->rowblock_transactional;
             my $realblocksize = scalar @$rowblock;
             #my $packet = {rows     => $rowblock,
             #              size     => $realblocksize,
@@ -1419,7 +1715,7 @@ sub _reader {
                               (($state & $ERROR) == 0 ? 'no defunct thread(s)' : 'defunct thread(s)') . ') ...'
             ,getlogger(__PACKAGE__));
         }
-        $reader_db->db_finish();
+        $reader_db->db_finish() if $reader_db->rowblock_transactional;
     };
     tablethreadingdebug($@ ? '[' . $tid . '] reader thread error: ' . $@ : '[' . $tid . '] reader thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
     # stop the consumer:
