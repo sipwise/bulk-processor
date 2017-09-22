@@ -438,6 +438,13 @@ sub multithreading_supported {
 
 }
 
+sub rowblock_transactional {
+
+    my $self = shift;
+    return $rowblock_transactional;
+
+}
+
 sub insert_ignore_phrase {
 
     my $self = shift;
