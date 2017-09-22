@@ -25,6 +25,10 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $ignore_callforward_unique
     $callforward_import_single_row_txn
 
+    $registration_import_numofthreads
+    $ignore_registration_unique
+    $registration_import_single_row_txn
+
     $skip_errors
 );
 use NGCP::BulkProcessor::Logging qw (
@@ -59,6 +63,7 @@ our @EXPORT_OK = qw(
     import_allowedcli
     import_clir
     import_callforward
+    import_registration
 );
 
 sub import_subscriber {
@@ -602,14 +607,6 @@ sub _insert_clir_rows {
     }
 }
 
-
-
-
-
-
-
-
-
 sub import_callforward {
 
     my (@files) = @_;
@@ -643,7 +640,7 @@ sub import_callforward {
                     $record->{sn} //= '';
                     $record->{rownum} = $rownum;
                     $record->{filename} = $file;
-                    
+
                     if (my $subscriber = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_ccacsn($record->{cc},$record->{ac},$record->{sn})) {
                         $record->{sip_username} = $subscriber->{sip_username};
                     } elsif (my $allowedcli = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::findby_ccacsn($record->{cc},$record->{ac},$record->{sn})) {
@@ -776,6 +773,161 @@ sub _insert_callforward_rows {
 
 
 
+
+
+
+sub import_registration {
+
+    my (@files) = @_;
+
+    my $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::create_table(0);
+
+    foreach my $file (@files) {
+        $result &= _import_registration_checks($file);
+    }
+
+    my $importer = NGCP::BulkProcessor::Projects::Migration::Teletek::FileProcessors::CSVFile->new($registration_import_numofthreads);
+
+    my $upsert = _import_registration_reset_delta();
+
+    destroy_all_dbs(); #close all db connections before forking..
+    my $warning_count :shared = 0;
+    foreach my $file (@files) {
+        $result &= $importer->process(
+            file => $file,
+            process_code => sub {
+                my ($context,$rows,$row_offset) = @_;
+                my $rownum = $row_offset;
+                my @registration_rows = ();
+                foreach my $row (@$rows) {
+                    $rownum++;
+                    next if (scalar @$row) == 0;
+                    $row = [ map { local $_ = $_; trim($_); } @$row ];
+                    my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration->new($row);
+                    $record->{rownum} = $rownum;
+                    $record->{filename} = $file;
+
+                    if ((scalar @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_sipusername($record->{sip_username})}) == 0) {
+                        if ($skip_errors) {
+                            _warn($context,"sip username $record->{sip_username} not found");
+                        } else {
+                            _error($context,"sip username $record->{sip_username} not found");
+                        }
+                        next;
+                    }
+                    # prevent db's unique constraint violation:
+                    if (NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::findby_sipusername($record->{sip_username})) {
+                        if ($skip_errors) {
+                            _warn($context,"duplicate sip username $record->{sip_username}");
+                        } else {
+                            _error($context,"duplicate sip username $record->{sip_username}");
+                        }
+                        next;
+                    }
+
+                    my %r = %$record; my @registration_row = @r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::fieldnames};
+                    if ($context->{upsert}) {
+                        push(@registration_row,$record->{sip_username});
+                    } else {
+                        push(@registration_row,$NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::added_delta);
+                    }
+                    push(@registration_rows,\@registration_row);
+                    if ($registration_import_single_row_txn and (scalar @registration_rows) > 0) {
+                        while (defined (my $registration_row = shift @registration_rows)) {
+                            if ($skip_errors) {
+                                eval { _insert_registration_rows($context,[$registration_row]); };
+                                _warn($context,$@) if $@;
+                            } else {
+                                _insert_registration_rows($context,[$registration_row]);
+                            }
+                        }
+                    }
+                }
+
+                if (not $registration_import_single_row_txn and (scalar @registration_rows) > 0) {
+                    if ($skip_errors) {
+                        eval { _insert_registration_rows($context,\@registration_rows); };
+                        _warn($context,$@) if $@;
+                    } else {
+                        _insert_registration_rows($context,\@registration_rows);
+                    }
+                }
+                #use Data::Dumper;
+                #print Dumper(\@subscriber_rows);
+                return 1;
+            },
+            init_process_context_code => sub {
+                my ($context)= @_;
+                $context->{db} = &get_import_db(); # keep ref count low..
+                $context->{upsert} = $upsert;
+                $context->{error_count} = 0;
+                $context->{warning_count} = 0;
+            },
+            uninit_process_context_code => sub {
+                my ($context)= @_;
+                undef $context->{db};
+                destroy_all_dbs();
+                {
+                    lock $warning_count;
+                    $warning_count += $context->{warning_count};
+                }
+            },
+            multithreading => $import_multithreading
+        );
+    }
+
+    return ($result,$warning_count);
+
+}
+
+sub _import_registration_checks {
+    my ($file) = @_;
+    my $result = 1;
+    my $subscribercount = 0;
+    eval {
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::countby_ccacsn();
+    };
+    if ($@ or $subscribercount == 0) {
+        fileprocessingerror($file,'please import subscribers first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
+    return $result;
+}
+
+sub _import_registration_reset_delta {
+    my $upsert = 0;
+    if (NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::countby_sipcontact() > 0) {
+        processing_info(threadid(),'resetting delta of ' .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::update_delta(undef,
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::deleted_delta) .
+            ' registration records',getlogger(__PACKAGE__));
+        $upsert |= 1;
+    }
+    return $upsert;
+}
+
+sub _insert_registration_rows {
+    my ($context,$registration_rows) = @_;
+    $context->{db}->db_do_begin(
+        ($context->{upsert} ?
+           NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::getupsertstatement()
+         : NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::getinsertstatement($ignore_registration_unique)),
+        #NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::gettablename(),
+        #lock
+    );
+    eval {
+        $context->{db}->db_do_rowblock($registration_rows);
+        $context->{db}->db_finish();
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_finish(1);
+        };
+        die($err);
+    }
+}
 
 
 

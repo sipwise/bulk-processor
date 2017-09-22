@@ -43,6 +43,7 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber q
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration qw();
 
 use NGCP::BulkProcessor::RestRequests::Trunk::Resellers qw();
 use NGCP::BulkProcessor::RestRequests::Trunk::Domains qw();
@@ -139,6 +140,9 @@ sub check_import_db_tables {
     $result &= $check_result; push(@$messages,$message);
 
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration');
     $result &= $check_result; push(@$messages,$message);
 
     return $result;

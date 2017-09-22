@@ -31,6 +31,8 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     @clir_filenames
 
     @callforward_filenames
+
+    @registration_filenames
 );
 #$allowed_ips
 
@@ -71,6 +73,7 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber q
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
@@ -94,6 +97,7 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Import qw(
     import_allowedcli
     import_clir
     import_callforward
+    import_registration
 );
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Provisioning qw(
@@ -143,6 +147,11 @@ my $import_callforward_task_opt = 'import_callforward';
 push(@TASK_OPTS,$import_callforward_task_opt);
 my $import_truncate_callforward_task_opt = 'truncate_callforward';
 push(@TASK_OPTS,$import_truncate_callforward_task_opt);
+
+my $import_registration_task_opt = 'import_registration';
+push(@TASK_OPTS,$import_registration_task_opt);
+my $import_truncate_registration_task_opt = 'truncate_registration';
+push(@TASK_OPTS,$import_truncate_registration_task_opt);
 
 my $create_subscriber_task_opt = 'create_subscriber';
 push(@TASK_OPTS,$create_subscriber_task_opt);
@@ -219,6 +228,11 @@ sub main() {
                 $result &= import_callforward_task(\@messages) if taskinfo($import_callforward_task_opt,$result);
             } elsif (lc($import_truncate_callforward_task_opt) eq lc($task)) {
                 $result &= import_truncate_callforward_task(\@messages) if taskinfo($import_truncate_callforward_task_opt,$result);
+
+            } elsif (lc($import_registration_task_opt) eq lc($task)) {
+                $result &= import_registration_task(\@messages) if taskinfo($import_registration_task_opt,$result);
+            } elsif (lc($import_truncate_registration_task_opt) eq lc($task)) {
+                $result &= import_truncate_registration_task(\@messages) if taskinfo($import_truncate_registration_task_opt,$result);
 
             } elsif (lc($create_subscriber_task_opt) eq lc($task)) {
                 if (taskinfo($create_subscriber_task_opt,$result,1)) {
@@ -547,6 +561,71 @@ sub import_truncate_callforward_task {
     return $result;
 
 }
+
+
+
+
+
+sub import_registration_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        ($result,$warning_count) = import_registration(@registration_filenames);
+    };
+    my $err = $@;
+    my $stats = ": $warning_count warnings";
+    eval {
+        $stats .= "\n  total registration records: " .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::countby_sipcontact() . ' rows';
+        my $added_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::added_delta
+        );
+        $stats .= "\n    new: $added_count rows";
+        my $existing_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::updated_delta
+        );
+        $stats .= "\n    existing: $existing_count rows";
+        my $deleted_count = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::deleted_delta
+        );
+        $stats .= "\n    removed: $deleted_count rows";
+    };
+    if ($err or !$result) {
+        push(@$messages,"importing registrations INCOMPLETE$stats");
+    } else {
+        push(@$messages,"importing registrations completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
+sub import_truncate_registration_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::create_table(1);
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        $stats .= "\n  total registration records: " .
+            NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::countby_sipcontact() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"truncating imported registrations INCOMPLETE$stats");
+    } else {
+        push(@$messages,"truncating imported registrations completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
 
 
 
