@@ -465,6 +465,13 @@ sub multithreading_supported {
 
 }
 
+sub rowblock_transactional {
+
+    my $self = shift;
+    return $rowblock_transactional;
+
+}
+
 sub truncate_table {
 
     my $self = shift;
