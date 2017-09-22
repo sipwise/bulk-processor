@@ -22,6 +22,10 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $reseller_mapping
     $barring_profiles
 
+    $cf_default_priority
+    $cf_default_timeout
+    $cft_default_ringtimeout
+
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -37,6 +41,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli qw();
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir qw();
+use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::products qw();
@@ -95,6 +100,7 @@ my $split_ipnets_pattern =  join('|',(
     quotemeta(';'),
     #quotemeta('/')
 ));
+my $cf_default_priority = 1;
 
 sub provision_subscribers {
 
@@ -869,6 +875,7 @@ sub _provision_susbcriber_init_context {
     my %contact_dupes = ();
     my %allowed_ips = ();
     my %barrings = ();
+    my $voicemail = 0;
     foreach my $subscriber (@$subscriber_group) {
         my $number = $subscriber->{cc} . $subscriber->{ac} . $subscriber->{sn};
         if (not exists $number_dupes{$number}) {
@@ -952,6 +959,8 @@ sub _provision_susbcriber_init_context {
         if (defined $subscriber->{barrings} and length($subscriber->{barrings}) > 0) {
             $barrings{$subscriber->{barrings}} = 1;
         }
+
+        $voicemail = stringtobool($subscriber->{voicemail}) unless $voicemail;
 
     }
 
@@ -1054,6 +1063,59 @@ sub _provision_susbcriber_init_context {
     if (my $clir = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir::findby_sipusername($first->{sip_username})) {
         $context->{clir} = stringtobool($clir->{clir});
     }
+
+    $context->{ringtimeout} = undef;
+    my %cfsimple = ();
+    my $callforwards = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::CallForward::findby_sipusername($first->{sip_username});
+    if ((scalar @$callforwards) > 0 or $voicemail) {
+        my %vmcf = ();
+        my %maxpriority = ();
+        foreach my $callforward (@$callforwards) {
+            my $type = lc($callforward->{type});
+            if ($type =~ /^cfna|cfu|cfb|cft$/) {
+                unless (defined $callforward->{destination} and length($callforward->{destination}) > 0) {
+                    _warn($context,"empty callforward destination, ignoring");
+                    next;
+                }
+                if ($callforward->{destination} =~ /voicemail/i) {
+                    $callforward->{destination} = 'sip:vm' . ('cfb' eq $type ? 'b' : 'u') . $context->{numbers}->{primary}->{number} . '@voicebox.local';
+                    $vmcf{$type} = 1 unless $vmcf{$type};
+                } elsif ($callforward->{destination} !~ /^\d+$/i) {
+                    _warn($context,"invalid callforward destination '$callforward->{destination}', ignoring");
+                    next;
+                }
+                $callforward->{priority} //= $cf_default_priority;
+                $callforward->{timeout} //= $cf_default_timeout;
+                $callforward->{ringtimeout} //= $cft_default_ringtimeout if 'cft' eq $type;
+                $context->{ringtimeout} = $callforward->{ringtimeout} if ('cft' eq $type and (not defined $context->{ringtimeout} or $callforward->{ringtimeout} > $context->{ringtimeout}));
+
+                $cfsimple{$type} = [] unless exists $cfsimple{$type};
+                push(@{$cfsimple{$type}},{
+                    destination => $callforward->{destination},
+                    priority => $callforward->{priority},
+                    timeout => $callforward->{timeout},
+                });
+                $vmcf{$type} = ($callforward->{destination} =~ /voicemail/i) unless $vmcf{$type};
+                $maxpriority{$type} = $callforward->{priority} if (not defined $maxpriority{$type} or $callforward->{priority} > $maxpriority{$type});
+            } else {
+                _warn($context,"invalid callforward type '$type', ignoring");
+            }
+        }
+        if ($voicemail) {
+            foreach my $type (qw/cfna cft/) {
+                next if $vmcf{$type};
+                $cfsimple{$type} = [] unless exists $cfsimple{$type};
+                push(@{$cfsimple{$type}},{
+                    destination => 'sip:vmu' . $context->{numbers}->{primary}->{number} . '@voicebox.local',
+                    priority => (defined $maxpriority{$type} ? $maxpriority{$type} +- 1 : $cf_default_priority),
+                    timeout => $cf_default_timeout,
+                });
+                $context->{ringtimeout} = $cft_default_ringtimeout if ('cft' eq $type and not defined $context->{ringtimeout}); # or $cft_default_ringtimeout > $context->{ringtimeout}));
+            }
+        }
+    }
+    $context->{callforwards} = \%cfsimple;
+
 
 
     #$context->{counts} = {} unless defined $context->{counts};
