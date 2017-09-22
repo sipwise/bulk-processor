@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings;
+package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations;
 use strict;
 
 ## no critic
@@ -22,33 +22,24 @@ our @EXPORT_OK = qw(
     check_table
 
     countby_subscriberid_type
-    $CFB_TYPE
-    $CFT_TYPE
-    $CFU_TYPE
-    $CFNA_TYPE
-
     insert_row
 );
 
-my $tablename = 'voip_cf_mappings';
+my $tablename = 'voip_cf_destinations';
 my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
-    'id',
-    'subscriber_id',
-    'type',
-    'destination_set_id',
-    'time_set_id',
+  'id',
+  'destination_set_id',
+  'destination',
+  'priority',
+  'timeout',
+  'announcement_id',
 ];
 
 my $indexes = {};
 
 my $insert_unique_fields = [];
-
-our $CFB_TYPE = 'cfb';
-our $CFT_TYPE = 'cft';
-our $CFU_TYPE = 'cfu';
-our $CFNA_TYPE = 'cfna';
 
 sub new {
 
@@ -101,29 +92,29 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($subscriber_id,
-            $type,
-            $destination_set_id,
-            $time_set_id) = @params{qw/
-                subscriber_id
-                type
+        my ($destination_set_id,
+            $destination,
+            $priority,
+            $timeout,
+            $announcement_id) = @params{qw/
                 destination_set_id
-                time_set_id
+                destination
+                priority
+                timeout
+                announcement_id
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('subscriber_id') . ', ' .
-                $db->columnidentifier('type') . ', ' .
                 $db->columnidentifier('destination_set_id') . ', ' .
-                $db->columnidentifier('time_set_id') . ') VALUES (' .
+                $db->columnidentifier('destination') . ', ' .
+                $db->columnidentifier('priority') . ', ' .
+                $db->columnidentifier('timeout') . ', ' .
+                $db->columnidentifier('announcement_id') .') VALUES (' .
                 '?, ' .
                 '?, ' .
                 '?, ' .
-                '?)',
-                $subscriber_id,
-                $type,
-                $destination_set_id,
-                $time_set_id
+                '?, ' .
+                'NULL)'
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();

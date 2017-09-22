@@ -38,7 +38,6 @@ Depends:
  libintl-perl,
  libio-compress-perl,
  libio-socket-ssl-perl,
- libjson-xs-perl,
  liblog-log4perl-perl,
  libmail-imapclient-perl,
  libmarpa-r2-perl,

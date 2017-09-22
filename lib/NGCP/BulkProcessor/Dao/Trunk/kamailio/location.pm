@@ -1,17 +1,21 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings;
+package NGCP::BulkProcessor::Dao::Trunk::kamailio::location;
 use strict;
 
 ## no critic
 
-use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+);
 
+use NGCP::BulkProcessor::ConnectorPool qw(
+    get_kamailio_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
-    copy_row
     insert_record
+    copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -21,34 +25,42 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    countby_subscriberid_type
-    $CFB_TYPE
-    $CFT_TYPE
-    $CFU_TYPE
-    $CFNA_TYPE
-
     insert_row
 );
 
-my $tablename = 'voip_cf_mappings';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'voicemail_users';
+my $get_db = \&get_kamailio_db;
 
 my $expected_fieldnames = [
-    'id',
-    'subscriber_id',
-    'type',
-    'destination_set_id',
-    'time_set_id',
+  'id',
+  'username',
+  'domain',
+  'contact',
+  'received',
+  'path',
+  'expires',
+  'q',
+  'callid',
+  'cseq',
+  'last_modified datetime',
+  'flags',
+  'cflags',
+  'user_agent',
+  'socket',
+  'methods',
+  'ruid',
+  'reg_id',
+  'instance',
+  'server_id',
+  'connection_id',
+  'keepalive',
+  'partition',
+
 ];
 
 my $indexes = {};
 
 my $insert_unique_fields = [];
-
-our $CFB_TYPE = 'cfb';
-our $CFT_TYPE = 'cft';
-our $CFU_TYPE = 'cfu';
-our $CFNA_TYPE = 'cfna';
 
 sub new {
 
@@ -59,33 +71,6 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
-
-}
-
-sub countby_subscriberid_type {
-
-    my ($subscriber_id,$type,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
-    my @params = ();
-    my @terms = ();
-    if ($subscriber_id) {
-        push(@terms,$db->columnidentifier('subscriber_id') . ' = ?');
-        push(@params,$subscriber_id);
-    }
-    if ($type) {
-        push(@terms,$db->columnidentifier('type') . ' = ?');
-        push(@params,$type);
-    }
-    if ((scalar @terms) > 0) {
-        $stmt .= ' WHERE ' . join(' AND ',@terms);
-    }
-
-    return $db->db_get_value($stmt,@params);
 
 }
 
@@ -101,29 +86,28 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($subscriber_id,
-            $type,
-            $destination_set_id,
-            $time_set_id) = @params{qw/
-                subscriber_id
-                type
-                destination_set_id
-                time_set_id
+        my ($customer_id,
+            $mailbox,
+            $password) = @params{qw/
+                customer_id
+                mailbox
+                password
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('subscriber_id') . ', ' .
-                $db->columnidentifier('type') . ', ' .
-                $db->columnidentifier('destination_set_id') . ', ' .
-                $db->columnidentifier('time_set_id') . ') VALUES (' .
+                $db->columnidentifier('customer_id') . ', ' .
+                $db->columnidentifier('email') . ', ' .
+                $db->columnidentifier('mailbox') . ', ' .
+                $db->columnidentifier('password') . ', ' .
+                $db->columnidentifier('tz') . ') VALUES (' .
+                '?, ' .
+                '\'\', ' .
                 '?, ' .
                 '?, ' .
-                '?, ' .
-                '?)',
-                $subscriber_id,
-                $type,
-                $destination_set_id,
-                $time_set_id
+                '\'' . $default_tz . '\')',
+                $customer_id,
+                $mailbox,
+                $password,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();
