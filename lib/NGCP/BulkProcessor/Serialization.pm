@@ -45,7 +45,8 @@ use MIME::Base64 qw(encode_base64 decode_base64);
 #http://blogs.perl.org/users/steven_haryanto/2010/09/comparison-of-perl-serialization-modules.html
 use Storable; # qw( nfreeze thaw );
 
-use JSON::XS; # qw(encode_json decode_json);
+use JSON qw();
+#use JSON::XS; # qw(encode_json decode_json);
 
 use Data::Dump; # qw(dump);
 $Data::Dump::INDENT = '  ';
@@ -166,12 +167,14 @@ sub deserialize_xml {
 
 sub serialize_json {
     my $input_ref = shift;
-    return JSON::XS::encode_json($input_ref);
+    #return JSON::XS::encode_json($input_ref);
+    return JSON::to_json($input_ref,{ allow_blessed => 1, convert_blessed => 1, pretty => 0 });
 }
 
 sub deserialize_json {
     my $input_ref = shift;
-    return JSON::XS::decode_json($input_ref);
+    #return JSON::XS::decode_json($input_ref);
+    return JSON::from_json($$input_ref);
 }
 
 sub serialize_yaml {
