@@ -433,7 +433,7 @@ sub process_records {
                                             numeric => 1,
                                             dir => 1,
                                         }]),
-        'select_count'              => 'SELECT COUNT(DISTINCT(' . join(',',@cols) . ')) FROM ' . $table,
+        'selectcount'              => 'SELECT COUNT(*) FROM (SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols) . ')',
     );
 }
 
