@@ -50,17 +50,18 @@ sub new {
 
 sub findby_resellerid_level {
 
-    my ($reseller_id,$level,$load_recursive) = @_;
+    my ($xa_db,$reseller_id,$level,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
+    $xa_db //= $db;
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
             $db->columnidentifier('reseller_id') . ' = ?' .
             ' AND ' . $db->columnidentifier('level') . ' = ?';
     my @params = ($reseller_id,$level);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
 

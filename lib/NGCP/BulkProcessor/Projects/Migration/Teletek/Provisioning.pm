@@ -120,7 +120,7 @@ my $file_lock :shared = undef;
 
 sub provision_subscribers {
 
-    my $static_context = { now => timestamp(), rowcount => undef };
+    my $static_context = { now => timestamp(), _rowcount => undef };
     my $result = _provision_subscribers_checks($static_context);
 
     destroy_all_dbs();
@@ -130,10 +130,10 @@ sub provision_subscribers {
         static_context => $static_context,
         process_code => sub {
             my ($context,$records,$row_offset) = @_;
-            $context->{rowcount} = $row_offset;
+            $context->{_rowcount} = $row_offset;
             my @report_data = ();
             foreach my $domain_sipusername (@$records) {
-                $context->{rowcount} += 1;
+                $context->{_rowcount} += 1;
                 next unless _provision_susbcriber($context,
                     NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_sipusername(@$domain_sipusername));
                 push(@report_data,_get_report_obj($context));
@@ -579,12 +579,12 @@ sub _check_ncos_level {
                 $context->{ncos_level_map}->{$reseller_id}->{$barring} = undef;
             } else {
                 eval {
-                    $context->{ncos_level_map}->{$reseller_id}->{$barring} = NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels::findby_resellerid_level(
+                    $context->{ncos_level_map}->{$reseller_id}->{$barring} = NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels::findby_resellerid_level($context->{db},
                         $reseller_id,$level);
                 };
                 if ($@ or not defined $context->{ncos_level_map}->{$reseller_id}->{$barring}) {
                     my $err = "cannot find ncos level '$level' of reseller $resellername";
-                    if (not defined $context->{rowcount}) {
+                    if (not defined $context->{_rowcount}) {
                         rowprocessingerror(threadid(),$err,getlogger(__PACKAGE__));
                     } elsif ($skip_errors) {
                         _warn($context, $err);
