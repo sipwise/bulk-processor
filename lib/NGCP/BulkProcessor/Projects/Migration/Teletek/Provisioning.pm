@@ -579,7 +579,7 @@ sub _check_ncos_level {
                 $context->{ncos_level_map}->{$reseller_id}->{$barring} = undef;
             } else {
                 eval {
-                    $context->{ncos_level_map}->{$reseller_id}->{$barring} = NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels::findby_resellerid_level(
+                    $context->{ncos_level_map}->{$reseller_id}->{$barring} = NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels::findby_resellerid_level($context->{db},
                         $reseller_id,$level);
                 };
                 if ($@ or not defined $context->{ncos_level_map}->{$reseller_id}->{$barring}) {
