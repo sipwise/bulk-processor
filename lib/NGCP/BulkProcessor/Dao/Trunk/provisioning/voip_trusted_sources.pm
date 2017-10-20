@@ -1,17 +1,22 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations;
+package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources;
 use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+    rowsdeleted
+);
+
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_provisioning_db
-
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
-    copy_row
     insert_record
+    copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -20,26 +25,37 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
-
-    countby_subscriberid_type
     insert_row
+
+    countby_subscriberid
+
+    $PROTOCOL_UDP
+    $PROTOCOL_TCP
+    $PROTOCOL_TLS
+    $PROTOCOL_ANY
 );
 
-my $tablename = 'voip_cf_destinations';
+my $tablename = 'voip_trusted_sources';
 my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
   'id',
-  'destination_set_id',
-  'destination',
-  'priority',
-  'timeout',
-  #'announcement_id',
+  'subscriber_id',
+  'src_ip',
+  'protocol',
+  'from_pattern',
+  'uuid',
+
 ];
 
 my $indexes = {};
 
 my $insert_unique_fields = [];
+
+our $PROTOCOL_UDP = 'UDP';
+our $PROTOCOL_TCP = 'TCP';
+our $PROTOCOL_TLS = 'TLS';
+our $PROTOCOL_ANY = 'ANY';
 
 sub new {
 
@@ -53,9 +69,9 @@ sub new {
 
 }
 
-sub countby_subscriberid_type {
+sub countby_subscriberid {
 
-    my ($subscriber_id,$type,$load_recursive) = @_;
+    my ($subscriber_id) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -64,13 +80,9 @@ sub countby_subscriberid_type {
     my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @params = ();
     my @terms = ();
-    if ($subscriber_id) {
+    if (defined $subscriber_id) {
         push(@terms,$db->columnidentifier('subscriber_id') . ' = ?');
         push(@params,$subscriber_id);
-    }
-    if ($type) {
-        push(@terms,$db->columnidentifier('type') . ' = ?');
-        push(@params,$type);
     }
     if ((scalar @terms) > 0) {
         $stmt .= ' WHERE ' . join(' AND ',@terms);
@@ -92,29 +104,34 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($destination_set_id,
-            $destination,
-            $priority,
-            $timeout,
-            $announcement_id) = @params{qw/
-                destination_set_id
-                destination
-                priority
-                timeout
-                announcement_id
+        my ($subscriber_id,
+            $src_ip,
+            $protocol,
+            $from_pattern,
+            $uuid) = @params{qw/
+                subscriber_id
+                src_ip
+                protocol
+                from_pattern
+                uuid
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('destination_set_id') . ', ' .
-                $db->columnidentifier('destination') . ', ' .
-                $db->columnidentifier('priority') . ', ' .
-                $db->columnidentifier('timeout') . ', ' .
-                $db->columnidentifier('announcement_id') .') VALUES (' .
+                $db->columnidentifier('subscriber_id') . ', ' .
+                $db->columnidentifier('src_ip') . ', ' .
+                $db->columnidentifier('protocol') . ', ' .
+                $db->columnidentifier('from_pattern') . ', ' .
+                $db->columnidentifier('uuid') . ') VALUES (' .
                 '?, ' .
                 '?, ' .
                 '?, ' .
                 '?, ' .
-                'NULL)'
+                '?)',
+                $subscriber_id,
+                $src_ip,
+                $protocol,
+                $from_pattern,
+                $uuid,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();
