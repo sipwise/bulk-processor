@@ -34,7 +34,7 @@ my $expected_fieldnames = [
   'destination',
   'priority',
   'timeout',
-  'announcement_id',
+  #'announcement_id',
 ];
 
 my $indexes = {};
