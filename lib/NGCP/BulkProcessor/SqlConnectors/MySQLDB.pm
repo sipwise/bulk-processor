@@ -44,6 +44,7 @@ my $session_charset = 'latin1';
 my $LongReadLen = $LongReadLen_limit; #bytes
 my $LongTruncOk = 0;
 
+my $net_read_timeout = 300;
 #my $logger = getlogger(__PACKAGE__);
 
 #my $lock_do_chunk = 0; #1;
@@ -234,6 +235,9 @@ sub db_connect {
     #$self->db_do('SET SESSION time_format = \'%H:%i:%s\'');
     #$self->db_do('SET SESSION time_zone = \'Europe/Paris\'');
     #$self->db_do('SET SESSION datetime_format = \'%Y-%m-%d %H:%i:%s\'');
+    if (defined $net_read_timeout) {
+        $self->db_do('SET SESSION net_read_timeout = ' . $net_read_timeout);
+    }
 
     if (length($serialization_level) > 0) {
         $self->db_do('SET SESSION TRANSACTION ISOLATION LEVEL ' . $serialization_level);
@@ -553,6 +557,15 @@ sub _split_indexcol {
         return ($1,$2);
     }
     return ($indexcol, '');
+}
+
+sub ping {
+
+    my $self = shift;
+
+    $self->{dbh}->ping() if $self->{dbh};
+    return 1;
+
 }
 
 1;
