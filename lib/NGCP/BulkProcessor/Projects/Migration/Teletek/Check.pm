@@ -26,6 +26,7 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::location qw();
@@ -167,6 +168,9 @@ sub check_provisioning_db_tables {
     $result &= $check_result; push(@$messages,$message);
 
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources');
     $result &= $check_result; push(@$messages,$message);
 
     return $result;
