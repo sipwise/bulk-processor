@@ -79,6 +79,7 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::location qw();
 
@@ -635,6 +636,9 @@ sub create_subscriber_task {
         $stats .= "\n  registrations: " .
             NGCP::BulkProcessor::Dao::Trunk::kamailio::location::countby_usernamedomain(undef,undef) . ' rows';
 
+        $stats .= "\n  trusted sources: " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::countby_subscriberid(undef) . ' rows';
+
         $stats .= "\n  non-unique contacts skipped:\n    " . join("\n    ",keys %$nonunique_contacts)
                 if (scalar keys %$nonunique_contacts) > 0;
     };
@@ -646,7 +650,7 @@ sub create_subscriber_task {
             push(@$messages,"YOU MIGHT WANT TO RESTART KAMAILIO FOR PERMANENT REGISTRATIONS TO COME INTO EFFECT");
         }
     }
-    destroy_all_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs();
     return $result;
 
 }

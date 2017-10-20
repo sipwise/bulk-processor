@@ -87,6 +87,7 @@ our @EXPORT_OK = qw(
     $provision_subscriber_numofthreads
     $webpassword_length
     $webusername_length
+    $sippassword_length
     $default_channels_map
 
     $cf_default_priority
@@ -144,6 +145,7 @@ our $provision_subscriber_multithreading = $enablemultithreading;
 our $provision_subscriber_numofthreads = $cpucount;
 our $webpassword_length = 8;
 our $webusername_length = 8;
+our $sippassword_length = 16;
 our $default_channels_map = {
     0 => 1,
     4 => 10,
@@ -223,6 +225,11 @@ sub update_settings {
         $webusername_length = $data->{webusername_length} if exists $data->{webusername_length};
         if (not defined $webusername_length or $webusername_length <= 7) {
             configurationerror($configfile,'webusername_length greater than 7 required',getlogger(__PACKAGE__));
+            $result = 0;
+        }
+        $sippassword_length = $data->{sippassword_length} if exists $data->{sippassword_length};
+        if (not defined $sippassword_length or $sippassword_length <= 7) {
+            configurationerror($configfile,'sippassword_length greater than 7 required',getlogger(__PACKAGE__));
             $result = 0;
         }
         #$default_channels = $data->{default_channels} if exists $data->{default_channels};

@@ -30,6 +30,7 @@ our @EXPORT_OK = qw(
     insert_row
 
     countby_status_resellerid
+    findby_contactid
 
     process_records
 
@@ -78,6 +79,23 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_contactid {
+
+    my ($contact_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contact_id') . ' = ?';
+    my @params = ($contact_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
