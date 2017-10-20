@@ -646,7 +646,7 @@ sub create_subscriber_task {
             push(@$messages,"YOU MIGHT WANT TO RESTART KAMAILIO FOR PERMANENT REGISTRATIONS TO COME INTO EFFECT");
         }
     }
-    destroy_all_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs();
     return $result;
 
 }

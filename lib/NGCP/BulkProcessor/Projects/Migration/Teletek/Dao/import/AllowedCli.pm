@@ -332,7 +332,7 @@ sub buildrecords_fromrows {
 #        multithreading              => $multithreading,
 #        tableprocessing_threads     => $numofthreads,
 #        'select'                    => 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),
-#        'select_count'              => 'SELECT COUNT(DISTINCT(' . join(',',@cols) . ')) FROM ' . $table,
+#        'selectcount'              => 'SELECT COUNT(DISTINCT(' . join(',',@cols) . ')) FROM ' . $table,
 #    );
 #}
 
