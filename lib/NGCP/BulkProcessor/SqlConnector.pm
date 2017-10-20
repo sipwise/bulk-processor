@@ -993,4 +993,13 @@ sub db_finish {
 
 }
 
+sub ping {
+
+    my $self = shift;
+
+    #notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+    return 1;
+
+}
+
 1;

@@ -70,6 +70,7 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::location qw();
@@ -92,6 +93,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::ProjectConnectorPool qw(
     destroy_all_dbs
+    ping_all_dbs
 );
 
 use NGCP::BulkProcessor::Utils qw(create_uuid threadid timestamp stringtobool check_ipnet trim);
@@ -118,9 +120,13 @@ my $cf_types_pattern = '^' . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voi
 my $db_lock :shared = undef;
 my $file_lock :shared = undef;
 
+my $default_barring = 'default';
+
+my $contact_hash_field = 'gpp9';
+
 sub provision_subscribers {
 
-    my $static_context = { now => timestamp(), rowcount => undef };
+    my $static_context = { now => timestamp(), _rowcount => undef };
     my $result = _provision_subscribers_checks($static_context);
 
     destroy_all_dbs();
@@ -130,10 +136,11 @@ sub provision_subscribers {
         static_context => $static_context,
         process_code => sub {
             my ($context,$records,$row_offset) = @_;
-            $context->{rowcount} = $row_offset;
+            ping_all_dbs();
+            $context->{_rowcount} = $row_offset;
             my @report_data = ();
             foreach my $domain_sipusername (@$records) {
-                $context->{rowcount} += 1;
+                $context->{_rowcount} += 1;
                 next unless _provision_susbcriber($context,
                     NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_sipusername(@$domain_sipusername));
                 push(@report_data,_get_report_obj($context));
@@ -519,7 +526,7 @@ sub _provision_subscribers_checks {
             #    $result = 0; #even in skip-error mode..
             #}
             my $barring = $barring_resellername->{barrings};
-            next unless ($barring);
+            $barring = $default_barring unless ($barring);
             $result &= _check_ncos_level($context,$resellername,$barring);
         }
     }
@@ -564,10 +571,10 @@ sub _provision_subscribers_checks {
 sub _check_ncos_level {
     my ($context,$resellername,$barring) = @_;
     my $result = 1;
-    if (not exists $barring_profiles->{$resellername}) {
+    if ($barring ne $default_barring and not exists $barring_profiles->{$resellername}) {
         rowprocessingerror(threadid(),"barring mappings for reseller $resellername missing",getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
-    } elsif (not exists $barring_profiles->{$resellername}->{$barring}) {
+    } elsif ($barring ne $default_barring and not exists $barring_profiles->{$resellername}->{$barring}) {
         rowprocessingerror(threadid(),"mappings for barring '" . $barring . "' of reseller $resellername missing",getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
     } else {
@@ -584,14 +591,19 @@ sub _check_ncos_level {
                 };
                 if ($@ or not defined $context->{ncos_level_map}->{$reseller_id}->{$barring}) {
                     my $err = "cannot find ncos level '$level' of reseller $resellername";
-                    if (not defined $context->{rowcount}) {
-                        rowprocessingerror(threadid(),$err,getlogger(__PACKAGE__));
+                    if (not defined $context->{_rowcount}) {
+                        if ($barring ne $default_barring) {
+                            rowprocessingerror(threadid(),$err,getlogger(__PACKAGE__));
+                            $result = 0; #even in skip-error mode..
+                        } else {
+                            rowprocessingwarn(threadid(),$err,getlogger(__PACKAGE__));
+                        }
                     } elsif ($skip_errors) {
                         _warn($context, $err);
                     } else {
                         _error($context, $err);
+                        $result = 0; #even in skip-error mode..
                     }
-                    $result = 0; #even in skip-error mode..
                 } else {
                     processing_info(threadid(),"ncos level '$level' of reseller $resellername found",getlogger(__PACKAGE__));
                 }
@@ -605,17 +617,54 @@ sub _update_contact {
 
     my ($context) = @_;
 
-    if ($context->{contract}->{contact_id}) {
-        #NGCP::BulkProcessor::Dao::Trunk::billing::contacts::update_row($context->{db},
-        #    { @{ $context->{contract}->{contact} }, id => $context->{contract}->{contact_id}, }
-        #);
-    } else {
+    my $existing_contacts = NGCP::BulkProcessor::Dao::Trunk::billing::contacts::findby_reselleridfields(
+        $context->{reseller}->{id},
+        { $contact_hash_field => $context->{contract}->{contact}->{$contact_hash_field} },
+    );
+    if ((scalar @$existing_contacts) == 0) {
         $context->{contract}->{contact}->{id} = NGCP::BulkProcessor::Dao::Trunk::billing::contacts::insert_row($context->{db},
             $context->{contract}->{contact},
         );
         $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
         _info($context,"contact id $context->{contract}->{contact}->{id} created",1);
+    } else {
+        my $existing_contact = $existing_contacts->[0];
+        if ((scalar @$existing_contacts) > 1) {
+            _warn($context,(scalar @$existing_contacts) . " existing contacts found, using first contact id $existing_contact->{id}");
+        } else {
+            _info($context,"existing contact id $existing_contact->{id} found",1);
+        }
+        $context->{contract}->{contact}->{id} = $existing_contact->{id};
+        $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
+
+        my $existing_contracts = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::findby_contactid($existing_contact->{id});
+        if ((scalar @$existing_contracts) > 0) {
+            my $existing_contract = $existing_contracts->[0];
+            if ((scalar @$existing_contracts) > 1) {
+                _warn($context,(scalar @$existing_contracts) . " existing contracts found, using first contact id $existing_contract->{id}");
+            } else {
+                _info($context,"existing contract id $existing_contact->{id} found",1);
+            }
+            $context->{contract}->{id} = $existing_contract->{id};
+            $context->{bill_subscriber}->{contract_id} = $context->{contract}->{id};
+            $context->{prov_subscriber}->{account_id} = $context->{contract}->{id};     
+        } else {
+            _warn($context,"no existing contract of contact id $existing_contact->{id} found, will be created");
+        }
     }
+    $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
+
+    #if ($context->{contract}->{contact_id}) {
+    #    #NGCP::BulkProcessor::Dao::Trunk::billing::contacts::update_row($context->{db},
+    #    #    { @{ $context->{contract}->{contact} }, id => $context->{contract}->{contact_id}, }
+    #    #);
+    #} else {
+    #    $context->{contract}->{contact}->{id} = NGCP::BulkProcessor::Dao::Trunk::billing::contacts::insert_row($context->{db},
+    #        $context->{contract}->{contact},
+    #    );
+    #    $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
+    #    _info($context,"contact id $context->{contract}->{contact}->{id} created",1);
+    #}
 
     return 1;
 
@@ -919,6 +968,15 @@ sub _set_registrations {
             %$registration);
         _info($context,"permanent registration $registration->{contact} added",1);
     }
+    foreach my $trusted_source (@{$context->{trusted_sources}}) {
+        #print "blah";
+        $trusted_source->{id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::insert_row($context->{db},{
+            %$trusted_source,
+            subscriber_id => $context->{prov_subscriber}->{id},
+            uuid => $context->{prov_subscriber}->{uuid},
+        });
+        _info($context,"trusted source $trusted_source->{protocol} $trusted_source->{src_ip} from $trusted_source->{from_pattern} added",1);
+    }
     return $result;
 
 }
@@ -1055,6 +1113,7 @@ sub _provision_susbcriber_init_context {
                         phonenumber => $subscriber->{phone_number},
                         email => $subscriber->{email},
                         vatnum => $subscriber->{vat_number},
+                        $contact_hash_field => $subscriber->{contact_hash},
                     },
                 };
                 $contact_dupes{$subscriber->{contact_hash}} = 1;
@@ -1160,6 +1219,11 @@ sub _provision_susbcriber_init_context {
     } elsif ((scalar keys %barrings) == 1) {
         my ($barring) = keys %barrings;
         $context->{ncos_level} = $context->{ncos_level_map}->{$context->{reseller}->{id}}->{$barring};
+    } else {
+        if (exists $context->{ncos_level_map}->{$context->{reseller}->{id}}->{$default_barring}) {
+            $context->{ncos_level} = $context->{ncos_level_map}->{$context->{reseller}->{id}}->{$default_barring};
+            _info($context,"no ncos level, using default '$context->{ncos_level}->{level}'",1);
+        }
     }
 
     foreach my $allowed_cli (@{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::findby_sipusername($first->{sip_username})}) {
@@ -1276,6 +1340,7 @@ sub _provision_susbcriber_init_context {
     $context->{callforwards} = \%cfsimple;
 
     my @registrations = ();
+    my @trusted_sources = ();
     if (my $registration = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::findby_sipusername($first->{sip_username})) {
         #todo: check/transform, multiple contacts
         push(@registrations,{
@@ -1284,8 +1349,22 @@ sub _provision_susbcriber_init_context {
             contact => $registration->{sip_contact},
             ruid => NGCP::BulkProcessor::Dao::Trunk::kamailio::location::next_ruid(),
         });
+        if ($registration->{sip_contact} =~ /(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})/) {
+            if (check_ipnet($1)) {
+                push(@trusted_sources,{
+                    src_ip => $1,
+                    protocol => $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::PROTOCOL_UDP,
+                    from_pattern => 'sip:.+' . quotemeta($context->{domain}->{domain}),
+                });
+            } else {
+                _warn($context,"invalid IP address in sip contact '$registration->{sip_contact}', skipping trusted source");
+            }
+        } else {
+            _warn($context,"cannot extract IP address from sip contact '$registration->{sip_contact}', skipping trusted source");
+        }
     }
     $context->{registrations} = \@registrations;
+    $context->{trusted_sources} = \@trusted_sources;
 
     #$context->{counts} = {} unless defined $context->{counts};
 
