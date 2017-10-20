@@ -70,6 +70,7 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::location qw();
@@ -92,6 +93,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::ProjectConnectorPool qw(
     destroy_all_dbs
+    ping_all_dbs
 );
 
 use NGCP::BulkProcessor::Utils qw(create_uuid threadid timestamp stringtobool check_ipnet trim);
@@ -120,7 +122,7 @@ my $file_lock :shared = undef;
 
 sub provision_subscribers {
 
-    my $static_context = { now => timestamp(), rowcount => undef };
+    my $static_context = { now => timestamp(), _rowcount => undef };
     my $result = _provision_subscribers_checks($static_context);
 
     destroy_all_dbs();
@@ -130,10 +132,11 @@ sub provision_subscribers {
         static_context => $static_context,
         process_code => sub {
             my ($context,$records,$row_offset) = @_;
-            $context->{rowcount} = $row_offset;
+            ping_all_dbs();
+            $context->{_rowcount} = $row_offset;
             my @report_data = ();
             foreach my $domain_sipusername (@$records) {
-                $context->{rowcount} += 1;
+                $context->{_rowcount} += 1;
                 next unless _provision_susbcriber($context,
                     NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_domain_sipusername(@$domain_sipusername));
                 push(@report_data,_get_report_obj($context));
@@ -584,7 +587,7 @@ sub _check_ncos_level {
                 };
                 if ($@ or not defined $context->{ncos_level_map}->{$reseller_id}->{$barring}) {
                     my $err = "cannot find ncos level '$level' of reseller $resellername";
-                    if (not defined $context->{rowcount}) {
+                    if (not defined $context->{_rowcount}) {
                         rowprocessingerror(threadid(),$err,getlogger(__PACKAGE__));
                     } elsif ($skip_errors) {
                         _warn($context, $err);
@@ -919,6 +922,15 @@ sub _set_registrations {
             %$registration);
         _info($context,"permanent registration $registration->{contact} added",1);
     }
+    foreach my $trusted_source (@{$context->{trusted_sources}}) {
+        #print "blah";
+        $trusted_source->{id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::insert_row($context->{db},{
+            %$trusted_source,
+            subscriber_id => $context->{prov_subscriber}->{id},
+            uuid => $context->{prov_subscriber}->{uuid},
+        });
+        _info($context,"trusted source $trusted_source->{protocol} $trusted_source->{src_ip} from $trusted_source->{from_pattern} added",1);
+    }
     return $result;
 
 }
@@ -1160,6 +1172,11 @@ sub _provision_susbcriber_init_context {
     } elsif ((scalar keys %barrings) == 1) {
         my ($barring) = keys %barrings;
         $context->{ncos_level} = $context->{ncos_level_map}->{$context->{reseller}->{id}}->{$barring};
+    } else {
+        if (exists $context->{ncos_level_map}->{$context->{reseller}->{id}}->{''}) {
+            $context->{ncos_level} = $context->{ncos_level_map}->{$context->{reseller}->{id}}->{''};
+            _info($context,"no ncos level, using default '$context->{ncos_level}->{level}'",1);
+        }
     }
 
     foreach my $allowed_cli (@{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::findby_sipusername($first->{sip_username})}) {
@@ -1276,6 +1293,7 @@ sub _provision_susbcriber_init_context {
     $context->{callforwards} = \%cfsimple;
 
     my @registrations = ();
+    my @trusted_sources = ();
     if (my $registration = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration::findby_sipusername($first->{sip_username})) {
         #todo: check/transform, multiple contacts
         push(@registrations,{
@@ -1284,8 +1302,22 @@ sub _provision_susbcriber_init_context {
             contact => $registration->{sip_contact},
             ruid => NGCP::BulkProcessor::Dao::Trunk::kamailio::location::next_ruid(),
         });
+        if ($registration->{sip_contact} =~ /(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})/) {
+            if (check_ipnet($1)) {
+                push(@trusted_sources,{
+                    src_ip => $1,
+                    protocol => $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::PROTOCOL_UPD,
+                    from_pattern => 'sip:.+' . quotemeta($context->{domain}->{domain}),
+                });
+            } else {
+                _warn($context,"invalid IP address in sip contact '$registration->{sip_contact}', skipping trusted source");
+            }
+        } else {
+            _warn($context,"cannot extract IP address from sip contact '$registration->{sip_contact}', skipping trusted source");
+        }
     }
     $context->{registrations} = \@registrations;
+    $context->{trusted_sources} = \@trusted_sources;
 
     #$context->{counts} = {} unless defined $context->{counts};
 
