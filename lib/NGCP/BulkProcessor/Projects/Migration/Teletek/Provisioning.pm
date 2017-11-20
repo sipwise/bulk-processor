@@ -1312,7 +1312,7 @@ sub _provision_susbcriber_init_context {
                     _warn($context,"invalid callforward destination '$callforward->{destination}', ignoring");
                     next;
                 } else { #todo: allow sip uri destinations
-                    $callforward->{destination} .= '@' . $context->{domain}->{domain};
+                    $callforward->{destination} = 'sip:' . $callforward->{destination} .'@' . $context->{domain}->{domain};
                 }
                 $callforward->{priority} //= $cf_default_priority;
                 $callforward->{timeout} //= $cf_default_timeout;
