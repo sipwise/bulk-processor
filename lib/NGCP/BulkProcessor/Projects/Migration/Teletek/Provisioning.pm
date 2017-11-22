@@ -1354,7 +1354,7 @@ sub _provision_susbcriber_init_context {
         push(@registrations,{
             username => $registration->{sip_username},
             domain => $registration->{domain},
-            contact => $registration->{sip_contact},
+            contact => 'sip:' . $registration->{sip_contact},
             ruid => NGCP::BulkProcessor::Dao::Trunk::kamailio::location::next_ruid(),
         });
         if ($registration->{sip_contact} =~ /(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})/) {
