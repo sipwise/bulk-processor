@@ -60,6 +60,8 @@ Depends:
  libxml-libxml-perl,
  libyaml-libyaml-perl,
  libio-compress-perl,
+ libsys-cpuaffinity-perl,
+ libdata-rmap-perl,
  perl,
  ${misc:Depends},
  ${perl:Depends},

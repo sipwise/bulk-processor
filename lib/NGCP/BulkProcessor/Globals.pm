@@ -126,11 +126,11 @@ umask 0000;
 
 # general constants
 our $system_name = 'Sipwise Bulk Processing Framework';
-our $VERSION = '0.0.1';
+our $VERSION = '1.0.1';
 our $system_version = $VERSION; #keep this filename-save
-our $system_abbreviation = 'sbpf'; #keep this filename-, dbname-save
-our $system_instance = 'initial'; #'test'; #'2014'; #dbname-save 0-9a-z_
-our $system_instance_label = 'test';
+our $system_abbreviation = 'bulkprocessor'; #keep this filename-, dbname-save
+our $system_instance = 'ngcp'; #'test'; #'2014'; #dbname-save 0-9a-z_
+our $system_instance_label = 'some node';
 
 our $local_ip = get_ipaddress();
 our $local_fqdn = get_hostfqdn();

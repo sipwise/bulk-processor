@@ -348,7 +348,10 @@ sub post_get {
         $self->_request_error();
         return undef;
     } else {
-        return $self->get($self->response()->header('Location'),$get_headers);
+        my @ids = $self->_extract_ids_from_response_location();
+        my $item = $self->get($self->response()->header('Location'),$get_headers);
+        $item->{id} = $ids[0] if (scalar @ids) > 0;
+        return $item;
     }
 }
 
