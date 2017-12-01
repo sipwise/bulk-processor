@@ -1,0 +1,110 @@
+-
+  domain: narf1.com
+  reseller: narf1
+  numbers_per_subscriber: 3
+  cc:
+    - 888
+    - 999
+  ac:
+    - 123
+    - 456
+  sn: '000001-100000'
+-
+  domain: narf2.com
+  reseller: narf2
+  cc:
+    - 888
+    - 999
+  ac:
+    - 123
+    - 456
+  sn: '000001-100000'
+-
+  domain: narf3.com
+  reseller: narf3
+  cc:
+    - 888
+    - 999
+  ac:
+    - 123
+    - 456
+  sn: '000001-100000'
+  provider_rate:
+    prepaid: 0
+    fees:
+      -
+        destination: ^888.+
+        direction: out
+        offpeak_follow_interval: 5
+        offpeak_follow_rate: 1
+        offpeak_init_interval: 5
+        offpeak_init_rate: 2
+        onpeak_follow_interval: 5
+        onpeak_follow_rate: 1
+        onpeak_init_interval: 5
+        onpeak_init_rate: 2
+      -
+        destination: .
+        direction: in
+        offpeak_follow_interval: 5
+        offpeak_follow_rate: 1
+        offpeak_init_interval: 5
+        offpeak_init_rate: 1
+        onpeak_follow_interval: 5
+        onpeak_follow_rate: 1
+        onpeak_init_interval: 5
+        onpeak_init_rate: 1
+        source: ^888.+
+  subscriber_rates:
+    -
+      prepaid: 0
+      fees:
+        -
+          destination: ^8882.+
+          direction: out
+          offpeak_follow_interval: 5
+          offpeak_follow_rate: 1
+          offpeak_init_interval: 5
+          offpeak_init_rate: 6
+          onpeak_follow_interval: 5
+          onpeak_follow_rate: 1
+          onpeak_init_interval: 5
+          onpeak_init_rate: 6
+        -
+          destination: .
+          direction: in
+          offpeak_follow_interval: 5
+          offpeak_follow_rate: 1
+          offpeak_init_interval: 5
+          offpeak_init_rate: 5
+          onpeak_follow_interval: 5
+          onpeak_follow_rate: 1
+          onpeak_init_interval: 5
+          onpeak_init_rate: 5
+          source: ^8881.+
+    -
+      prepaid: 1
+      fees:
+        -
+          destination: ^8882.+
+          direction: out
+          offpeak_follow_interval: 5
+          offpeak_follow_rate: 1
+          offpeak_init_interval: 5
+          offpeak_init_rate: 4
+          onpeak_follow_interval: 5
+          onpeak_follow_rate: 1
+          onpeak_init_interval: 5
+          onpeak_init_rate: 4
+        -
+          destination: .
+          direction: in
+          offpeak_follow_interval: 5
+          offpeak_follow_rate: 1
+          offpeak_init_interval: 5
+          offpeak_init_rate: 3
+          onpeak_follow_interval: 5
+          onpeak_follow_rate: 1
+          onpeak_init_interval: 5
+          onpeak_init_rate: 3
+          source: ^8881.+

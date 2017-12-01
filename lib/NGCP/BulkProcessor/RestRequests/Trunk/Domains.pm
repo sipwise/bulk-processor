@@ -37,15 +37,17 @@ my $get_item_path_query = sub {
 };
 my $collection_path_query = 'api/' . $resource . '/';
 
-my $fieldnames = [
-    'domain',
-    'reseller_id',
-];
-
 my $get_item_filter_path_query = sub {
     my ($filters) = @_;
     return 'api/' . $resource . '/' . get_query_string($filters);
 };
+
+my $fieldnames = [
+    'domain',
+    'reseller_id',
+
+    'id',
+];
 
 sub new {
 

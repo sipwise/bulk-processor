@@ -60,6 +60,8 @@ my $fieldnames = [
     'reseller_id',
     'street',
     'vatnum',
+
+    'id',
 ];
 
 sub new {

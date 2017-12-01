@@ -42,6 +42,8 @@ my $fieldnames = [
     'external_id',
     'status',
     'type',
+
+    'id',
 ];
 
 sub new {
