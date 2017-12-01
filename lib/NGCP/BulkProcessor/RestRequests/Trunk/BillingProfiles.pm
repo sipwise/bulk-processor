@@ -52,6 +52,8 @@ my $fieldnames = [
     'peaktime_weekdays',
     'prepaid',
     'reseller_id',
+
+    'id',
 ];
 
 sub new {

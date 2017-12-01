@@ -48,6 +48,8 @@ my $fieldnames = [
     'purge_existing',
     'source',
     'use_free_time',
+
+    'id',
 ];
 
 sub new {

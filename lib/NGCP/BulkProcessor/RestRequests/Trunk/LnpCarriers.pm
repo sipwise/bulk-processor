@@ -42,6 +42,8 @@ my $fieldnames = [
     'name',
     'prefix',
     'skip_rewrite',
+
+    'id',
 ];
 
 my $get_item_filter_path_query = sub {

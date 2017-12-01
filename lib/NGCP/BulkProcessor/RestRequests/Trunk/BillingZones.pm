@@ -36,6 +36,8 @@ my $fieldnames = [
     'billing_profile_id',
     'detail',
     'zone',
+
+    'id',
 ];
 
 sub new {

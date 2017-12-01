@@ -10,6 +10,8 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 
 use NGCP::BulkProcessor::RestProcessor qw(
     copy_row
+
+    get_query_string
 );
 
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw();
@@ -22,6 +24,7 @@ our @EXPORT_OK = qw(
     create_item
 
     get_item_path
+    get_item_filtered
 );
 
 my $get_restapi = \&get_ngcp_restapi;
@@ -39,7 +42,14 @@ my $fieldnames = [
     'name',
     'rtc_networks',
     'status',
+
+    'id',
 ];
+
+my $get_item_filter_path_query = sub {
+    my ($filters) = @_;
+    return 'api/' . $resource . '/' . get_query_string($filters);
+};
 
 sub new {
 
@@ -57,6 +67,15 @@ sub get_item {
     my ($id,$load_recursive,$headers) = @_;
     my $restapi = &$get_restapi();
     return builditems_fromrows($restapi->get(&$get_item_path_query($id),$headers),$load_recursive);
+
+}
+
+sub get_item_filtered {
+
+    my ($filters,$load_recursive,$headers) = @_;
+    my $restapi = &$get_restapi();
+    return builditems_fromrows($restapi->extract_collection_items($restapi->get(&$get_item_filter_path_query($filters),$headers),undef,undef,
+        { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation }),$load_recursive)->[0];
 
 }
 

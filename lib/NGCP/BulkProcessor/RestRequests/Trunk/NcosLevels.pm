@@ -43,6 +43,8 @@ my $fieldnames = [
     'local_ac',
     'mode',
     'reseller_id',
+
+    'id',
 ];
 
 my $get_item_filter_path_query = sub {

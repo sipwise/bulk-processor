@@ -40,6 +40,8 @@ my $collection_path_query = 'api/' . $resource . '/';
 my $fieldnames = [
     'domain',
     'reseller_id',
+
+    'id',
 ];
 
 my $get_item_filter_path_query = sub {

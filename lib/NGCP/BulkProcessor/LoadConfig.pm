@@ -54,31 +54,46 @@ our $YAML_CONFIG_TYPE = 2;
 our $ANY_CONFIG_TYPE = 3;
 #my $logger = getlogger(__PACKAGE__);
 
+my $debug_config_ext_prefix = 'debug';
+
 sub load_config {
 
     my ($configfile,$process_code,$configtype,$configparser_args) = @_;
 
     my $is_master = 'CODE' ne ref $process_code;
     my $data;
+    my $variant = $configfile;
     if (defined $configfile) {
-        if (-e $configfile) {
-            $data = _parse_config($configfile,$configtype,$configparser_args);
-        } else {
-            my $relative_configfile = $executable_path . $configfile;
-            if (-e $relative_configfile) {
-                $configfile = $relative_configfile;
-                $data = _parse_config($configfile,$configtype,$configparser_args);
+        my @variants = ();
+        if ($is_perl_debug) {
+            push(@variants,_prefix_ext($configfile,$debug_config_ext_prefix));
+        }
+        push(@variants,$configfile);
+        my %dupes = ();
+        while (not defined $data and ($variant = shift @variants)) {
+            next if exists $dupes{$variant};
+            $dupes{$variant} = 1;
+
+            if (-e $variant) {
+                $data = _parse_config($variant,$configtype,$configparser_args);
             } else {
-                configurationwarn($configfile,'no ' . ($is_master ? 'master config' : 'config') . ' file ' . $relative_configfile,getlogger(__PACKAGE__));
-                $relative_configfile = $application_path . $configfile;
-                if (-e $relative_configfile) {
-                    $configfile = $relative_configfile;
-                    $data = _parse_config($configfile,$configtype,$configparser_args);
-                } else {
-                    configurationerror($configfile,'no ' . ($is_master ? 'master config' : 'config') . ' file ' . $relative_configfile,getlogger(__PACKAGE__));
-                    return 0;
+                my @paths = ();
+                my %path_dupes = ();
+                my @search_paths = ($executable_path,$application_path); #todo: add /etc/bulkprocessor or similar here once
+                ($variant,$data) = _search_path($variant,$configtype,$configparser_args,\@search_paths,\@paths,\%path_dupes);
+                @search_paths = ();
+                if (not defined $data) {
+                    if (index($executable_path,$application_path) > -1) {
+                        my $module_path  = 'NGCP/BulkProcessor/' . substr($executable_path,length($application_path));
+                        push(@search_paths,map { eval{ Cwd::abs_path($_  . '/') . '/' . $module_path; }; } @INC);
+                    }
+                    push(@search_paths,map { eval{ Cwd::abs_path($_  . '/') . '/'; }; } @INC);
+                    ($variant,$data) = _search_path($variant,$configtype,$configparser_args,\@search_paths,\@paths,\%path_dupes);
                 }
             }
+        }
+        if (not defined $data) {
+            configurationerror($configfile,'no ' . ($is_master ? 'master config' : 'config') . ' variant found',getlogger(__PACKAGE__));
         }
     } else {
         fileerror('no ' . ($is_master ? 'master config' : 'config') . ' file specified',getlogger(__PACKAGE__));
@@ -88,7 +103,7 @@ sub load_config {
     if ($is_master) {
         my %context = (
             data => $data,
-            configfile => $configfile,
+            configfile => $variant,
             split_tuplecode => \&split_tuple,
             format_numbercode => \&format_number,
             parse_regexpcode => \&parse_regexp,
@@ -102,7 +117,7 @@ sub load_config {
             configlogger => getlogger(__PACKAGE__),
         );
         my ($result,$loadconfig_args,$postprocesscode) = update_masterconfig(%context);
-        _splashinfo($configfile);
+        _splashinfo($variant);
         if (defined $loadconfig_args and 'ARRAY' eq ref $loadconfig_args) {
             foreach my $loadconfig_arg (@$loadconfig_args) {
                 $result &= load_config(@$loadconfig_arg);
@@ -113,10 +128,42 @@ sub load_config {
         }
         return $result;
     } else {
-        my $result = &$process_code($data,$configfile);
-        configurationinfo('config file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
+        my $result = &$process_code($data,$variant);
+        configurationinfo('config file ' . $variant . ' loaded',getlogger(__PACKAGE__));
         return $result;
     }
+
+}
+
+sub _prefix_ext {
+    my ($configfile,$ext_suffix) = @_;
+    return $configfile unless $ext_suffix;
+    if ($configfile =~ /\.([^\.]+)$/) {
+        $configfile =~ s/\.([^\.]+)$/.$ext_suffix.$1/;
+    } else {
+        $configfile .= '.' . $ext_suffix;
+    }
+    return $configfile;
+}
+
+sub _search_path {
+
+    my ($configfile,$configtype,$configparser_args,$search_paths,$paths,$dupes) = @_;
+    my $data = undef;
+    $dupes //= {};
+    while (not defined $data and (my $path = shift @$search_paths)) {
+        next if exists $dupes->{$path};
+        push(@$paths,$path);
+        $dupes->{$path} = 1;
+        my $relative_configfile = $path . $configfile;
+        if (-e $relative_configfile) {
+            $configfile = $relative_configfile;
+            $data = _parse_config($configfile,$configtype,$configparser_args);
+        #} else {
+        #    configurationwarn($configfile,'no ' . ($is_master ? 'master config' : 'config') . ' file ' . $relative_configfile,getlogger(__PACKAGE__));
+        }
+    }
+    return ($configfile,$data);
 
 }
 
