@@ -1,3 +1,18 @@
+ngcp-bulk-processor (6.1.0.0+0~mr6.1.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [bfa6575] TT#18883 implement teletek importer #8
+  * [5a07957] TT#23594 ppa and modifications
+  * [2825e67] TT#25331 'sip:' prefix for regular cf destinations
+  * [357ec37] TT#23594 kamailio.location.contact values need 'sip:' prefix
+
+  [ Guillem Jover ]
+  * [06b3781] TT#22072 Update packaging
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 05 Dec 2017 23:59:34 +0100
+
 ngcp-bulk-processor (6.0.0.0+0~mr6.0.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
