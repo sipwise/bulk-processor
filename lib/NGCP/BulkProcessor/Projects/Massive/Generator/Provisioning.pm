@@ -193,6 +193,16 @@ sub _provision_subscriber {
             $context->{db}->db_begin();
             #_info($context,"test" . $subscriber_count);
             #die() if (($tid == 1 or $tid == 0) and $subscriber_count == 500);
+
+my $existing_billing_voip_subscribers = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_domainid_username_states(
+            $context->{db},
+            $context->{domain}->{id},
+            $context->{prov_subscriber}->{username},
+            { 'NOT IN' => $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::TERMINATED_STATE}
+        );
+
+        if ((scalar @$existing_billing_voip_subscribers) == 0) {
+
             _create_contact($context);
             _create_contract($context);
             {
@@ -209,9 +219,9 @@ sub _provision_subscriber {
     #            #todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
     #            #in this main provisioning loop, or align it in separate run-modes, according to the files given.
     #
-    #        } else {
-    #            _warn($context,(scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
-    #        }
+            } else {
+                _info($context,(scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping',1);
+            }
 
             if ($dry) {
                 $context->{db}->db_rollback(0);

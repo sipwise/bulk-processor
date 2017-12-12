@@ -16,6 +16,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     insert_record
     update_record
+    process_table
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
@@ -33,6 +34,7 @@ our @EXPORT_OK = qw(
 
     findby_domainid_username_states
     countby_status_resellerid
+    process_records
 
     $TERMINATED_STATE
     $ACTIVE_STATE
@@ -189,6 +191,50 @@ sub insert_row {
     }
     return undef;
 
+}
+
+sub process_records {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $blocksize,
+        $numofthreads,
+        $load_recursive) = @params{qw/
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            blocksize
+            numofthreads
+            load_recursive
+        /};
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    return process_table(
+        get_db                      => $get_db,
+        class                       => __PACKAGE__,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,buildrecords_fromrows($rowblock,$load_recursive),$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_dbs,
+        multithreading              => $multithreading,
+        blocksize                   => $blocksize,
+        tableprocessing_threads     => $numofthreads,
+        'select'                    => 'SELECT * FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"',
+        'selectcount'               => 'SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"',
+    );
 }
 
 sub buildrecords_fromrows {
