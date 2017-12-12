@@ -12,7 +12,6 @@ use Tie::IxHash;
 
 use NGCP::BulkProcessor::Globals qw(
     $enablemultithreading
-    $cpucount
 );
 
 use NGCP::BulkProcessor::Projects::Massive::Generator::Settings qw(
@@ -27,6 +26,7 @@ use NGCP::BulkProcessor::Projects::Massive::Generator::Settings qw(
     $webusername_length
     $sipusername_length
     $sippassword_length
+
 
     @providers
 );
@@ -105,7 +105,7 @@ my $ERROR = 4;
 my $STOP = 8;
 
 my $total_count :shared = 0;
-my $db_lock :shared = undef;
+#my $db_lock :shared = undef;
 
 sub provision_subscribers {
 
@@ -114,7 +114,7 @@ sub provision_subscribers {
 
     destroy_dbs();
     if ($result) {
-        if ($enablemultithreading and $provision_subscriber_multithreading and $cpucount > 1) {
+        if ($enablemultithreading and $provision_subscriber_multithreading and $provision_subscriber_count > 1) {
             $context->{subscriber_count} = int($provision_subscriber_count / $provision_subscriber_numofthreads);
             $context->{sn_increment} = $provision_subscriber_numofthreads;
             my %processors = ();
@@ -185,60 +185,67 @@ sub _provision_subscriber {
         last if $subscriber_count >= $context->{subscriber_count};
         $subscriber_count += 1;
 
-        next unless _provision_susbcriber_init_context($context);
+        next unless _provision_subscriber_init_context($context);
 
         my $retry = 1;
         while ($retry > 0) {
-        eval {
-            $context->{db}->db_begin();
-            #_info($context,"test" . $subscriber_count);
-            #die() if (($tid == 1 or $tid == 0) and $subscriber_count == 500);
-            _create_contact($context);
-            _create_contract($context);
-            {
-                #lock $db_lock; #concurrent writes to voip_numbers causes deadlocks
-                lock $total_count;
-                _create_subscriber($context);
-                _create_aliases($context);
-                $total_count += 1;
-                _info($context,"$total_count subscribers created",($total_count % 10) > 0);
-            }
-    #            _update_preferences($context);
-    #            _set_registrations($context);
-    #            _set_callforwards($context);
-    #            #todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
-    #            #in this main provisioning loop, or align it in separate run-modes, according to the files given.
-    #
-    #        } else {
-    #            _warn($context,(scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
-    #        }
-
-            if ($dry) {
-                $context->{db}->db_rollback(0);
-            } else {
-                $context->{db}->db_commit();
-            }
-        };
-        my $err = $@;
-        if ($err) {
             eval {
-                $context->{db}->db_rollback(1);
+                $context->{db}->db_begin();
+                #_info($context,"test" . $subscriber_count);
+                #die() if (($tid == 1 or $tid == 0) and $subscriber_count == 500);
+
+                if (NGCP::BulkProcessor::Dao::Trunk::billing::voip_numbers::countby_ccacsn($context->{db},
+                        $context->{numbers}->{primary}->{cc},
+                        $context->{numbers}->{primary}->{ac},
+                        $context->{numbers}->{primary}->{sn},
+                    ) == 0) {
+
+                    _create_contact($context);
+                    _create_contract($context);
+                    {
+                        #lock $db_lock; #concurrent writes to voip_numbers causes deadlocks
+                        lock $total_count;
+                        _create_subscriber($context);
+                        _create_aliases($context);
+                        $total_count += 1;
+                        _info($context,"$total_count subscribers created",($total_count % 10) > 0);
+                    }
+            #            _update_preferences($context);
+            #            _set_registrations($context);
+            #            _set_callforwards($context);
+            #            #todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
+            #            #in this main provisioning loop, or align it in separate run-modes, according to the files given.
+            #
+                    } else {
+                        _info($context,'subscriber with primary number $context->{numbers}->{primary}->{number} already exists, skipping',1);
+                    }
+
+                if ($dry) {
+                    $context->{db}->db_rollback(0);
+                } else {
+                    $context->{db}->db_commit();
+                }
             };
-            if ($err =~ /deadlock/gi and $retry < $deadlock_retries) {
-                my $sleep = 0.01 * 2**$retry;
-                _info($context,"retrying in $sleep secs");
-                sleep($sleep);
-                $retry += 1;
-            } elsif (not $skip_errors) {
-                undef $context->{db};
-                destroy_dbs();
-                lock $context->{errorstates};
-                $context->{errorstates}->{$tid} = $ERROR;
-                return 0;
+            my $err = $@;
+            if ($err) {
+                eval {
+                    $context->{db}->db_rollback(1);
+                };
+                if ($err =~ /deadlock/gi and $retry < $deadlock_retries) {
+                    my $sleep = 0.01 * 2**$retry;
+                    _info($context,"retrying in $sleep secs");
+                    sleep($sleep);
+                    $retry += 1;
+                } elsif (not $skip_errors) {
+                    undef $context->{db};
+                    destroy_dbs();
+                    lock $context->{errorstates};
+                    $context->{errorstates}->{$tid} = $ERROR;
+                    return 0;
+                }
+            } else {
+                $retry = 0;
             }
-        } else {
-            $retry = 0;
-        }
         }
     }
     undef $context->{db};
@@ -280,29 +287,50 @@ sub _provision_subscribers_create_context {
 
     my $result = 1;
 
+    if ((scalar @providers) == 0) {
+        _error($context,"load/create providers first");
+        $result = 0; #even in skip-error mode..
+    }
+
     #$context->{providers}
     foreach my $provider (@providers) {
+        unless ($provider->{provider_fee}) {
+            _error($context,"no provider fee for reseller '$provider->{reseller}->{name}' found");
+            $result = 0; #even in skip-error mode..
+        }
+        if ((scalar @{$provider->{subscriber_fees}}) == 0) {
+            _error($context,"no subscriber fees for reseller '$provider->{reseller}->{name}' found");
+            $result = 0; #even in skip-error mode..
+        }
+
         eval {
             $provider->{domain}->{prov_domain} =
                 NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_domain($provider->{domain}->{domain});
         };
         if ($@ or not $provider->{domain}->{prov_domain}) {
-            rowprocessingerror(threadid(),"cannot find provisioning domain '$provider->{domain}->{domain}'",getlogger(__PACKAGE__));
+            _error($context,"cannot find provisioning domain '$provider->{domain}->{domain}'");
             $result = 0; #even in skip-error mode..
         } else {
-            processing_info(threadid(),"provisioning domain '$provider->{domain}->{domain}' found",getlogger(__PACKAGE__));
+            _info($context,"provisioning domain '$provider->{domain}->{domain}' found");
         }
 
+        $provider->{numbers_per_subscriber} //= 1;
+        $provider->{numbers_per_subscriber} = 1 if $provider->{numbers_per_subscriber} <= 0;
         my ($sn_min,$sn_max) = split(/[: -]+/,$provider->{sn},2);
         my $sn_length = length($sn_min);
         $sn_length = length($sn_max) if length($sn_max) > $sn_length;
         if ($sn_length > 0 and $sn_max > $sn_min and $sn_min >= 0) {
             my @sn_block = map { zerofill($_,$sn_length); } ($sn_min..$sn_max);
-
-            $provider->{sn_block} = \@sn_block;
+            if (($provision_subscriber_count * $provider->{numbers_per_subscriber}) > scalar @sn_block) {
+                _error($context,"sn range $provider->{sn} less than numbers needed ($provider->{numbers_per_subscriber} * $provision_subscriber_count)");
+                $result = 0; #even in skip-error mode..
+            } else {
+                $provider->{sn_block} = \@sn_block;
+            }
         #$provider->{sn_block_size} = scalar @sn_block;
         } else {
-            rowprocessingerror(threadid(),"invalid sn block definition for provider '$provider->{sn}'",getlogger(__PACKAGE__));
+            _error($context,"invalid sn block definition for provider '$provider->{sn}'");
+            $result = 0; #even in skip-error mode..
         }
     }
 
@@ -867,7 +895,7 @@ sub _create_aliases {
 #
 #}
 
-sub _provision_susbcriber_init_context {
+sub _provision_subscriber_init_context {
 
     my ($context) = @_;
 
@@ -923,7 +951,7 @@ sub _provision_susbcriber_init_context {
     $context->{ncos_level} = undef;
 
     my @numbers = ();
-    foreach (1..($provider->{numbers_per_subscriber} // 1)) {
+    foreach (1..$provider->{numbers_per_subscriber}) {
         my $number = {};
         my @cc = @{$provider->{cc}};
         $number->{cc} = $cc[rand @cc];
@@ -956,6 +984,11 @@ sub _provision_susbcriber_init_context {
 #    ]);
     $context->{numbers}->{primary} = shift(@{$context->{numbers}->{other}});
     #return 0 unless scalar @{$context->{numbers}->{other}};
+
+    #if ($number_for_sipusername) {
+    #    $context->{prov_subscriber}->{username} = $context->{numbers}->{primary}->{number};
+    #    $context->{bill_subscriber}->{username} = $context->{numbers}->{primary}->{number};
+    #}
 
     $context->{voip_numbers} = {};
     $context->{voip_numbers}->{primary} = undef;

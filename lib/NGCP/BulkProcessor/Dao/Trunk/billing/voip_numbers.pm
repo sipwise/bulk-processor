@@ -34,6 +34,8 @@ our @EXPORT_OK = qw(
     forupdate_cc_ac_sn_subscriberid
     release_subscriber_numbers
 
+    countby_ccacsn
+
     $ACTIVE_STATE
 );
 
@@ -86,6 +88,25 @@ sub findby_subscriberid {
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+
+sub countby_ccacsn {
+
+    my ($xa_db,$cc,$ac,$sn) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('cc') . ' = ?' .
+            ' AND ' . $db->columnidentifier('ac') . ' = ?' .
+            ' AND ' . $db->columnidentifier('sn') . ' = ?';
+    my @params = ($cc // '',$ac // '',$sn // '');
+    return $db->db_get_value($stmt,@params);
 
 }
 
