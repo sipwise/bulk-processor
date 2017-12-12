@@ -62,13 +62,16 @@ use NGCP::BulkProcessor::ConnectorPool qw(destroy_dbs);
 
 #use NGCP::BulkProcessor::Projects::Massive::Generator::Dao::Blah qw();
 
-#use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
 
 use NGCP::BulkProcessor::Projects::Massive::Generator::Provisioning qw(
     provision_subscribers
+);
+use NGCP::BulkProcessor::Projects::Massive::Generator::CDR qw(
+    generate_cdrs
 );
 use NGCP::BulkProcessor::Projects::Massive::Generator::Api qw(
     setup_provider
@@ -90,6 +93,9 @@ push(@TASK_OPTS,$setup_provider_task_opt);
 
 my $provision_subscriber_task_opt = 'provision_subscriber';
 push(@TASK_OPTS,$provision_subscriber_task_opt);
+
+my $generate_cdr_task_opt = 'generate_cdr';
+push(@TASK_OPTS,$generate_cdr_task_opt);
 
 if (init()) {
     main();
@@ -152,6 +158,13 @@ sub main() {
                 if (taskinfo($provision_subscriber_task_opt,$result,1)) {
                     next unless check_dry();
                     $result &= provision_subscriber_task(\@messages);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($generate_cdr_task_opt) eq lc($task)) {
+                if (taskinfo($generate_cdr_task_opt,$result,1)) {
+                    next unless check_dry();
+                    $result &= generate_cdr_task(\@messages);
                     $completion |= 1;
                 }
 
@@ -267,6 +280,30 @@ sub provision_subscriber_task {
         push(@$messages,"provision subscribers INCOMPLETE$stats");
     } else {
         push(@$messages,"provision subscribers completed$stats");
+    }
+    destroy_dbs();
+    return $result;
+
+}
+
+
+sub generate_cdr_task {
+
+    my ($messages) = @_;
+    my ($result) = (0);
+    eval {
+        ($result) = generate_cdrs();
+    };
+    my $err = $@;
+    my $stats = ":";
+    eval {
+        $stats .= "\n  total CDRs: " .
+            NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::countby_ratingstatus(undef) . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"generate cdrs INCOMPLETE$stats");
+    } else {
+        push(@$messages,"generate cdrs completed$stats");
     }
     destroy_dbs();
     return $result;

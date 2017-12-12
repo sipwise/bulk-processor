@@ -57,7 +57,29 @@ sub setup_provider {
             type
         /};
 	my $provider = {};
-    if (not _load_provider($provider,$reseller_name,$domain_name) and not $dry) {
+
+    $provider->{reseller} = _find_entity('NGCP::BulkProcessor::RestRequests::Trunk::Resellers',
+        name => $reseller_name,
+    );
+    my $new_reseller = 0;
+    if (defined $provider->{reseller}) {
+        _info("reseller '$reseller_name' found");
+        $provider->{contract} = NGCP::BulkProcessor::RestRequests::Trunk::Contracts::get_item($provider->{reseller}->{contract_id});
+        if (defined $provider->{contract}) {
+            _info("contract ID $provider->{reseller}->{contract_id} found");
+        } else {
+            _info("contract ID $provider->{reseller}->{contract_id} not found");
+            return undef;
+        }
+
+        $provider->{contact} = NGCP::BulkProcessor::RestRequests::Trunk::SystemContacts::get_item($provider->{contract}->{contact_id});
+        if (defined $provider->{contact}) {
+            _info("contact ID $provider->{contract}->{contact_id} found");
+        } else {
+            _info("contact ID $provider->{contract}->{contact_id} not found");
+            return undef;
+        }
+    } elsif (not $dry) {
         $provider->{contact} = _create_systemcontact();
         _info("contact ID $provider->{contact}->{id} created");
         $provider->{contract} = _create_contract(
@@ -71,6 +93,40 @@ sub setup_provider {
             name => $reseller_name, #"test <t> <n>",
         );
         _info("reseller '$reseller_name' created");
+        $new_reseller = 1;
+    } else {
+        _info("reseller '$reseller_name' not found");
+        return undef;
+    }
+
+    $provider->{domain} = _find_entity('NGCP::BulkProcessor::RestRequests::Trunk::Domains',
+        domain => $domain_name,
+    );
+    if (defined $provider->{domain}) {
+        _info("domain '$domain_name' found");
+    } elsif (not $dry) {
+        $provider->{domain} = _create_domain(
+            reseller_id => $provider->{reseller}->{id},
+            #domain => $domain_name.'.<t>',
+            domain => $domain_name,
+        );
+        _info("domain '$domain_name' created");
+    } else {
+        _info("domain '$domain_name' not found");
+        return undef;
+    }
+
+    my $provider_profile = NGCP::BulkProcessor::RestRequests::Trunk::BillingProfiles::get_item($provider->{contract}->{billing_profile_id});
+    if (not $new_reseller and defined $provider_profile) {
+        _info("provider billing profile ID $provider_profile->{id} found");
+        my $profile_fee = {};
+            ($profile_fee->{profile},
+             $profile_fee->{zone},
+             $profile_fee->{fee},
+             $profile_fee->{fees}) = _load_fees($provider_profile);
+            $provider->{profile} = $profile_fee->{profile};
+            $provider->{provider_fee} = $profile_fee;
+    } elsif (not $dry) {
         if (defined $provider_rate) {
             my $profile_fee = {};
             ($profile_fee->{profile},
@@ -87,91 +143,41 @@ sub setup_provider {
             );
             _info("contract ID $provider->{contract}->{id} updated");
         }
-
-        $provider->{domain} = _create_domain(
-            reseller_id => $provider->{reseller}->{id},
-            #domain => $domain_name.'.<t>',
-            domain => $domain_name,
-        );
-        _info("domain '$domain_name' created");
-        $provider->{subscriber_fees} = [];
-        foreach my $rate (@$subscriber_rates) {
-            my $profile_fee = {};
-            ($profile_fee->{profile},
-             $profile_fee->{zone},
-             $profile_fee->{fee},
-             $profile_fee->{fees}) = _setup_fees($provider->{reseller},
-                %$rate
-            );
-            push(@{$provider->{subscriber_fees}},$profile_fee);
-        }
-    }
-	return $provider;
-}
-
-sub _load_provider {
-	my ($provider,$reseller_name,$domain_name) = @_;
-
-    $provider->{reseller} = _find_entity('NGCP::BulkProcessor::RestRequests::Trunk::Resellers',
-		name => $reseller_name,
-	);
-    if (defined $provider->{reseller}) {
-        _info("reseller '$reseller_name' found");
     } else {
-        return 0;
+        _info("provider billing profile ID $provider->{contract}->{billing_profile_id} not found");
+        return undef;
     }
 
-    $provider->{contract} = NGCP::BulkProcessor::RestRequests::Trunk::Contracts::get_item($provider->{reseller}->{contract_id});
-    if (defined $provider->{contract}) {
-        _info("contract ID $provider->{reseller}->{contract_id} found");
-    } else {
-        return 0;
+    $provider->{subscriber_fees} = [];
+    foreach my $subscriber_profile (@{NGCP::BulkProcessor::RestRequests::Trunk::BillingProfiles::findby_resellerid($provider->{reseller}->{id})}) {
+        next if (defined $provider_profile and $provider_profile->{id} == $subscriber_profile->{id});
+        _info("subscriber billing profile ID $subscriber_profile->{id} found");
+        my $profile_fee = {};
+           ($profile_fee->{profile},
+            $profile_fee->{zone},
+            $profile_fee->{fee},
+            $profile_fee->{fees}) = _load_fees($subscriber_profile);
+        push(@{$provider->{subscriber_fees}},$profile_fee);
     }
-
-    $provider->{contact} = NGCP::BulkProcessor::RestRequests::Trunk::SystemContacts::get_item($provider->{contract}->{contact_id});
-    if (defined $provider->{contact}) {
-        _info("contact ID $provider->{contract}->{contact_id} found");
-    } else {
-        return 0;
-    }
-
-    $provider->{domain} = _find_entity('NGCP::BulkProcessor::RestRequests::Trunk::Domains',
-		domain => $domain_name,
-	);
-    if (defined $provider->{domain}) {
-        _info("domain '$domain_name' found");
-    } else {
-        return 0;
-    }
-
-    my $provider_profile = NGCP::BulkProcessor::RestRequests::Trunk::BillingProfiles::get_item($provider->{contract}->{billing_profile_id});
-    if (defined $provider_profile) {
-        _info("provider billing profile ID $provider_profile->{id} found");
-    }
-        if (defined $provider_profile) {
-            my $profile_fee = {};
+    if ((scalar @{$provider->{subscriber_fees}}) == 0 and defined $subscriber_rates and (scalar @$subscriber_rates) > 0) {
+        if (not $dry) {
+            foreach my $rate (@$subscriber_rates) {
+                my $profile_fee = {};
                 ($profile_fee->{profile},
                  $profile_fee->{zone},
                  $profile_fee->{fee},
-                 $profile_fee->{fees}) = _load_fees($provider_profile);
-                $provider->{profile} = $profile_fee->{profile};
-                $provider->{provider_fee} = $profile_fee;
+                 $profile_fee->{fees}) = _setup_fees($provider->{reseller},
+                    %$rate
+                );
+                push(@{$provider->{subscriber_fees}},$profile_fee);
+            }
+        } else {
+            _info("no subscriber billing profile(s) found");
+            return undef;
         }
+    }
 
-        $provider->{subscriber_fees} = [];
-        foreach my $subscriber_profile (@{NGCP::BulkProcessor::RestRequests::Trunk::BillingProfiles::findby_resellerid($provider->{reseller}->{id})}) {
-            next if (defined $provider_profile and $provider_profile->{id} == $subscriber_profile->{id});
-            _info("subscriber billing profile ID $subscriber_profile->{id} found");
-            my $profile_fee = {};
-               ($profile_fee->{profile},
-                $profile_fee->{zone},
-                $profile_fee->{fee},
-                $profile_fee->{fees}) = _load_fees($subscriber_profile);
-            push(@{$provider->{subscriber_fees}},$profile_fee);
-        }
-
-    return 1;
-
+	return $provider;
 }
 
 sub _load_fees {

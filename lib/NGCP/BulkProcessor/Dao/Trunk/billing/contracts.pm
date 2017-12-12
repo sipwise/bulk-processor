@@ -31,6 +31,7 @@ our @EXPORT_OK = qw(
 
     countby_status_resellerid
     findby_contactid
+    findby_id
 
     process_records
 
@@ -99,6 +100,23 @@ sub findby_contactid {
 
 }
 
+sub findby_id {
+
+    my ($id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
 sub countby_status_resellerid {
 
     my ($status,$reseller_id) = @_;
@@ -116,8 +134,13 @@ sub countby_status_resellerid {
         push(@params,$status);
     }
     if ($reseller_id) {
-        push(@terms,'contact.reseller_id = ?');
-        push(@params,$reseller_id);
+        if ('ARRAY' eq ref $reseller_id) {
+            push(@terms,'contact.reseller_id IN (' . substr(',?' x scalar @$reseller_id,1) . ')');
+            push(@params,@$reseller_id);
+        } else {
+            push(@terms,'contact.reseller_id = ?');
+            push(@params,$reseller_id);
+        }
     }
     if ((scalar @terms) > 0) {
         $stmt .= ' WHERE ' . join(' AND ',@terms);

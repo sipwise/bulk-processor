@@ -60,6 +60,10 @@ our @EXPORT_OK = qw(
     @providers
     $providers_yml
 
+    $generate_cdr_multithreading
+    $generate_cdr_numofthreads
+    $generate_cdr_count
+
 );
 
 our $defaultconfig = 'config.cfg';
@@ -85,6 +89,10 @@ our $provision_subscriber_count = 0;
 our @provider_config = ();
 our @providers = ();
 our $providers_yml = undef;
+
+our $generate_cdr_multithreading = $enablemultithreading;
+our $generate_cdr_numofthreads = $cpucount;
+our $generate_cdr_count = 0;
 
 sub update_settings {
 
@@ -120,6 +128,10 @@ sub update_settings {
 
 
         $providers_yml = $data->{providers_yml} if exists $data->{providers_yml};
+
+        $generate_cdr_multithreading = $data->{generate_cdr_multithreading} if exists $data->{generate_cdr_multithreading};
+        $generate_cdr_numofthreads = _get_numofthreads($cpucount,$data,'generate_cdr_numofthreads');
+        $generate_cdr_count = $data->{generate_cdr_count} if exists $data->{generate_cdr_count};
 
         return $result;
 
