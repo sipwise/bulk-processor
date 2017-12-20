@@ -7,7 +7,7 @@ use threads::shared qw();
 use String::MkPasswd qw();
 #use List::Util qw();
 
-use JSON qw();
+use JSON -support_by_pp, -no_export;
 use Tie::IxHash;
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(

@@ -8,7 +8,9 @@ use threads::shared qw(shared_clone);
 
 use HTTP::Status qw(:constants :is status_message);
 
-use JSON qw();
+use Encode qw();
+
+use JSON -support_by_pp, -no_export;
 use IO::Uncompress::Unzip qw();
 
 use NGCP::BulkProcessor::Globals qw(
@@ -28,7 +30,7 @@ use NGCP::BulkProcessor::LogError qw(
     fileerror
 );
 
-use NGCP::BulkProcessor::RestConnector qw(_add_headers);
+use NGCP::BulkProcessor::RestConnector qw(_add_headers convert_bools);
 
 use NGCP::BulkProcessor::Calendar qw(get_fake_now_string);
 
@@ -60,6 +62,9 @@ my $faketime_header = 'X-Fake-Clienttime';
 
 our $ITEM_REL_PARAM = 'item_rel';
 #my $logger = getlogger(__PACKAGE__);
+
+my $request_charset = 'utf-8';
+my $response_charset = 'utf-8';
 
 sub _get_api_cert_dir {
     return $working_path . $API_CERT_DIR;
@@ -187,13 +192,16 @@ sub _init_ssl_cert {
 sub _encode_request_content {
     my $self = shift;
     my ($data) = @_;
-    return JSON::to_json($data);
+    return Encode::encode($request_charset,JSON::to_json($data,{ allow_nonref => 1, allow_blessed => 1, convert_blessed => 1, pretty => 0, }));
 }
 
 sub _decode_response_content {
     my $self = shift;
     my ($data) = @_;
-    return ($data ? JSON::from_json($data) : undef);
+    my $decoded;
+    $decoded = JSON::from_json(Encode::decode($response_charset,$data),{ allow_nonref => 1, }) if $data;
+    convert_bools($decoded);
+    return $decoded // $data;
 }
 
 sub _add_post_headers {
