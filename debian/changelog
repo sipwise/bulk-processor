@@ -1,3 +1,14 @@
+ngcp-bulk-processor (6.2.0.0+0~mr6.2.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [5ab47b7] TT#26466 test data generator
+  * [b797a9b] TT#26466 cdr test data generator
+  * [25f2619] TT#28473 force JSON::PP everywhere
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 29 Jan 2018 21:51:21 +0100
+
 ngcp-bulk-processor (6.1.0.0+0~mr6.1.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
