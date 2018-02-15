@@ -29,7 +29,8 @@ our @EXPORT_OK = qw(
     check_table
     insert_row
     findby_contractid
-    sort_by_end
+    sort_by_end_desc
+    sort_by_end_asc
 );
 
 my $tablename = 'contract_balances';
@@ -161,8 +162,12 @@ sub buildrecords_fromrows {
 
 }
 
-sub sort_by_end ($$) {
+sub sort_by_end_asc ($$) {
     return _sort_by_date('_end',0,@_);
+}
+
+sub sort_by_end_desc ($$) {
+    return _sort_by_date('_end',1,@_);
 }
 
 sub _sort_by_date {
