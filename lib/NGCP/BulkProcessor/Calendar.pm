@@ -33,6 +33,7 @@ our @EXPORT_OK = qw(
     datetime_to_string
     datetime_from_string
     set_timezone
+    current_local
 );
 
 my $is_fake_time = 0;
@@ -76,6 +77,10 @@ sub _current_local {
 	} else {
 		return DateTime->now(time_zone => $LOCAL);
 	}
+}
+
+sub current_local {
+    return DateTime->now(time_zone => $LOCAL);
 }
 
 sub infinite_future {
