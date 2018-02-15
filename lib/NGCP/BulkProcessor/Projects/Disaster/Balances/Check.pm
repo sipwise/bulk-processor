@@ -8,21 +8,23 @@ no strict 'refs';
 use NGCP::BulkProcessor::Dao::mr38::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::mr38::billing::contract_balances qw();
 
-#use NGCP::BulkProcessor::RestRequests::mr38::Contracts qw();
-#use NGCP::BulkProcessor::RestRequests::mr38::Customers qw();
-#use NGCP::BulkProcessor::RestRequests::mr38::BillingProfiles qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-    check_billing_db_tables
+    check_fix_contract_balance_tables
+    check_fix_free_cash_tables
 );
 #check_rest_get_items
 
 my $NOK = 'NOK';
 my $OK = 'ok';
 
-sub check_billing_db_tables {
+sub check_fix_contract_balance_tables {
 
     my ($messages) = @_;
 
@@ -38,11 +40,31 @@ sub check_billing_db_tables {
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr38::billing::contract_balances');
     $result &= $check_result; push(@$messages,$message);
 
-    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr38::billing::lnp_providers');
-    #if (not $check_result) {
-    #    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers');
-    #}
-    #$result &= $check_result; push(@$messages,$message);
+    return $result;
+
+}
+
+sub check_fix_free_cash_tables {
+
+    my ($messages) = @_;
+
+    my $result = 1;
+    my $check_result;
+    my $message;
+
+    my $message_prefix = 'NGCP billing db tables - ';
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::contracts');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles');
+    $result &= $check_result; push(@$messages,$message);
 
     return $result;
 
