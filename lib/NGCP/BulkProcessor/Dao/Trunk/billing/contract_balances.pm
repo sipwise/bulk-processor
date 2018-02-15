@@ -29,7 +29,10 @@ our @EXPORT_OK = qw(
     check_table
     insert_row
     findby_contractid
-    sort_by_end
+    sort_by_end_desc
+    sort_by_end_asc
+    get_new_balance_values
+    get_free_ratio
 );
 
 my $tablename = 'contract_balances';
@@ -54,6 +57,14 @@ my $expected_fieldnames = [
 my $indexes = {};
 
 my $insert_unique_fields = [];
+
+our $CARRY_OVER_MODE = 'carry_over';
+our $DEFAULT_CARRY_OVER_MODE = $CARRY_OVER_MODE;
+our $CARRY_OVER_TIMELY_MODE = 'carry_over_timely';
+our $DISCARD_MODE = 'discard';
+our $DEFAULT_PROFILE_FREE_CASH = 0.0;
+our $DEFAULT_PROFILE_FREE_TIME = 0;
+our $DEFAULT_INITIAL_BALANCE = 0.0;
 
 sub new {
 
@@ -161,8 +172,12 @@ sub buildrecords_fromrows {
 
 }
 
-sub sort_by_end ($$) {
+sub sort_by_end_asc ($$) {
     return _sort_by_date('_end',0,@_);
+}
+
+sub sort_by_end_desc ($$) {
+    return _sort_by_date('_end',1,@_);
 }
 
 sub _sort_by_date {
@@ -186,6 +201,100 @@ sub _sort_by_date {
     } else {
         return DateTime->compare($a->{$ts_field}, $b->{$ts_field}) * $desc;
     }
+
+}
+
+sub get_new_balance_values {
+    my %params = @_;
+    my ($contract_create,
+        $last_balance,
+        $balance,
+        $initial_balance,
+        $carry_over_mode,
+        $notopup_expiration,
+        $last_cash_balance,
+        $last_cash_balance_interval) = @params{qw/
+        contract_create
+        last_balance
+        balance
+        initial_balance
+        carry_over_mode
+        notopup_expiration
+        last_cash_balance
+        last_cash_balance_interval
+    /};
+    my ($cash_balance, $cash_balance_interval, $free_time_balance, $free_time_balance_interval) = (0.0,0.0,0,0);
+
+    $carry_over_mode //= $DEFAULT_CARRY_OVER_MODE;
+    my $ratio;
+    if ($last_balance) {
+        $last_cash_balance //= $last_balance->{cash_balance};
+        $last_cash_balance_interval //= $last_balance->{cash_balance_interval};
+        if (($CARRY_OVER_MODE eq $carry_over_mode
+             || ($CARRY_OVER_TIMELY_MODE eq $carry_over_mode && $last_balance->{timely_topup_count} > 0)
+            ) && (!defined $notopup_expiration || $balance->{_start} < $notopup_expiration)) {
+            #if (!defined $last_profile) {
+            #    my $bm_last = get_actual_billing_mapping(schema => $schema, contract => $contract, now => $last_balance->start); #end); !?
+            #    $last_profile = $bm_last->billing_mappings->first->billing_profile;
+            #}
+            #my $contract_create = NGCP::Panel::Utils::DateTime::set_local_tz($contract->create_timestamp // $contract->modify_timestamp);
+            $ratio = 1.0;
+            if ($last_balance->{_start} <= $contract_create && $last_balance->{_end} >= $contract_create) { #$last_balance->end is never +inf here
+                $ratio = get_free_ratio($contract_create,$last_balance->{_start},$last_balance->{_end});
+            }
+            my $old_free_cash = $ratio * ($last_balance->{_profile}->{interval_free_cash} // $DEFAULT_PROFILE_FREE_CASH);
+            $cash_balance = $last_cash_balance;
+            if ($last_cash_balance_interval < $old_free_cash) {
+                $cash_balance += $last_cash_balance_interval - $old_free_cash;
+            }
+            #$ratio * $last_profile->interval_free_time // _DEFAULT_PROFILE_FREE_TIME
+        #} else {
+        #    $c->log->debug('discarding contract ' . $contract->id . " cash balance (mode '$carry_over_mode'" . (defined $notopup_expiration ? ', notopup expiration ' . NGCP::Panel::Utils::DateTime::to_string($notopup_expiration) : '') . ')') if $c;
+        }
+        $ratio = 1.0;
+    } else {
+        $cash_balance = (defined $initial_balance ? $initial_balance : $DEFAULT_INITIAL_BALANCE);
+        $ratio = get_free_ratio($contract_create,$balance->{_start},$balance->{_end});
+    }
+
+    my $free_cash = $ratio * ($balance->{_profile}->{interval_free_cash} // $DEFAULT_PROFILE_FREE_CASH);
+    $cash_balance += $free_cash;
+    $cash_balance_interval = 0.0;
+
+    my $free_time = $ratio * ($balance->{_profile}->{interval_free_time} // $DEFAULT_PROFILE_FREE_TIME);
+    $free_time_balance = $free_time;
+    $free_time_balance_interval = 0;
+
+    #$c->log->debug("ratio: $ratio, free cash: $free_cash, cash balance: $cash_balance, free time: $free_time, free time balance: $free_time_balance");
+
+    return {cash_balance => sprintf("%.4f",$cash_balance),
+            initial_cash_balance => sprintf("%.4f",$cash_balance),
+            cash_balance_interval => sprintf("%.4f",$cash_balance_interval),
+            free_time_balance => sprintf("%.0f",$free_time_balance),
+            initial_free_time_balance => sprintf("%.0f",$free_time_balance),
+            free_time_balance_interval => sprintf("%.0f",$free_time_balance_interval)};
+
+}
+
+sub get_free_ratio {
+    my ($contract_create,$stime,$etime) = @_;
+    if (!is_infinite_future($etime)) {
+        my $ctime = ($contract_create->clone->truncate(to => 'day') > $stime ? $contract_create->clone->truncate(to => 'day') : $contract_create);
+        my $start_of_next_interval = _add_second($etime->clone,1);
+        #$c->log->debug("ratio = " . ($start_of_next_interval->epoch - $ctime->epoch) . ' / ' . ($start_of_next_interval->epoch - $stime->epoch)) if $c;
+        return ($start_of_next_interval->epoch - $ctime->epoch) / ($start_of_next_interval->epoch - $stime->epoch);
+    }
+    return 1.0;
+}
+
+sub _add_second {
+
+    my ($dt,$skip_leap_seconds) = @_;
+    $dt->add(seconds => 1);
+    while ($skip_leap_seconds and $dt->second() >= 60) {
+        $dt->add(seconds => 1);
+    }
+    return $dt;
 
 }
 

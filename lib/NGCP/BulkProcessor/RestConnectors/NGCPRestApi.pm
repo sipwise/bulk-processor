@@ -66,6 +66,8 @@ our $ITEM_REL_PARAM = 'item_rel';
 my $request_charset = 'utf-8';
 my $response_charset = 'utf-8';
 
+my $timeout = 5*60;
+
 sub _get_api_cert_dir {
     return $working_path . $API_CERT_DIR;
 }
@@ -129,6 +131,7 @@ sub _setup_ua {
 		verify_hostname => 0,
 		SSL_verify_mode => 0,
 	);
+    $ua->timeout($timeout) if $timeout;
     if ($self->{username}) {
         $ua->credentials($netloc, $self->{realm}, $self->{username}, $self->{password});
     }
