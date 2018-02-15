@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles;
+package NGCP::BulkProcessor::Dao::mr457::billing::profile_packages;
 use strict;
 
 ## no critic
@@ -22,44 +22,44 @@ our @EXPORT_OK = qw(
 
     findby_id
     findall
-    findby_resellerid_name_handle
 
-    $DEFAULT_PROFILE_FREE_CASH
-    $DEFAULT_PROFILE_FREE_TIME
+    $CARRY_OVER_MODE
+    $CARRY_OVER_TIMELY_MODE
+    $DISCARD_MODE
+    $DEFAULT_CARRY_OVER_MODE
+    $DEFAULT_INITIAL_BALANCE
 );
 
-my $tablename = 'billing_profiles';
+my $tablename = 'profile_packages';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
-    'id',
-    'reseller_id',
-    'handle',
-    'name',
-    'prepaid',
-    'interval_charge',
-    'interval_free_time',
-    'interval_free_cash',
-    'interval_unit',
-    'interval_count',
-    'fraud_interval_limit',
-    'fraud_interval_lock',
-    'fraud_interval_notify',
-    'fraud_daily_limit',
-    'fraud_daily_lock',
-    'fraud_daily_notify',
-    'fraud_use_reseller_rates',
-    'currency',
-    'status',
-    'modify_timestamp',
-    'create_timestamp',
-    'terminate_timestamp',
+  'id',
+  'reseller_id',
+  'name',
+  'description',
+  'initial_balance',
+  'service_charge',
+  'balance_interval_unit',
+  'balance_interval_value',
+  'balance_interval_start_mode',
+  'carry_over_mode',
+  'timely_duration_unit',
+  'timely_duration_value',
+  'notopup_discard_intervals',
+  'underrun_lock_threshold',
+  'underrun_lock_level',
+  'underrun_profile_threshold',
+  'topup_lock_level',
 ];
 
 my $indexes = {};
 
-our $DEFAULT_PROFILE_FREE_CASH = 0.0;
-our $DEFAULT_PROFILE_FREE_TIME = 0;
+our $CARRY_OVER_MODE = 'carry_over';
+our $CARRY_OVER_TIMELY_MODE = 'carry_over_timely';
+our $DISCARD_MODE = 'discard';
+our $DEFAULT_CARRY_OVER_MODE = $CARRY_OVER_MODE;
+our $DEFAULT_INITIAL_BALANCE = 0.0;
 
 sub new {
 
@@ -100,38 +100,6 @@ sub findall {
 
     my $stmt = 'SELECT * FROM ' . $table;
     my $rows = $db->db_get_all_arrayref($stmt);
-
-    return buildrecords_fromrows($rows,$load_recursive);
-
-}
-
-sub findby_resellerid_name_handle {
-
-    my ($reseller_id,$name,$handle,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table;
-    my @params = ();
-    my @terms = ();
-    if ($reseller_id) {
-        push(@terms,$db->columnidentifier('reseller_id') . ' = ?');
-        push(@params,$reseller_id);
-    }
-    if ($name) {
-        push(@terms,$db->columnidentifier('name') . ' = ?');
-        push(@params,$name);
-    }
-    if ($handle) {
-        push(@terms,$db->columnidentifier('handle') . ' = ?');
-        push(@params,$handle);
-    }
-    if ((scalar @terms) > 0) {
-        $stmt .= ' WHERE ' . join(' AND ',@terms);
-    }
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);
 

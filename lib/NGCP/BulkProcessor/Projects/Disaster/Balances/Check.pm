@@ -8,21 +8,34 @@ no strict 'refs';
 use NGCP::BulkProcessor::Dao::mr38::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::mr38::billing::contract_balances qw();
 
-#use NGCP::BulkProcessor::RestRequests::mr38::Contracts qw();
-#use NGCP::BulkProcessor::RestRequests::mr38::Customers qw();
-#use NGCP::BulkProcessor::RestRequests::mr38::BillingProfiles qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::contracts qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::contract_balances qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::billing_mappings qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::billing_profiles qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::topup_log qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::profile_packages qw();
+
+#use NGCP::BulkProcessor::Dao::Trunk::billing::domains qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::resellers qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::contacts qw();
+#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
+#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
+#use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
 
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-    check_billing_db_tables
+    check_fix_contract_balance_gaps_tables
+    check_fix_free_cash_tables
 );
 #check_rest_get_items
 
 my $NOK = 'NOK';
 my $OK = 'ok';
 
-sub check_billing_db_tables {
+sub check_fix_contract_balance_gaps_tables {
 
     my ($messages) = @_;
 
@@ -38,10 +51,53 @@ sub check_billing_db_tables {
     ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr38::billing::contract_balances');
     $result &= $check_result; push(@$messages,$message);
 
-    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr38::billing::lnp_providers');
-    #if (not $check_result) {
-    #    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr441::billing::lnp_providers');
-    #}
+    return $result;
+
+}
+
+sub check_fix_free_cash_tables {
+
+    my ($messages) = @_;
+
+    my $result = 1;
+    my $check_result;
+    my $message;
+
+    my $message_prefix = 'NGCP billing db tables - ';
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr457::billing::contracts');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr457::billing::contract_balances');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr457::billing::billing_mappings');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr457::billing::billing_profiles');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr457::billing::topup_log');
+    $result &= $check_result; push(@$messages,$message);
+
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::mr457::billing::profile_packages');
+    $result &= $check_result; push(@$messages,$message);
+
+    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::domains');
+    #$result &= $check_result; push(@$messages,$message);
+    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::resellers');
+    #$result &= $check_result; push(@$messages,$message);
+    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers');
+    #$result &= $check_result; push(@$messages,$message);
+    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::contracts');
+    #$result &= $check_result; push(@$messages,$message);
+    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::billing::contacts');
+    #$result &= $check_result; push(@$messages,$message);
+    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers');
+    #$result &= $check_result; push(@$messages,$message);
+    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases');
+    #$result &= $check_result; push(@$messages,$message);
+    #($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Dao::Trunk::accounting::cdr');
     #$result &= $check_result; push(@$messages,$message);
 
     return $result;

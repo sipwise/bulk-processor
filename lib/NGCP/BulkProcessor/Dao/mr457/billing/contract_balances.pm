@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances;
+package NGCP::BulkProcessor::Dao::mr457::billing::contract_balances;
 use strict;
 
 ## no critic
@@ -23,8 +23,8 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 use NGCP::BulkProcessor::SqlRecord qw();
 use NGCP::BulkProcessor::Calendar qw(is_infinite_future infinite_future set_timezone);
 
-use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
-use NGCP::BulkProcessor::Dao::Trunk::billing::profile_packages qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::billing_profiles qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::profile_packages qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -57,8 +57,8 @@ my $expected_fieldnames = [
     'invoice_id',
     'underrun_profiles',
     'underrun_lock',
-    'initial_cash_balance',
-    'initial_free_time_balance',
+    #'initial_cash_balance',
+    #'initial_free_time_balance',
 ];
 
 my $indexes = {};

@@ -37,6 +37,7 @@ our @EXPORT_OK = qw(
     process_records
     find_minmaxid
     find_random
+    findby_contractid_states
 
     $TERMINATED_STATE
     $ACTIVE_STATE
@@ -89,6 +90,34 @@ sub findby_domainid_username_states {
             $db->columnidentifier('domain_id') . ' = ?' .
             ' AND ' . $db->columnidentifier('username') . ' = ?';
     my @params = ($domain_id,$username);
+    if (defined $states and 'HASH' eq ref $states) {
+        foreach my $in (keys %$states) {
+            my @values = (defined $states->{$in} and 'ARRAY' eq ref $states->{$in} ? @{$states->{$in}} : ($states->{$in}));
+            $stmt .= ' AND ' . $db->columnidentifier('status') . ' ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+            push(@params,@values);
+        }
+    } elsif (defined $states and length($states) > 0) {
+        $stmt .= ' AND ' . $db->columnidentifier('status') . ' = ?';
+        push(@params,$states);
+    }
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_contractid_states {
+
+    my ($xa_db,$contract_id,$states,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contract_id') . ' = ?';
+    my @params = ($contract_id);
     if (defined $states and 'HASH' eq ref $states) {
         foreach my $in (keys %$states) {
             my @values = (defined $states->{$in} and 'ARRAY' eq ref $states->{$in} ? @{$states->{$in}} : ($states->{$in}));

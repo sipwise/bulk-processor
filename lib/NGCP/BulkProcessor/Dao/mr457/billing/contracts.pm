@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::contracts;
+package NGCP::BulkProcessor::Dao::mr457::billing::contracts;
 use strict;
 
 ## no critic
@@ -22,8 +22,8 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
-use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
-use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::billing_mappings qw();
+use NGCP::BulkProcessor::Dao::mr457::billing::billing_profiles qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -151,7 +151,7 @@ sub countby_status_resellerid {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT COUNT(*) FROM ' . $table . ' AS contract' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::mr457::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
     my @params = ();
     my @terms = ();
     if ($status) {
@@ -182,8 +182,8 @@ sub countby_free_cash {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT COUNT(DISTINCT c.id) FROM ' . $table . ' AS c' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::gettablename()) . ' AS bm ON bm.contract_id = c.id' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::gettablename()) . ' AS bp ON bp.id = bm.billing_profile_id' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::mr457::billing::billing_mappings::gettablename()) . ' AS bm ON bm.contract_id = c.id' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::mr457::billing::billing_profiles::gettablename()) . ' AS bp ON bp.id = bm.billing_profile_id' .
     ' WHERE c.status != "terminated" AND bp.interval_free_cash <> 0.0';
 
     return $db->db_get_value($stmt);
@@ -284,8 +284,8 @@ sub process_free_cash_contracts {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'FROM ' . $table . ' AS c' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::gettablename()) . ' AS bm ON bm.contract_id = c.id' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::gettablename()) . ' AS bp ON bp.id = bm.billing_profile_id' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::mr457::billing::billing_mappings::gettablename()) . ' AS bm ON bm.contract_id = c.id' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::mr457::billing::billing_profiles::gettablename()) . ' AS bp ON bp.id = bm.billing_profile_id' .
     ' WHERE c.status != "terminated" AND bp.interval_free_cash <> 0.0';
 
     return process_table(

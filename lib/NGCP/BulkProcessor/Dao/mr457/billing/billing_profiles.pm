@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles;
+package NGCP::BulkProcessor::Dao::mr457::billing::billing_profiles;
 use strict;
 
 ## no critic
