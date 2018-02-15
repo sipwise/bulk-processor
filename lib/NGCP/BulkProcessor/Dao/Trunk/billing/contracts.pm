@@ -19,8 +19,12 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     copy_row
 
     process_table
+    process_free_cash_contracts
 );
 use NGCP::BulkProcessor::SqlRecord qw();
+
+use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -222,6 +226,50 @@ sub process_records {
     );
 }
 
+sub process_free_cash_contracts {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads) = @params{qw/
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+        /};
+
+    check_table();
+    NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::check_table();
+    NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::check_table();
+
+    my $stmt = "select distinct(c.id) " .
+        "from billing.contracts c ".
+        "join billing.billing_mappings bm on bm.contract_id=c.id " .
+        "join billing.billing_profile bp on bp.id=bm.billing_profile_id " .
+        "where bp.int_free_cash > 0";
+
+    return process_table(
+        get_db                      => $get_db,
+        class                       => __PACKAGE__,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,$rowblock,$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_dbs,
+        multithreading              => $multithreading,
+        tableprocessing_threads     => $numofthreads,
+        selectcount                 => "select distinct(c.id) " . $stmt . " order by c.id",
+        select                      => "select count(distinct c.id) " . $stmt,
+    );
+}
 
 sub buildrecords_fromrows {
 
