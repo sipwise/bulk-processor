@@ -44,6 +44,9 @@ our @EXPORT_OK = qw(
 
     $fix_contract_balance_gaps_multithreading
     $fix_contract_balance_gaps_numofthreads
+
+    $fix_free_cash_multithreading
+    $fix_free_cash_numofthreads
 );
 
 our $defaultconfig = 'config.cfg';
@@ -55,6 +58,9 @@ our $skip_errors = 0;
 
 our $fix_contract_balance_gaps_multithreading = $enablemultithreading;
 our $fix_contract_balance_gaps_numofthreads = $cpucount;
+
+our $fix_free_cash_multithreading = $enablemultithreading;
+our $fix_free_cash_numofthreads = $cpucount;
 
 sub update_settings {
 
@@ -74,6 +80,9 @@ sub update_settings {
 
         $fix_contract_balance_gaps_multithreading = $data->{fix_contract_balance_gaps_multithreading} if exists $data->{fix_contract_balance_gaps_multithreading};
         $fix_contract_balance_gaps_numofthreads = _get_numofthreads($cpucount,$data,'fix_contract_balance_gaps_numofthreads');
+
+        $fix_free_cash_multithreading = $data->{fix_free_cash_multithreading} if exists $data->{fix_free_cash_multithreading};
+        $fix_free_cash_numofthreads = _get_numofthreads($cpucount,$data,'fix_free_cash_numofthreads');
 
         return $result;
 
