@@ -13,6 +13,9 @@ use NGCP::BulkProcessor::Projects::Disaster::Balances::Settings qw(
 
     $fix_contract_balance_gaps_multithreading
     $fix_contract_balance_gaps_numofthreads
+
+    $fix_free_cash_multithreading
+    $fix_free_cash_numofthreads
 );
 #$set_preference_bulk_numofthreads
 
@@ -30,7 +33,10 @@ use NGCP::BulkProcessor::Dao::mr38::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::mr38::billing::contract_balances qw();
 use NGCP::BulkProcessor::Dao::mr38::billing::billing_mappings qw();
 
-
+use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_xa_db
@@ -40,12 +46,15 @@ use NGCP::BulkProcessor::ConnectorPool qw(
     destroy_dbs
 );
 
-use NGCP::BulkProcessor::Utils qw(threadid);
+use NGCP::BulkProcessor::Utils qw(threadid stringtobool);
+use NGCP::BulkProcessor::Array qw(array_to_map);
+use NGCP::BulkProcessor::Calendar qw(is_infinite_future current_local);
 
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     fix_contract_balance_gaps
+    fix_free_cash
 );
 
 sub fix_contract_balance_gaps {
@@ -92,20 +101,13 @@ sub fix_contract_balance_gaps {
     ),$warning_count);
 }
 
-
-sub _check_insert_tables {
-
-    #NGCP::BulkProcessor::Dao::mr38::provisioning::voip_usr_preferences::check_table();
-
-}
-
 sub _fix_contract_balance_gaps {
     my ($context) = @_;
 
     eval {
         $context->{db}->db_begin();
         my $last_balance = undef;
-        foreach my $contract_balance (sort NGCP::BulkProcessor::Dao::mr38::billing::contract_balances::sort_by_end @{$context->{contract_balances}}) {
+        foreach my $contract_balance (sort NGCP::BulkProcessor::Dao::mr38::billing::contract_balances::sort_by_end_asc @{$context->{contract_balances}}) {
             #print "  " . $contract_balance->{id} . " " . $contract_balance->{_start} . ' ' . $contract_balance->{_end} . "\n";
             if (defined $last_balance) {
                 my $gap_start = $last_balance->{_end}->clone->add(seconds => 1);
@@ -193,66 +195,12 @@ sub _insert_contract_balances {
 sub _fix_contract_balance_gaps_checks {
     my ($context) = @_;
 
-    my $result = _checks($context);
+    my $result = 1;
 
     return $result;
 }
 
 sub _reset_fix_contract_balance_gaps_context {
-
-    my ($context,$contract,$rownum) = @_;
-
-    my $result = _reset_context($context,$contract,$rownum);
-
-    $context->{contract_balances} = NGCP::BulkProcessor::Dao::mr38::billing::contract_balances::findby_contractid($context->{db},$context->{contract}->{id});
-
-    #$context->{barring_profile} = $imported_subscriber->{barring_profile};
-    #$context->{ncos_level} = $context->{ncos_level_map}->{$context->{barring_profile}};
-
-    #delete $context->{adm_ncos_id_preference_id};
-
-    return $result;
-
-}
-
-
-sub _checks  {
-
-    my ($context) = @_;
-
-    my $result = 1;
-    #my $optioncount = 0;
-    #eval {
-    #    $optioncount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::FeatureOption::countby_subscribernumber_option();
-    #};
-    #if ($@ or $optioncount == 0) {
-    #    rowprocessingerror(threadid(),'please import subscriber features first',getlogger(__PACKAGE__));
-    #    $result = 0; #even in skip-error mode..
-    #}
-    #my $userpasswordcount = 0;
-    #eval {
-    #    $userpasswordcount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::countby_fqdn();
-    #};
-    #if ($@ or $userpasswordcount == 0) {
-    #    rowprocessingerror(threadid(),'please import user passwords first',getlogger(__PACKAGE__));
-    #    $result = 0; #even in skip-error mode..
-    #}
-    #my $subscribercount = 0;
-    #my $subscriber_barring_profiles = [];
-    #eval {
-    #    $subscribercount = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::countby_subscribernumber();
-    #    $subscriber_barring_profiles = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::list_barringprofiles();
-    #};
-    #if ($@ or $subscribercount == 0) {
-    #    rowprocessingerror(threadid(),'please import subscribers first',getlogger(__PACKAGE__));
-    #    $result = 0; #even in skip-error mode..
-    #}
-
-    return $result;
-
-}
-
-sub _reset_context {
 
     my ($context,$contract,$rownum) = @_;
 
@@ -262,46 +210,7 @@ sub _reset_context {
 
     $context->{contract} = $contract;
 
-    #$context->{cli} = $imported_subscriber->subscribernumber();
-    #$context->{e164} = {};
-    #$context->{e164}->{cc} = substr($context->{cli},0,3);
-    #$context->{e164}->{ac} = '';
-    #$context->{e164}->{sn} = substr($context->{cli},3);
-
-    #$context->{subscriberdelta} = $imported_subscriber->{delta};
-
-    #my $userpassword = NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::findby_fqdn($context->{cli});
-    #if (defined $userpassword) {
-    #    $context->{username} = (defined $subsciber_username_prefix ? $subsciber_username_prefix : '') . $userpassword->{username};
-    #    $context->{password} = $userpassword->{password};
-    #    $context->{userpassworddelta} = $userpassword->{delta};
-    #} else {
-    #    # once full username+passwords is available:
-    #    delete $context->{username};
-    #    delete $context->{password};
-    #    delete $context->{userpassworddelta};
-    #    if ($context->{subscriberdelta} eq
-    #        $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::Subscriber::deleted_delta) {
-    #
-    #    } else {
-    #        $result &= 0;
-    #
-    #        # for now, as username+passwords are incomplete:
-    #        #$context->{username} = $context->{e164}->{sn};
-    #        #$context->{password} = $context->{username};
-    #        #$context->{userpassworddelta} = $NGCP::BulkProcessor::Projects::Migration::IPGallery::Dao::import::UsernamePassword::updated_delta;
-    #
-    #        if ($skip_errors) {
-    #            # for now, as username+passwords are incomplete:
-    #            _warn($context,"($context->{rownum}) " . 'no username/password for subscriber found: ' . $context->{cli});
-    #        } else {
-    #            _error($context,"($context->{rownum}) " . 'no username/password for subscriber found: ' . $context->{cli});
-    #        }
-    #    }
-    #}
-    #
-    #delete $context->{billing_voip_subscriber};
-    #delete $context->{provisioning_voip_subscriber};
+    $context->{contract_balances} = NGCP::BulkProcessor::Dao::mr38::billing::contract_balances::findby_contractid($context->{db},$context->{contract}->{id});
 
     return $result;
 
@@ -310,6 +219,200 @@ sub _reset_context {
 
 
 
+
+
+
+
+
+
+
+sub fix_free_cash {
+
+    my $static_context = {};
+    my $result = _fix_free_cash_checks($static_context);
+
+    destroy_dbs();
+    my $warning_count :shared = 0;
+    return ($result && NGCP::BulkProcessor::Dao::Trunk::billing::contracts::process_free_cash_contracts(
+        static_context => $static_context,
+        process_code => sub {
+            my ($context,$records,$row_offset) = @_;
+            my $rownum = $row_offset;
+            foreach my $row (@$records) {
+                $rownum++;
+                next unless _reset_fix_free_cash_context($context,$row->[0],$rownum);
+                _fix_free_cash($context);
+            }
+
+            #return 0;
+            return 1;
+        },
+        init_process_context_code => sub {
+            my ($context)= @_;
+            $context->{db} = &get_xa_db();
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
+            # below is not mandatory..
+            _check_insert_tables();
+        },
+        uninit_process_context_code => sub {
+            my ($context)= @_;
+            undef $context->{db};
+            destroy_dbs();
+            {
+                lock $warning_count;
+                $warning_count += $context->{warning_count};
+            }
+        },
+        load_recursive => 0,
+        multithreading => $fix_free_cash_multithreading,
+        numofthreads => $fix_free_cash_numofthreads,
+    ),$warning_count);
+}
+
+sub _fix_free_cash {
+    my ($context) = @_;
+
+    eval {
+        $context->{db}->db_begin();
+        #my $last_balance = undef;
+        #foreach my $contract_balance (sort NGCP::BulkProcessor::Dao::mr38::billing::contract_balances::sort_by_end @{$context->{contract_balances}}) {
+        #    #print "  " . $contract_balance->{id} . " " . $contract_balance->{_start} . ' ' . $contract_balance->{_end} . "\n";
+        #    if (defined $last_balance) {
+        #        my $gap_start = $last_balance->{_end}->clone->add(seconds => 1);
+        #        my $gap_end = $contract_balance->{_start};
+        #        my $date_comparison = DateTime->compare($gap_start, $gap_end);
+        #        if ($date_comparison > 0) {
+        #            if ($skip_errors) {
+        #                _warn($context,"($context->{rownum}) " . 'contract balances overlap for contract id ' . $context->{contract}->{id} . ' detected: '.
+        #                $gap_start . ' - ' . $gap_end);
+        #            } else {
+        #                _error($context,"($context->{rownum}) " . 'contract balances overlap for contract id ' . $context->{contract}->{id} . ' detected: '.
+        #                $gap_start . ' - ' . $gap_end);
+        #            }
+        #        } elsif ($date_comparison < 0) {
+        #            _info($context,"($context->{rownum}) " . 'contract balances gap for contract id ' . $context->{contract}->{id} . ' detected: '.
+        #                $gap_start . ' - ' . $gap_end);
+        #            _insert_contract_balances($context,$gap_start,$gap_end->clone->subtract(seconds => 1),$contract_balance);
+        #        }
+        #    }
+        #    $last_balance = $contract_balance;
+        #}
+
+        if ($dry) {
+            $context->{db}->db_rollback(0);
+        } else {
+            $context->{db}->db_commit();
+        }
+
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback(1);
+        };
+        if ($skip_errors) {
+            _warn($context,"($context->{rownum}) " . 'database error with contract id ' . $context->{contract}->{id} . ': ' . $err);
+        } else {
+            _error($context,"($context->{rownum}) " . 'database error with contract id ' . $context->{contract}->{id} . ': ' . $err);
+        }
+    }
+}
+
+
+sub _fix_free_cash_checks {
+    my ($context) = @_;
+
+    my $result = 1;
+
+    $context->{now} = current_local();
+
+    my $profile_count = 0;
+    eval {
+        ($context->{billing_profile_map},my $ids,my $domains) = array_to_map(NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::findall(),
+            sub { return shift->{id}; }, sub { return shift; }, 'first' );
+        $profile_count = (scalar keys %{$context->{billing_profile_map}});
+    };
+    if ($@ or $profile_count == 0) {
+        _error($context,"cannot find any billing profiles");
+        $result = 0; #even in skip-error mode..
+    } else {
+        _info($context,"$profile_count billing profiles cached");
+    }
+
+    my $contract_free_cash_count = 0;
+    eval {
+        $contract_free_cash_count = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_free_cash();
+    };
+    if ($@ or $contract_free_cash_count == 0) {
+        rowprocessingerror(threadid(),'no contracts with free cash billing profiles',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    }
+
+    return $result;
+}
+
+sub _reset_fix_free_cash_context {
+
+    my ($context,$contract_id,$rownum) = @_;
+
+    my $result;
+
+    my $prepaid = 0;
+    my $recent_balance_profile;
+    my @balances = ();
+    foreach my $balance (sort NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances::sort_by_end_desc
+        @{NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances::findby_contractid($context->{db},$contract_id)}) {
+
+        $balance->{_is_actual} = ((is_infinite_future($balance->{_end}) || DateTime->compare($balance->{_end}, $context->{now}) >= 0) ? 1 : 0);
+        my $mapping = NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::findby_contractid_ts($context->{db},
+            $contract_id,$balance ->{_start})->[0];
+        if ($mapping) {
+            my $billing_profile = $context->{billing_profile_map}->{$mapping->{billing_profile_id}};
+            $balance->{_profile} = $billing_profile;
+            unless ($recent_balance_profile) {
+                $recent_balance_profile = $billing_profile;
+                $prepaid = stringtobool($billing_profile->{prepaid});
+            }
+        }
+        push(@balances,$balance);
+
+    }
+
+    my $actual_profile;
+    my $mapping = NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::findby_contractid_ts($context->{db},
+            $contract_id,$context->{now})->[0];
+    if ($mapping) {
+        $actual_profile = $context->{billing_profile_map}->{$mapping->{billing_profile_id}};
+        $prepaid = stringtobool($actual_profile->{prepaid}) unless defined $prepaid;
+    }
+
+    $context->{contract_balances} = \@balances;
+    $context->{prepaid} = $prepaid;
+    $context->{billing_profile} = $actual_profile;
+
+    $context->{contract} = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::findby_id($contract_id);
+
+    if (defined $recent_balance_profile and $recent_balance_profile->{interval_free_cash} > 0.0) {
+        _info($context,"($context->{rownum}) " . 'contract id ' . $contract_id . " recent balance's billing profile '$recent_balance_profile->{name}': free cash $recent_balance_profile->{interval_free_cash}",1);
+        $result = 1;
+    } elsif (defined $actual_profile and $actual_profile->{interval_free_cash} > 0.0) {
+        _info($context,"($context->{rownum}) " . 'contract id ' . $contract_id . " actual billing profile '$actual_profile->{name}': free cash $actual_profile->{interval_free_cash}",1);
+        $result = 1;
+    } else {
+        _warn($context,"($context->{rownum}) " . 'contract id ' . $contract_id . ' eventually used a billing profile with free cash in the past');
+        $result = 0;
+    }
+
+    return $result;
+
+}
+
+sub _check_insert_tables {
+
+    #NGCP::BulkProcessor::Dao::mr38::provisioning::voip_usr_preferences::check_table();
+
+}
 
 sub _error {
 
