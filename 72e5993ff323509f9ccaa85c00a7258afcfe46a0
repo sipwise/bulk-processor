@@ -1,0 +1,67 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7a75e904_6cf84fe6",
+        "filename": "debian/compat",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000001
+      },
+      "writtenOn": "2018-02-27T16:02:28Z",
+      "side": 1,
+      "message": "this is not necessary in mr5.5.3",
+      "revId": "72e5993ff323509f9ccaa85c00a7258afcfe46a0",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7a75e904_8cdcab76",
+        "filename": "debian/control",
+        "patchSetId": 2
+      },
+      "lineNbr": 3,
+      "author": {
+        "id": 1000001
+      },
+      "writtenOn": "2018-02-27T16:02:28Z",
+      "side": 1,
+      "message": "the change is not necessary in mr5.5.3",
+      "range": {
+        "startLine": 3,
+        "startChar": 10,
+        "endLine": 3,
+        "endChar": 18
+      },
+      "revId": "72e5993ff323509f9ccaa85c00a7258afcfe46a0",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7a75e904_ece35f31",
+        "filename": "debian/control",
+        "patchSetId": 2
+      },
+      "lineNbr": 64,
+      "author": {
+        "id": 1000001
+      },
+      "writtenOn": "2018-02-27T16:02:28Z",
+      "side": 1,
+      "message": "this is new dependencies for the upgrade, they will change the upgrade process as apt will build new packages graph. Can you avoid changing external dependencies?",
+      "range": {
+        "startLine": 63,
+        "startChar": 0,
+        "endLine": 64,
+        "endChar": 19
+      },
+      "revId": "72e5993ff323509f9ccaa85c00a7258afcfe46a0",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
