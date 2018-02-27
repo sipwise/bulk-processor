@@ -25,7 +25,7 @@ use NGCP::BulkProcessor::SqlConnector;
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlConnector);
-our @EXPORT_OK = qw(get_tableidentifier);
+our @EXPORT_OK = qw(get_tableidentifier $READ_COMMITTED);
 
 my $defaulthost = '127.0.0.1';
 my $defaultport = '3306';
@@ -39,11 +39,13 @@ my $texttable_charset = 'latin1';
 my $texttable_collation = 'latin1_swedish_ci';
 my $default_texttable_engine = 'MyISAM'; #InnoDB'; # ... provide transactions y/n?
 
-my $session_charset = 'latin1';
+#my $session_charset = 'latin1';
+my $session_charset = 'utf8mb4';
 
 my $LongReadLen = $LongReadLen_limit; #bytes
 my $LongTruncOk = 0;
 
+my $net_read_timeout = 300;
 #my $logger = getlogger(__PACKAGE__);
 
 #my $lock_do_chunk = 0; #1;
@@ -52,6 +54,8 @@ my $LongTruncOk = 0;
 my $rowblock_transactional = 1;
 
 my $serialization_level = ''; #'SERIALIZABLE'
+
+our $READ_COMMITTED = 'READ COMMITTED';
 
 sub new {
 
@@ -99,7 +103,7 @@ sub tableidentifier {
 
 }
 
-sub columnidentifier {
+sub _columnidentifier {
 
     my $self = shift;
     my $columnname = shift;
@@ -234,12 +238,22 @@ sub db_connect {
     #$self->db_do('SET SESSION time_format = \'%H:%i:%s\'');
     #$self->db_do('SET SESSION time_zone = \'Europe/Paris\'');
     #$self->db_do('SET SESSION datetime_format = \'%Y-%m-%d %H:%i:%s\'');
+    if (defined $net_read_timeout) {
+        $self->db_do('SET SESSION net_read_timeout = ' . $net_read_timeout);
+    }
 
     if (length($serialization_level) > 0) {
         $self->db_do('SET SESSION TRANSACTION ISOLATION LEVEL ' . $serialization_level);
     }
 
     dbinfo($self,'connected',getlogger(__PACKAGE__));
+
+}
+
+sub set_transaction_isolation {
+
+    my ($self,$level) = @_;
+    return $self->db_do("SET TRANSACTION ISOLATION LEVEL $level");
 
 }
 
@@ -438,6 +452,13 @@ sub multithreading_supported {
 
 }
 
+sub rowblock_transactional {
+
+    my $self = shift;
+    return $rowblock_transactional;
+
+}
+
 sub insert_ignore_phrase {
 
     my $self = shift;
@@ -546,6 +567,15 @@ sub _split_indexcol {
         return ($1,$2);
     }
     return ($indexcol, '');
+}
+
+sub ping {
+
+    my $self = shift;
+
+    $self->{dbh}->ping() if $self->{dbh};
+    return 1;
+
 }
 
 1;

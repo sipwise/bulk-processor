@@ -12,8 +12,6 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
     $dry
     $skip_errors
 
-
-
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -62,6 +60,7 @@ our @EXPORT_OK = qw(
     cleanup_aig_sequence_ids
 
 );
+
 
 sub cleanup_aig_sequence_ids {
     my ($context) = @_;

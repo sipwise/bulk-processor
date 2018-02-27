@@ -93,6 +93,7 @@ our @fieldnames = (
     'rownum',
     'range',
     'contact_hash',
+    'filenum',
     'filename',
 );
 my $expected_fieldnames = [
@@ -196,11 +197,20 @@ sub findby_domain_sipusername {
     #return [] unless (defined $cc or defined $ac or defined $sn);
 
     my $rows = $db->db_get_all_arrayref(
-        'SELECT * FROM ' .
+        $db->paginate_sort_query('SELECT * FROM ' .
             $table .
         ' WHERE ' .
             $db->columnidentifier('domain') . ' = ?' .
-            ' AND ' . $db->columnidentifier('sip_username') . ' = ?'
+            ' AND ' . $db->columnidentifier('sip_username') . ' = ?',
+                undef,undef,[{
+                                            column => 'filenum',
+                                            numeric => 1,
+                                            dir => 1,
+                                        },{
+                                            column => 'rownum',
+                                            numeric => 1,
+                                            dir => 1,
+                                        }])
     ,$domain,$sip_username);
 
     return buildrecords_fromrows($rows,$load_recursive);
@@ -238,11 +248,20 @@ sub findby_domain_webusername {
     #return [] unless (defined $cc or defined $ac or defined $sn);
 
     my $rows = $db->db_get_all_arrayref(
-        'SELECT * FROM ' .
+        $db->paginate_sort_query('SELECT * FROM ' .
             $table .
         ' WHERE ' .
             $db->columnidentifier('domain') . ' = ?' .
-            ' AND ' . $db->columnidentifier('web_username') . ' = ?'
+            ' AND ' . $db->columnidentifier('web_username') . ' = ?',
+                undef,undef,[{
+                                            column => 'filenum',
+                                            numeric => 1,
+                                            dir => 1,
+                                        },{
+                                            column => 'rownum',
+                                            numeric => 1,
+                                            dir => 1,
+                                        }])
     ,$domain,$web_username);
 
     return buildrecords_fromrows($rows,$load_recursive);
@@ -404,8 +423,17 @@ sub process_records {
         destroy_reader_dbs_code     => \&destroy_all_dbs,
         multithreading              => $multithreading,
         tableprocessing_threads     => $numofthreads,
-        'select'                    => 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),
-        'select_count'              => 'SELECT COUNT(DISTINCT(' . join(',',@cols) . ')) FROM ' . $table,
+        #'select'                    => 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),
+        'select'          => $db->paginate_sort_query('SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),undef,undef,[{
+                                            column => 'filenum',
+                                            numeric => 1,
+                                            dir => 1,
+                                        },{
+                                            column => 'rownum',
+                                            numeric => 1,
+                                            dir => 1,
+                                        }]),
+        'selectcount'              => 'SELECT COUNT(*) FROM (SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols) . ') AS g',
     );
 }
 

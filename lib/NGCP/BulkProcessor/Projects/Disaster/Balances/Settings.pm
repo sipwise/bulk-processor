@@ -26,7 +26,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     split_tuple
     parse_regexp
 );
-use NGCP::BulkProcessor::Utils qw(prompt);
+use NGCP::BulkProcessor::Utils qw(prompt stringtobool);
 #format_number check_ipnet
 
 require Exporter;
@@ -44,6 +44,12 @@ our @EXPORT_OK = qw(
 
     $fix_contract_balance_gaps_multithreading
     $fix_contract_balance_gaps_numofthreads
+
+    $fix_free_cash_multithreading
+    $fix_free_cash_numofthreads
+
+    $write_topup_log
+    $apply_negative_delta
 );
 
 our $defaultconfig = 'config.cfg';
@@ -55,6 +61,12 @@ our $skip_errors = 0;
 
 our $fix_contract_balance_gaps_multithreading = $enablemultithreading;
 our $fix_contract_balance_gaps_numofthreads = $cpucount;
+
+our $fix_free_cash_multithreading = $enablemultithreading;
+our $fix_free_cash_numofthreads = $cpucount;
+
+our $write_topup_log = 0;
+our $apply_negative_delta = 0;
 
 sub update_settings {
 
@@ -74,6 +86,12 @@ sub update_settings {
 
         $fix_contract_balance_gaps_multithreading = $data->{fix_contract_balance_gaps_multithreading} if exists $data->{fix_contract_balance_gaps_multithreading};
         $fix_contract_balance_gaps_numofthreads = _get_numofthreads($cpucount,$data,'fix_contract_balance_gaps_numofthreads');
+
+        $fix_free_cash_multithreading = $data->{fix_free_cash_multithreading} if exists $data->{fix_free_cash_multithreading};
+        $fix_free_cash_numofthreads = _get_numofthreads($cpucount,$data,'fix_free_cash_numofthreads');
+
+        $write_topup_log = stringtobool($data->{write_topup_log}) if exists $data->{write_topup_log};
+        $apply_negative_delta = stringtobool($data->{apply_negative_delta}) if exists $data->{apply_negative_delta};
 
         return $result;
 

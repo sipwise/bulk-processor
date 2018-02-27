@@ -25,6 +25,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     _add_headers
+    convert_bools
 );
 
 #my $logger = getlogger(__PACKAGE__);
@@ -86,6 +87,11 @@ sub baseuri {
     }
     return (defined $self->{uri} ? $self->{uri}->clone() : undef);
 
+}
+
+sub path {
+    my $self = shift;
+    return $self->{path};
 }
 
 sub _clearrequestdata {
@@ -188,11 +194,15 @@ sub _get_request_uri {
     if (defined $path_query) {
         if (blessed($path_query) and $path_query->isa('URI')) {
             $path_query = $path_query->path_query();
+            if (defined $self->{path} and length($self->{path}) > 0) {
+                $path_query =~ s!^$self->{path}!!;
+            }
         }
     } else {
         $path_query = '';
     }
     if (defined $self->{path} and length($self->{path}) > 0) {
+        #$path_query =~ s!^$self->{path}!!;
         $path_query =~ s!^/!!;
         $path_query = $self->{path} . $path_query;
     }
@@ -244,6 +254,33 @@ sub _post {
 
 }
 
+sub _post_raw {
+
+    my $self = shift;
+    my ($path_query_request,$data,$headers) = @_;
+    $self->_clearrequestdata();
+    $self->{requestdata} = $data;
+    if (blessed($path_query_request) and $path_query_request->isa('HTTP::Request')) {
+        $self->{req} = $path_query_request;
+        $self->_log_request($self->{req});
+    } else {
+        $self->{req} = HTTP::Request->new('POST',$self->_get_request_uri($path_query_request));
+        _add_headers($self->{req},$headers);
+        $self->_log_request($self->{req});
+        $self->{req}->content($data);
+    }
+	$self->{res} = $self->_ua_request($self->{req});
+	$self->_log_response($self->{res});
+	eval {
+        $self->{responsedata} = $self->_decode_post_response($self->{res}->decoded_content());
+    };
+    if ($@) {
+        restresponseerror($self,'error decoding POST response content: ' . $@,$self->{res},getlogger(__PACKAGE__));
+    }
+	return $self->{res};
+
+}
+
 sub post {
     my $self = shift;
     notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
@@ -281,7 +318,58 @@ sub _get {
 
 }
 
+sub _get_raw {
+
+    my $self = shift;
+    my ($path_query,$headers) = @_;
+    $self->_clearrequestdata();
+	$self->{req} = HTTP::Request->new('GET',$self->_get_request_uri($path_query));
+	_add_headers($self->{req},$headers);
+	$self->_log_request($self->{req});
+	$self->{res} = $self->_ua_request($self->{req});
+	$self->_log_response($self->{res});
+	return $self->{res};
+
+}
+
 sub get {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub _add_head_headers {
+    my $self = shift;
+    my ($req,$headers) = @_;
+    _add_headers($req,$headers);
+}
+
+sub _decode_head_response {
+    my $self = shift;
+    my ($data) = @_;
+    return $self->_decode_response_content($data);
+}
+
+sub _head {
+
+    my $self = shift;
+    my ($path_query,$headers) = @_;
+    $self->_clearrequestdata();
+	$self->{req} = HTTP::Request->new('HEAD',$self->_get_request_uri($path_query));
+	$self->_add_head_headers($self->{req},$headers);
+	$self->_log_request($self->{req});
+	$self->{res} = $self->_ua_request($self->{req});
+	$self->_log_response($self->{res});
+	eval {
+        $self->{responsedata} = $self->_decode_head_response($self->{res}->decoded_content());
+    };
+    if ($@) {
+        restresponseerror($self,'error decoding HEAD response content: ' . $@,$self->{res},getlogger(__PACKAGE__));
+    }
+	return $self->{res};
+
+}
+
+sub head {
     my $self = shift;
     notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
@@ -381,6 +469,7 @@ sub _put {
 
 }
 
+
 sub put {
     my $self = shift;
     notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
@@ -435,9 +524,37 @@ sub _get_page_size_query_param {
     notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
 }
 
+sub _get_total_count_expected_query_param {
+    my $self = shift;
+    my ($total_count_expected) = @_;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub _get_sf_query_param {
+    my $self = shift;
+    my ($sf) = @_;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
 sub get_collection_page_query_uri {
     my $self = shift;
-    my ($collection_path_query,$page_size,$page_num) = @_;
+    my $collection_path_query = shift;
+    my $page_size;
+    my $page_num;
+    my $total_count_expected;
+    my $sf;
+    if (ref $_[0]) {
+        my $p = shift;
+        $page_size = $p->{page_size};
+        $page_num = $p->{page_num};
+        $total_count_expected = 1;
+        $sf = shift;
+    } else {
+        ($page_size,$page_num) = @_;
+        $total_count_expected = 0;
+        $sf = undef;
+    }
+    #my ($collection_path_query,$page_size,$page_num) = @_;
     #if ($page_size <= 0) {
     #    resterror($self,"positive collection page size required",getlogger(__PACKAGE__));
     #}
@@ -447,10 +564,15 @@ sub get_collection_page_query_uri {
     my $page_uri = $self->_get_request_uri($collection_path_query);
     my $page_size_query_param = $self->_get_page_size_query_param($page_size);
     my $page_num_query_param = $self->_get_page_num_query_param($page_num);
+    my $total_count_expected_query_param = $self->_get_total_count_expected_query_param($total_count_expected);
+    my $sf_query_param;
+    $sf_query_param = $self->_get_sf_query_param($sf) if defined $sf;
     my @query_params = ();
     push(@query_params,$page_uri->query()) if $page_uri->query();
     push(@query_params,$page_size_query_param) if defined $page_size_query_param && length($page_size_query_param) > 0;
     push(@query_params,$page_num_query_param) if defined $page_num_query_param && length($page_num_query_param) > 0;
+    push(@query_params,$total_count_expected_query_param) if defined $total_count_expected_query_param && length($total_count_expected_query_param) > 0;
+    push(@query_params,$sf_query_param) if defined $sf_query_param && length($sf_query_param) > 0;
 
     $page_uri->query(join('&',@query_params));
 
@@ -496,6 +618,42 @@ sub responsedata {
 sub get_defaultcollectionpagesize {
     my $self = shift;
     notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub get_firscollectionpagenum {
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+}
+
+sub convert_bools {
+    my %unrecognized;
+
+    local *_convert_bools = sub {
+        my $ref_type = ref($_[0]);
+        if (!$ref_type) {
+            # Nothing.
+        }
+        elsif ($ref_type eq 'HASH') {
+            _convert_bools($_) for values(%{ $_[0] });
+        }
+        elsif ($ref_type eq 'ARRAY') {
+            _convert_bools($_) for @{ $_[0] };
+        }
+        elsif (
+               $ref_type eq 'JSON::PP::Boolean'           # JSON::PP
+            || $ref_type eq 'Types::Serialiser::Boolean'  # JSON::XS
+        ) {
+            $_[0] = $_[0] ? 1 : 0;
+        }
+        else {
+            ++$unrecognized{$ref_type};
+        }
+    };
+
+    &_convert_bools;
+
+    carp("Encountered an object of unrecognized type $_")
+        for sort values(%unrecognized);
 }
 
 1;

@@ -21,7 +21,11 @@ our @EXPORT_OK = qw(
     check_table
 
     findby_id
+    findall
     findby_resellerid_name_handle
+
+    $DEFAULT_PROFILE_FREE_CASH
+    $DEFAULT_PROFILE_FREE_TIME
 );
 
 my $tablename = 'billing_profiles';
@@ -54,6 +58,9 @@ my $expected_fieldnames = [
 
 my $indexes = {};
 
+our $DEFAULT_PROFILE_FREE_CASH = 0.0;
+our $DEFAULT_PROFILE_FREE_TIME = 0;
+
 sub new {
 
     my $class = shift;
@@ -80,6 +87,21 @@ sub findby_id {
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub findall {
+
+    my ($load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table;
+    my $rows = $db->db_get_all_arrayref($stmt);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
