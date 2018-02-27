@@ -62,6 +62,30 @@
       "revId": "72e5993ff323509f9ccaa85c00a7258afcfe46a0",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7a75e904_6ccf6fb1",
+        "filename": "debian/control",
+        "patchSetId": 2
+      },
+      "lineNbr": 64,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2018-02-27T16:08:15Z",
+      "side": 1,
+      "message": "will check that; the free cash restauration tool should not need them. ok, but then free cash restauration is the only one we trying to support there (should be fine as wont need more for soco)",
+      "parentUuid": "7a75e904_ece35f31",
+      "range": {
+        "startLine": 63,
+        "startChar": 0,
+        "endLine": 64,
+        "endChar": 19
+      },
+      "revId": "72e5993ff323509f9ccaa85c00a7258afcfe46a0",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
