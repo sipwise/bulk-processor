@@ -13,6 +13,7 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_connectorinstancename
+    ping
 );
 
 #use NGCP::BulkProcessor::SqlConnectors::MySQLDB;
@@ -36,6 +37,9 @@ our @EXPORT_OK = qw(
 
     destroy_dbs
     destroy_all_dbs
+
+    ping_dbs
+    ping_all_dbs
 );
 
 # thread connector pools:
@@ -69,6 +73,14 @@ sub import_db_tableidentifier {
 
 }
 
+sub ping_dbs {
+    ping($import_dbs);
+}
+
+sub ping_all_dbs {
+    ping_dbs();
+    NGCP::BulkProcessor::ConnectorPool::ping_dbs();
+}
 
 sub destroy_dbs {
 

@@ -52,6 +52,8 @@ my $fieldnames = [
     'subscriber_email_template',
     'type',
     'vat_rate',
+
+    'id',
 ];
 
 our $TERMINATED_STATE = 'terminated';

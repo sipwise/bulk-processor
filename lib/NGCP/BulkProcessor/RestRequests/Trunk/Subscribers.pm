@@ -58,6 +58,8 @@ my $fieldnames = [
     'username',
     'webpassword',
     'webusername',
+
+    'id',
 ];
 
 sub new {

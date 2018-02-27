@@ -22,6 +22,9 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -30,8 +33,14 @@ our @EXPORT_OK = qw(
     insert_row
 
     countby_status_resellerid
+    findby_contactid
+    findby_id
+    forupdate_id
 
     process_records
+    process_free_cash_contracts
+
+    countby_free_cash
 
     $ACTIVE_STATE
     $TERMINATED_STATE
@@ -81,6 +90,58 @@ sub new {
 
 }
 
+sub findby_contactid {
+
+    my ($contact_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contact_id') . ' = ?';
+    my @params = ($contact_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_id {
+
+    my ($id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub forupdate_id {
+
+    my ($xa_db,$id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ? FOR UPDATE';
+    my @params = ($id);
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
 sub countby_status_resellerid {
 
     my ($status,$reseller_id) = @_;
@@ -98,14 +159,34 @@ sub countby_status_resellerid {
         push(@params,$status);
     }
     if ($reseller_id) {
-        push(@terms,'contact.reseller_id = ?');
-        push(@params,$reseller_id);
+        if ('ARRAY' eq ref $reseller_id) {
+            push(@terms,'contact.reseller_id IN (' . substr(',?' x scalar @$reseller_id,1) . ')');
+            push(@params,@$reseller_id);
+        } else {
+            push(@terms,'contact.reseller_id = ?');
+            push(@params,$reseller_id);
+        }
     }
     if ((scalar @terms) > 0) {
         $stmt .= ' WHERE ' . join(' AND ',@terms);
     }
 
     return $db->db_get_value($stmt,@params);
+
+}
+
+sub countby_free_cash {
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(DISTINCT c.id) FROM ' . $table . ' AS c' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::gettablename()) . ' AS bm ON bm.contract_id = c.id' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::gettablename()) . ' AS bp ON bp.id = bm.billing_profile_id' .
+    ' WHERE c.status != "terminated" AND bp.interval_free_cash <> 0.0';
+
+    return $db->db_get_value($stmt);
 
 }
 
@@ -181,6 +262,49 @@ sub process_records {
     );
 }
 
+sub process_free_cash_contracts {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads) = @params{qw/
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+        /};
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'FROM ' . $table . ' AS c' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::gettablename()) . ' AS bm ON bm.contract_id = c.id' .
+    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::gettablename()) . ' AS bp ON bp.id = bm.billing_profile_id' .
+    ' WHERE c.status != "terminated" AND bp.interval_free_cash <> 0.0';
+
+    return process_table(
+        get_db                      => $get_db,
+        class                       => __PACKAGE__,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,$rowblock,$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_dbs,
+        multithreading              => $multithreading,
+        tableprocessing_threads     => $numofthreads,
+        select                      => $db->paginate_sort_query("SELECT DISTINCT c.id " . $stmt,undef,undef,[{ column => 'c.id', numeric => 1, dir => 1 }]),
+        selectcount                 => "SELECT COUNT(DISTINCT c.id) " . $stmt,
+    );
+}
 
 sub buildrecords_fromrows {
 

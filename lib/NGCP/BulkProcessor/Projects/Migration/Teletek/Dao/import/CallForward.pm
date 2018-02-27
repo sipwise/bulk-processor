@@ -68,6 +68,7 @@ our @fieldnames = (
     #calculated fields at the end!
     "sip_username",
     'rownum',
+    'filenum',
     'filename',
 );
 

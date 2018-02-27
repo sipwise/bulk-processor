@@ -22,6 +22,7 @@ our @EXPORT_OK = qw(
 
     findby_name
     findby_id
+    findall
 );
 
 my $tablename = 'resellers';
@@ -45,6 +46,21 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findall {
+
+    my ($load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table;
+    my $rows = $db->db_get_all_arrayref($stmt);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
