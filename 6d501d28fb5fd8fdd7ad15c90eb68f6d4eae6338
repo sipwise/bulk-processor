@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7a75e904_ac47a71c",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 4
+      },
+      "lineNbr": 836,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2018-02-27T16:25:14Z",
+      "side": 1,
+      "message": "checks dynamically now. multiple threads wont work, bit not relevant for soco.",
+      "revId": "6d501d28fb5fd8fdd7ad15c90eb68f6d4eae6338",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
