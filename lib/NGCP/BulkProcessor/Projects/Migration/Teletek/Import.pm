@@ -82,7 +82,9 @@ sub import_subscriber {
 
     destroy_all_dbs(); #close all db connections before forking..
     my $warning_count :shared = 0;
+    my $filenum = 0;
     foreach my $file (@files) {
+        $filenum++;
         $result &= $importer->process(
             file => $file,
             process_code => sub {
@@ -98,6 +100,7 @@ sub import_subscriber {
                     $record->{ac} //= '';
                     $record->{sn} //= '';
                     $record->{rownum} = $rownum;
+                    $record->{filenum} = $filenum;
                     $record->{filename} = $file;
                     my %r = %$record;
                     $record->{contact_hash} = get_rowhash([@r{@NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::contact_fieldnames}]);
@@ -229,7 +232,9 @@ sub import_allowedcli {
 
     destroy_all_dbs(); #close all db connections before forking..
     my $warning_count :shared = 0;
+    my $filenum = 0;
     foreach my $file (@files) {
+        $filenum++;
         $result &= $importer->process(
             file => $file,
             process_code => sub {
@@ -245,6 +250,7 @@ sub import_allowedcli {
                     $record->{ac} //= '';
                     $record->{sn} //= '';
                     $record->{rownum} = $rownum;
+                    $record->{filenum} = $filenum;
                     $record->{filename} = $file;
 
                     if ((scalar @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_sipusername($record->{sip_username})}) == 0) {
@@ -470,7 +476,9 @@ sub import_clir {
 
     destroy_all_dbs(); #close all db connections before forking..
     my $warning_count :shared = 0;
+    my $filenum = 0;
     foreach my $file (@files) {
+        $filenum++;
         $result &= $importer->process(
             file => $file,
             process_code => sub {
@@ -483,6 +491,7 @@ sub import_clir {
                     $row = [ map { local $_ = $_; trim($_); } @$row ];
                     my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Clir->new($row);
                     $record->{rownum} = $rownum;
+                    $record->{filenum} = $filenum;
                     $record->{filename} = $file;
 
                     if ((scalar @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_sipusername($record->{sip_username})}) == 0) {
@@ -623,7 +632,9 @@ sub import_callforward {
 
     destroy_all_dbs(); #close all db connections before forking..
     my $warning_count :shared = 0;
+    my $filenum = 0;
     foreach my $file (@files) {
+        $filenum++;
         $result &= $importer->process(
             file => $file,
             process_code => sub {
@@ -639,6 +650,7 @@ sub import_callforward {
                     $record->{ac} //= '';
                     $record->{sn} //= '';
                     $record->{rownum} = $rownum;
+                    $record->{filenum} = $filenum;
                     $record->{filename} = $file;
 
                     if (my $subscriber = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_ccacsn($record->{cc},$record->{ac},$record->{sn})) {
@@ -767,15 +779,6 @@ sub _insert_callforward_rows {
     }
 }
 
-
-
-
-
-
-
-
-
-
 sub import_registration {
 
     my (@files) = @_;
@@ -792,7 +795,9 @@ sub import_registration {
 
     destroy_all_dbs(); #close all db connections before forking..
     my $warning_count :shared = 0;
+    my $filenum = 0;
     foreach my $file (@files) {
+        $filenum++;
         $result &= $importer->process(
             file => $file,
             process_code => sub {
@@ -805,6 +810,7 @@ sub import_registration {
                     $row = [ map { local $_ = $_; trim($_); } @$row ];
                     my $record = NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration->new($row);
                     $record->{rownum} = $rownum;
+                    $record->{filenum} = $filenum;
                     $record->{filename} = $file;
 
                     if ((scalar @{NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber::findby_sipusername($record->{sip_username})}) == 0) {
@@ -928,9 +934,6 @@ sub _insert_registration_rows {
         die($err);
     }
 }
-
-
-
 
 
 sub _error {

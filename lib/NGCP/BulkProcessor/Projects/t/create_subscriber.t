@@ -1,5 +1,5 @@
 use Net::Domain qw(hostfqdn);
-use JSON qw();
+use JSON -support_by_pp, -no_export;
 use Test::More;
 use Data::Dumper;
 use LWP::UserAgent;

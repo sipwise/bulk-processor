@@ -77,12 +77,11 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Registration
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
-
-use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
-use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
-use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_aig_sequence qw();
-use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_allowed_ip_groups qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
+
+use NGCP::BulkProcessor::Dao::Trunk::kamailio::location qw();
 
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Check qw(
     check_billing_db_tables
@@ -103,16 +102,6 @@ use NGCP::BulkProcessor::Projects::Migration::Teletek::Import qw(
 use NGCP::BulkProcessor::Projects::Migration::Teletek::Provisioning qw(
     provision_subscribers
 );
-
-#use NGCP::BulkProcessor::Projects::Migration::Teletek::Preferences qw(
-#    set_allowed_ips
-#
-#    set_preference_bulk
-#);
-
-#use NGCP::BulkProcessor::Projects::Migration::Teletek::Api qw(
-#    set_call_forwards
-#);
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
 
@@ -409,9 +398,9 @@ sub import_allowedcli_task {
         $stats .= "\n    removed: $deleted_count rows";
     };
     if ($err or !$result) {
-        push(@$messages,"importing allowed clis INCOMPLETE$stats");
+        push(@$messages,"importing allowed clis (additional numbers) INCOMPLETE$stats");
     } else {
-        push(@$messages,"importing allowed clis completed$stats");
+        push(@$messages,"importing allowed clis (additional numbers) completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
@@ -428,13 +417,13 @@ sub import_truncate_allowedcli_task {
     my $err = $@;
     my $stats = '';
     eval {
-        $stats .= "\n  total allowed cli records: " .
+        $stats .= "\n  total allowed cli (additional numbers) records: " .
             NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::AllowedCli::countby_ccacsn() . ' rows';
     };
     if ($err or !$result) {
-        push(@$messages,"truncating imported allowed clis INCOMPLETE$stats");
+        push(@$messages,"truncating imported allowed clis (additional numbers) INCOMPLETE$stats");
     } else {
-        push(@$messages,"truncating imported allowed clis completed$stats");
+        push(@$messages,"truncating imported allowed clis (additional numbers) completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
@@ -502,7 +491,6 @@ sub import_truncate_clir_task {
 }
 
 
-
 sub import_callforward_task {
 
     my ($messages) = @_;
@@ -561,9 +549,6 @@ sub import_truncate_callforward_task {
     return $result;
 
 }
-
-
-
 
 
 sub import_registration_task {
@@ -625,99 +610,51 @@ sub import_truncate_registration_task {
 
 }
 
-
-
-
-
-
 sub create_subscriber_task {
 
     my ($messages) = @_;
-    my ($result,$warning_count) = (0,0);
+    my ($result,$warning_count,$nonunique_contacts) = (0,0,{});
     eval {
-        ($result,$warning_count) = provision_subscribers();
+        ($result,$warning_count,$nonunique_contacts) = provision_subscribers();
     };
     my $err = $@;
     my $stats = ": $warning_count warnings";
     eval {
-        #$stats .= "\n  total contracts: " .
-        #    NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(undef,$reseller_id) . ' rows';
-        #my $active_count = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(
-        #    $NGCP::BulkProcessor::Dao::Trunk::billing::contracts::ACTIVE_STATE,
-        #    $reseller_id
-        #);
-        #$stats .= "\n    active: $active_count rows";
-        #my $terminated_count = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(
-        #    $NGCP::BulkProcessor::Dao::Trunk::billing::contracts::TERMINATED_STATE,
-        #    $reseller_id
-        #);
-        #$stats .= "\n    terminated: $terminated_count rows";
+        $stats .= "\n  total contracts: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(undef,undef) . ' rows';
+        $stats .= "\n  total subscribers: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(undef,undef) . ' rows';
 
-        #$stats .= "\n  total subscribers: " .
-        #    NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(undef,$reseller_id) . ' rows';
-        #$active_count = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(
-        #    $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::ACTIVE_STATE,
-        #    $reseller_id
-        #);
-        #$stats .= "\n    active: $active_count rows";
-        #$terminated_count = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(
-        #    $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::TERMINATED_STATE,
-        #    $reseller_id
-        #);
-        #$stats .= "\n    terminated: $terminated_count rows";
+        $stats .= "\n  total aliases: " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::countby_subscriberidisprimary(undef,undef) . ' rows';
+        $stats .= "\n  primary aliases: " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::countby_subscriberidisprimary(undef,1) . ' rows';
+
+        $stats .= "\n  call forwards: " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,undef) . ' rows';
+
+        $stats .= "\n  registrations: " .
+            NGCP::BulkProcessor::Dao::Trunk::kamailio::location::countby_usernamedomain(undef,undef) . ' rows';
+
+        $stats .= "\n  trusted sources: " .
+            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::countby_subscriberid(undef) . ' rows';
+
+        $stats .= "\n  non-unique contacts skipped:\n    " . join("\n    ",keys %$nonunique_contacts)
+                if (scalar keys %$nonunique_contacts) > 0;
     };
     if ($err or !$result) {
         push(@$messages,"create subscribers INCOMPLETE$stats");
     } else {
         push(@$messages,"create subscribers completed$stats");
-        #if (not $dry and $reprovision_upon_password_change and $updated_password_count > 0) {
-        #    push(@$messages,"THERE WERE $updated_password_count UPDATED PASSWORDS. YOU MIGHT WANT TO RESTART SEMS NOW ...");
-        #}
+        if (not $dry) {
+            push(@$messages,"YOU MIGHT WANT TO RESTART KAMAILIO FOR PERMANENT REGISTRATIONS TO COME INTO EFFECT");
+        }
     }
-    destroy_all_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs();
     return $result;
 
 }
 
-#sub set_call_forwards_task {
-#
-#    my ($messages,$mode) = @_;
-#    my ($result,$warning_count) = (0,0);
-#    eval {
-#        if ($batch) {
-#            ($result,$warning_count) = set_call_forwards_batch($mode);
-#        } else {
-#            ($result,$warning_count) = set_call_forwards($mode);
-#        }
-#    };
-#    my $err = $@;
-#    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
-#    eval {
-#        $stats .= "\n  '" . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFU_TYPE . "': " .
-#            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,
-#                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFU_TYPE) . ' rows';
-#
-#        $stats .= "\n  '" . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFB_TYPE . "': " .
-#            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,
-#                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFB_TYPE) . ' rows';
-#
-#        $stats .= "\n  '" . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFT_TYPE . "': " .
-#            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,
-#                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFT_TYPE) . ' rows';
-#
-#        $stats .= "\n  '" . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFNA_TYPE . "': " .
-#            NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::countby_subscriberid_type(undef,
-#                $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFNA_TYPE) . ' rows';
-#    };
-#    if ($err or !$result) {
-#        push(@$messages,"set subscribers\' call forwards INCOMPLETE$stats");
-#    } else {
-#        push(@$messages,"set subscribers\' call forwards completed$stats");
-#    }
-#    destroy_all_dbs(); #every task should leave with closed connections.
-#    return $result;
-#
-#}
 
 #END {
 #    # this should not be required explicitly, but prevents Log4Perl's

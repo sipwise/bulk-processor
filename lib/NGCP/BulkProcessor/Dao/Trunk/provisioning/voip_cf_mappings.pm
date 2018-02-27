@@ -11,6 +11,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     copy_row
+    insert_record
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -25,6 +26,8 @@ our @EXPORT_OK = qw(
     $CFT_TYPE
     $CFU_TYPE
     $CFNA_TYPE
+
+    insert_row
 );
 
 my $tablename = 'voip_cf_mappings';
@@ -39,6 +42,8 @@ my $expected_fieldnames = [
 ];
 
 my $indexes = {};
+
+my $insert_unique_fields = [];
 
 our $CFB_TYPE = 'cfb';
 our $CFT_TYPE = 'cft';
@@ -81,6 +86,50 @@ sub countby_subscriberid_type {
     }
 
     return $db->db_get_value($stmt,@params);
+
+}
+
+sub insert_row {
+
+    my $db = &$get_db();
+    my $xa_db = shift // $db;
+    if ('HASH' eq ref $_[0]) {
+        my ($data,$insert_ignore) = @_;
+        check_table();
+        if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
+            return $xa_db->db_last_insert_id();
+        }
+    } else {
+        my %params = @_;
+        my ($subscriber_id,
+            $type,
+            $destination_set_id,
+            $time_set_id) = @params{qw/
+                subscriber_id
+                type
+                destination_set_id
+                time_set_id
+            /};
+
+        if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+                $db->columnidentifier('subscriber_id') . ', ' .
+                $db->columnidentifier('type') . ', ' .
+                $db->columnidentifier('destination_set_id') . ', ' .
+                $db->columnidentifier('time_set_id') . ') VALUES (' .
+                '?, ' .
+                '?, ' .
+                '?, ' .
+                '?)',
+                $subscriber_id,
+                $type,
+                $destination_set_id,
+                $time_set_id
+            )) {
+            rowinserted($db,$tablename,getlogger(__PACKAGE__));
+            return $xa_db->db_last_insert_id();
+        }
+    }
+    return undef;
 
 }
 

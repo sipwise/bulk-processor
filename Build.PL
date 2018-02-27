@@ -37,7 +37,6 @@ my $builder = Module::Build->new(
         'MIME::Base64'                                          => 0,
         'MIME::Lite'                                            => 0,
         'Net::SMTP'                                             => 0,
-        'JSON::XS'                                              => 0,
         'Data::Dump'                                            => 0,
         'YAML::XS'                                              => 0,
         'XML::Dumper'                                           => '0.81',

@@ -1,9 +1,9 @@
 Source: ngcp-bulk-processor
 Section: admin
-Priority: extra
+Priority: optional
 Maintainer: Sipwise Development Team <support@sipwise.com>
 Build-Depends:
- debhelper (>= 9~),
+ debhelper (>= 10~),
  libmodule-build-perl | perl (<< 5.21.0~),
 Standards-Version: 3.9.8
 Homepage: https://www.sipwise.com/
@@ -38,7 +38,6 @@ Depends:
  libintl-perl,
  libio-compress-perl,
  libio-socket-ssl-perl,
- libjson-xs-perl,
  liblog-log4perl-perl,
  libmail-imapclient-perl,
  libmarpa-r2-perl,
@@ -61,6 +60,8 @@ Depends:
  libxml-libxml-perl,
  libyaml-libyaml-perl,
  libio-compress-perl,
+ libsys-cpuaffinity-perl,
+ libdata-rmap-perl,
  perl,
  ${misc:Depends},
  ${perl:Depends},
