@@ -14,7 +14,8 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
-
+    insert_record
+    update_record
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
@@ -25,7 +26,11 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
+    update_row
+    insert_row
+
     delete_callids
+    countby_ratingstatus
 
 );
 #process_records
@@ -161,6 +166,90 @@ sub delete_callids {
         rowsdeleted($db,$tablename,0,0,getlogger(__PACKAGE__));
         return 0;
     }
+
+}
+
+sub countby_ratingstatus {
+
+    my ($rating_status) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    if (defined $rating_status) {
+        push(@terms,$db->columnidentifier('rating_status') . ' = ?');
+        push(@params,$rating_status);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
+    }
+
+    return $db->db_get_value($stmt,@params);
+
+}
+
+sub update_row {
+
+    my ($xa_db,$data) = @_;
+
+    check_table();
+    return update_record($get_db,$xa_db,__PACKAGE__,$data);
+
+}
+
+sub insert_row {
+
+    my $db = &$get_db();
+    my $xa_db = shift // $db;
+    if ('HASH' eq ref $_[0]) {
+        my ($data,$insert_ignore) = @_;
+        check_table();
+        if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
+            return $xa_db->db_last_insert_id();
+        }
+    } else {
+        #my %params = @_;
+        #my ($contract_id,
+        #    $domain_id,
+        #    $username,
+        #    $uuid) = @params{qw/
+        #        contract_id
+        #        domain_id
+        #        username
+        #        uuid
+        #    /};
+        #
+        #if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+        #        $db->columnidentifier('contact_id') . ', ' .
+        #        $db->columnidentifier('contract_id') . ', ' .
+        #        $db->columnidentifier('domain_id') . ', ' .
+        #        $db->columnidentifier('external_id') . ', ' .
+        #        $db->columnidentifier('primary_number_id') . ', ' .
+        #        $db->columnidentifier('status') . ', ' .
+        #        $db->columnidentifier('username') . ', ' .
+        #        $db->columnidentifier('uuid') . ') VALUES (' .
+        #        'NULL, ' .
+        #        '?, ' .
+        #        '?, ' .
+        #        'NULL, ' .
+        #        'NULL, ' .
+        #        '\'' . $ACTIVE_STATE . '\', ' .
+        #        '?, ' .
+        #        '?)',
+        #        $contract_id,
+        #        $domain_id,
+        #        $username,
+        #        $uuid,
+        #    )) {
+        #    rowinserted($db,$tablename,getlogger(__PACKAGE__));
+        #    return $xa_db->db_last_insert_id();
+        #}
+    }
+    return undef;
 
 }
 

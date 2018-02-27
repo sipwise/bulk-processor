@@ -67,6 +67,7 @@ our @fieldnames = (
 
     #calculated fields at the end!
     'rownum',
+    'filenum',
     'filename',
 );
 
@@ -170,10 +171,19 @@ sub findby_sipusername {
     #return [] unless (defined $cc or defined $ac or defined $sn);
 
     my $rows = $db->db_get_all_arrayref(
-        'SELECT * FROM ' .
+        $db->paginate_sort_query('SELECT * FROM ' .
             $table .
         ' WHERE ' .
-            $db->columnidentifier('sip_username') . ' = ?'
+            $db->columnidentifier('sip_username') . ' = ?',
+                undef,undef,[{
+                                            column => 'filenum',
+                                            numeric => 1,
+                                            dir => 1,
+                                        },{
+                                            column => 'rownum',
+                                            numeric => 1,
+                                            dir => 1,
+                                        }])
     ,$sip_username);
 
     return buildrecords_fromrows($rows,$load_recursive);
@@ -322,7 +332,7 @@ sub buildrecords_fromrows {
 #        multithreading              => $multithreading,
 #        tableprocessing_threads     => $numofthreads,
 #        'select'                    => 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),
-#        'select_count'              => 'SELECT COUNT(DISTINCT(' . join(',',@cols) . ')) FROM ' . $table,
+#        'selectcount'              => 'SELECT COUNT(DISTINCT(' . join(',',@cols) . ')) FROM ' . $table,
 #    );
 #}
 

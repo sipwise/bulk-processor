@@ -38,6 +38,9 @@ our @EXPORT_OK = qw(
     $ALLOWED_IPS_GRP_ATTRIBUTE
     $CONCURRENT_MAX_TOTAL_ATTRIBUTE
     $CONCURRENT_MAX_PER_ACCOUNT
+
+    @CF_ATTRIBUTES
+    $RINGTIMEOUT_ATTRIBUTE
 );
 #$FORCE_OUTBOUND_CALLS_TO_PEER
 
@@ -87,6 +90,10 @@ our $ALLOWED_IPS_GRP_ATTRIBUTE = 'allowed_ips_grp';
 our $CONCURRENT_MAX_TOTAL_ATTRIBUTE = 'concurrent_max_total';
 our $CONCURRENT_MAX_PER_ACCOUNT_ATTRIBUTE = 'concurrent_max_per_account';
 our $CLIR_ATTRIBUTE = 'clir';
+
+our @CF_ATTRIBUTES = qw(cfu cft cfna cfb); #skip sms for now
+
+our $RINGTIMEOUT_ATTRIBUTE = 'ringtimeout';
 
 sub new {
 

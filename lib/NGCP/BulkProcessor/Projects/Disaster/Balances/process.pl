@@ -50,16 +50,21 @@ use NGCP::BulkProcessor::Mail qw(
     cleanupmsgfiles
 );
 
-use NGCP::BulkProcessor::Dao::mr38::billing::contracts qw();
-use NGCP::BulkProcessor::Dao::mr38::billing::contract_balances qw();
+#use NGCP::BulkProcessor::Dao::mr38::billing::contracts qw();
+#use NGCP::BulkProcessor::Dao::mr38::billing::contract_balances qw();
+
+#use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances qw();
 
 use NGCP::BulkProcessor::Projects::Disaster::Balances::Check qw(
-    check_billing_db_tables
+    check_fix_contract_balance_gaps_tables
+    check_fix_free_cash_tables
 );
 #check_rest_get_items
 
 use NGCP::BulkProcessor::Projects::Disaster::Balances::Contracts qw(
     fix_contract_balance_gaps
+    fix_free_cash
 );
 
 #use NGCP::BulkProcessor::Projects::Disaster::Balances::Api qw(
@@ -77,14 +82,20 @@ my @TASK_OPTS = ();
 
 my $tasks = [];
 
-my $check_task_opt = 'check';
-push(@TASK_OPTS,$check_task_opt);
+my $check_fix_contract_balance_gaps_task_opt = 'check_fix_gaps';
+push(@TASK_OPTS,$check_fix_contract_balance_gaps_task_opt);
+
+my $check_fix_free_cash_task_opt = 'check_fix_free_cash';
+push(@TASK_OPTS,$check_fix_free_cash_task_opt);
 
 my $cleanup_task_opt = 'cleanup';
 push(@TASK_OPTS,$cleanup_task_opt);
 
-my $fix_contract_balance_gaps_task_opt = 'fix_contract_balance_gaps';
+my $fix_contract_balance_gaps_task_opt = 'fix_gaps';
 push(@TASK_OPTS,$fix_contract_balance_gaps_task_opt);
+
+my $fix_free_cash_task_opt = 'fix_free_cash';
+push(@TASK_OPTS,$fix_free_cash_task_opt);
 
 if (init()) {
     main();
@@ -127,8 +138,10 @@ sub main() {
         scriptinfo('skip-errors: processing won\'t stop upon errors',getlogger(__PACKAGE__)) if $skip_errors;
         foreach my $task (@$tasks) {
 
-            if (lc($check_task_opt) eq lc($task)) {
-                $result &= check_task(\@messages) if taskinfo($check_task_opt,$result);
+            if (lc($check_fix_contract_balance_gaps_task_opt) eq lc($task)) {
+                $result &= check_fix_contract_balance_gaps_task(\@messages) if taskinfo($check_fix_contract_balance_gaps_task_opt,$result);
+            } elsif (lc($check_fix_free_cash_task_opt) eq lc($task)) {
+                $result &= check_fix_free_cash_task(\@messages) if taskinfo($check_fix_free_cash_task_opt,$result);
             } elsif (lc($cleanup_task_opt) eq lc($task)) {
                 $result &= cleanup_task(\@messages) if taskinfo($cleanup_task_opt,$result);
 
@@ -136,6 +149,13 @@ sub main() {
                 if (taskinfo($fix_contract_balance_gaps_task_opt,$result)) {
                     next unless check_dry();
                     $result &= fix_contract_balance_gaps_task(\@messages);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($fix_free_cash_task_opt) eq lc($task)) {
+                if (taskinfo($fix_free_cash_task_opt,$result)) {
+                    next unless check_dry();
+                    $result &= fix_free_cash_task(\@messages);
                     $completion |= 1;
                 }
 
@@ -166,10 +186,27 @@ sub taskinfo {
     return $result;
 }
 
-sub check_task {
+sub check_fix_contract_balance_gaps_task {
     my ($messages) = @_;
     my @check_messages = ();
-    my $result = check_billing_db_tables(\@check_messages);
+    my $result = check_fix_contract_balance_gaps_tables(\@check_messages);
+    #$result &= ..
+    push(@$messages,join("\n",@check_messages));
+
+    #@check_messages = ();
+    #$result = check_provisioning_db_tables(\@check_messages);
+    ##$result &= ..
+    #push(@$messages,join("\n",@check_messages));
+
+
+    destroy_dbs();
+    return $result;
+}
+
+sub check_fix_free_cash_task {
+    my ($messages) = @_;
+    my @check_messages = ();
+    my $result = check_fix_free_cash_tables(\@check_messages);
     #$result &= ..
     push(@$messages,join("\n",@check_messages));
 
@@ -228,6 +265,34 @@ sub fix_contract_balance_gaps_task {
         push(@$messages,"fix contract balances gaps INCOMPLETE$stats");
     } else {
         push(@$messages,"fix contract balances gaps completed$stats");
+    }
+    destroy_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+
+sub fix_free_cash_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        ($result,$warning_count) = fix_free_cash();
+        #if ($batch) {
+        #    ($result,$warning_count) = set_barring_profiles_batch();
+        #} else {
+        #    ($result,$warning_count) = set_barring_profiles();
+        #}
+    };
+    my $err = $@;
+    my $stats = ($skip_errors ? ": $warning_count warnings" : '');
+    eval {
+
+    };
+    if ($err or !$result) {
+        push(@$messages,"fix free cash INCOMPLETE$stats");
+    } else {
+        push(@$messages,"fix free cash completed$stats");
     }
     destroy_dbs(); #every task should leave with closed connections.
     return $result;
