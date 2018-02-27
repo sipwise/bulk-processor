@@ -64,6 +64,7 @@ our @fieldnames = (
 
     #calculated fields at the end!
     'rownum',
+    'filenum',
     'filename',
 );
 

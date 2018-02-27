@@ -38,9 +38,11 @@ use File::Path qw(remove_tree make_path);
 #use Sys::Info;
 #use Sys::Info::Constants qw( :device_cpu );
 
-# after all, the only reliable way to get the true vCPU count:
-#use Sys::CpuAffinity; # qw(getNumCpus); not exported?
-#disabling for now, no debian package yet.
+my $can_cpu_affinity = 1;
+eval "use Sys::CpuAffinity"; # qw(getNumCpus); not exported?
+if ($@) {
+    $can_cpu_affinity = 1;
+}
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -829,7 +831,10 @@ sub secs_to_years {
 }
 
 sub get_cpucount {
-    my $cpucount = 0; #Sys::CpuAffinity::getNumCpus() + 0;
+    my $cpucount = 0;
+    if ($can_cpu_affinity) {
+        $cpucount = eval { Sys::CpuAffinity::getNumCpus() + 0; };
+    }
     return ($cpucount > 0) ? $cpucount : 1;
     #my $info = Sys::Info->new();
     #my $cpu  = $info->device('CPU'); # => %options );

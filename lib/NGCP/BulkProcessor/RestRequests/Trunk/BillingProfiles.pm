@@ -11,6 +11,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::RestProcessor qw(
     process_collection
     copy_row
+    get_query_string
 );
 
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw();
@@ -23,6 +24,7 @@ our @EXPORT_OK = qw(
     create_item
     process_items
     get_item_path
+    findby_resellerid
 );
 
 my $get_restapi = \&get_ngcp_restapi;
@@ -33,6 +35,13 @@ my $get_item_path_query = sub {
     return 'api/' . $resource . '/' . $id;
 };
 my $collection_path_query = 'api/' . $resource . '/';
+
+my $findby_resellerid_path_query = sub {
+    my ($reseller_id) = @_;
+    my $filters = {};
+    $filters->{reseller_id} = $reseller_id if defined $reseller_id;
+    return 'api/' . $resource . '/' . get_query_string($filters);
+};
 
 my $fieldnames = [
     'currency',
@@ -52,6 +61,8 @@ my $fieldnames = [
     'peaktime_weekdays',
     'prepaid',
     'reseller_id',
+
+    'id',
 ];
 
 sub new {
@@ -70,6 +81,15 @@ sub get_item {
     my ($id,$load_recursive,$headers) = @_;
     my $restapi = &$get_restapi();
     return builditems_fromrows($restapi->get(&$get_item_path_query($id),$headers),$load_recursive);
+
+}
+
+sub findby_resellerid {
+
+    my ($reseller_id,$load_recursive,$headers) = @_;
+    my $restapi = &$get_restapi();
+    return builditems_fromrows($restapi->extract_collection_items($restapi->get(&$findby_resellerid_path_query($reseller_id),$headers),undef,undef,
+        { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation }),$load_recursive);
 
 }
 

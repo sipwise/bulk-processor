@@ -1,0 +1,128 @@
+-
+  domain: domain1.com
+  reseller: reseller1
+  cc:
+    - 111
+  ac:
+    - 456
+  sn: '000001-999999'
+  numbers_per_subscriber: 1
+  provider_rate:
+    prepaid: 0
+    fees:
+      -
+        source: .
+        destination: .
+        direction: out
+        offpeak_follow_interval: 1
+        offpeak_follow_rate: 0
+        offpeak_init_interval: 1
+        offpeak_init_rate: 0
+        onpeak_follow_interval: 1
+        onpeak_follow_rate: 0
+        onpeak_init_interval: 1
+        onpeak_init_rate: 0
+      -
+        source: .
+        destination: ^[^1].+
+        direction: out
+        offpeak_follow_interval: 1
+        offpeak_follow_rate: 1
+        offpeak_init_interval: 1
+        offpeak_init_rate: 1
+        onpeak_follow_interval: 1
+        onpeak_follow_rate: 1
+        onpeak_init_interval: 1
+        onpeak_init_rate: 1   
+  subscriber_rates:
+    -
+      prepaid: 0
+      fees:
+        -
+          source: .
+          destination: .
+          direction: out
+          offpeak_follow_interval: 1
+          offpeak_follow_rate: 0
+          offpeak_init_interval: 60
+          offpeak_init_rate: 0
+          onpeak_follow_interval: 1
+          onpeak_follow_rate: 0
+          onpeak_init_interval: 60
+          onpeak_init_rate: 0
+        -
+          source: .
+          destination: ^[^1].+
+          direction: out
+          offpeak_follow_interval: 1
+          offpeak_follow_rate: 1
+          offpeak_init_interval: 60
+          offpeak_init_rate: 1
+          onpeak_follow_interval: 1
+          onpeak_follow_rate: 1
+          onpeak_init_interval: 60
+          onpeak_init_rate: 1
+-
+  domain: domain2.com
+  reseller: reseller2
+  cc:
+    - 222
+  ac:
+    - 456
+  sn: '000001-999999'
+  numbers_per_subscriber: 1
+  provider_rate:
+    prepaid: 0
+    fees:
+      -
+        source: .
+        destination: .
+        direction: out
+        offpeak_follow_interval: 1
+        offpeak_follow_rate: 0
+        offpeak_init_interval: 1
+        offpeak_init_rate: 0
+        onpeak_follow_interval: 1
+        onpeak_follow_rate: 0
+        onpeak_init_interval: 1
+        onpeak_init_rate: 0
+      -
+        source: .
+        destination: ^[^2].+
+        direction: out
+        offpeak_follow_interval: 1
+        offpeak_follow_rate: 1
+        offpeak_init_interval: 1
+        offpeak_init_rate: 1
+        onpeak_follow_interval: 1
+        onpeak_follow_rate: 1
+        onpeak_init_interval: 1
+        onpeak_init_rate: 1   
+  subscriber_rates:
+    -
+      prepaid: 0
+      fees:
+        -
+          source: .
+          destination: .
+          direction: out
+          offpeak_follow_interval: 1
+          offpeak_follow_rate: 0
+          offpeak_init_interval: 60
+          offpeak_init_rate: 0
+          onpeak_follow_interval: 1
+          onpeak_follow_rate: 0
+          onpeak_init_interval: 60
+          onpeak_init_rate: 0
+        -
+          source: .
+          destination: ^[^2].+
+          direction: out
+          offpeak_follow_interval: 1
+          offpeak_follow_rate: 1
+          offpeak_init_interval: 60
+          offpeak_init_rate: 1
+          onpeak_follow_interval: 1
+          onpeak_follow_rate: 1
+          onpeak_init_interval: 60
+          onpeak_init_rate: 1

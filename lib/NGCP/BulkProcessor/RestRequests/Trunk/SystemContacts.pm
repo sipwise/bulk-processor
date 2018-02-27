@@ -59,6 +59,8 @@ my $fieldnames = [
     'postcode',
     'street',
     'vatnum',
+
+    'id',
 ];
 
 sub new {
