@@ -98,7 +98,7 @@ sub tableidentifier {
     return $tablename;
 }
 
-sub columnidentifier {
+sub _columnidentifier {
 
     my $self = shift;
     my $columnname = shift;
@@ -456,6 +456,13 @@ sub multithreading_supported {
 
     my $self = shift;
     return 1;
+
+}
+
+sub rowblock_transactional {
+
+    my $self = shift;
+    return $rowblock_transactional;
 
 }
 

@@ -10,6 +10,8 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 
 use NGCP::BulkProcessor::RestProcessor qw(
     copy_row
+
+    get_query_string
 );
 
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw();
@@ -21,6 +23,7 @@ our @EXPORT_OK = qw(
     get_item
     create_item
     get_item_path
+    findby_billingprofileid
 );
 
 my $get_restapi = \&get_ngcp_restapi;
@@ -32,10 +35,19 @@ my $get_item_path_query = sub {
 };
 my $collection_path_query = 'api/' . $resource . '/';
 
+my $findby_billingprofileid_path_query = sub {
+    my ($billing_profile_id) = @_;
+    my $filters = {};
+    $filters->{billing_profile_id} = $billing_profile_id if defined $billing_profile_id;
+    return 'api/' . $resource . '/' . get_query_string($filters);
+};
+
 my $fieldnames = [
     'billing_profile_id',
     'detail',
     'zone',
+
+    'id',
 ];
 
 sub new {
@@ -54,6 +66,15 @@ sub get_item {
     my ($id,$load_recursive,$headers) = @_;
     my $restapi = &$get_restapi();
     return builditems_fromrows($restapi->get(&$get_item_path_query($id),$headers),$load_recursive);
+
+}
+
+sub findby_billingprofileid {
+
+    my ($billing_profile_id,$load_recursive,$headers) = @_;
+    my $restapi = &$get_restapi();
+    return builditems_fromrows($restapi->extract_collection_items($restapi->get(&$findby_billingprofileid_path_query($billing_profile_id),$headers),undef,undef,
+        { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation }),$load_recursive);
 
 }
 

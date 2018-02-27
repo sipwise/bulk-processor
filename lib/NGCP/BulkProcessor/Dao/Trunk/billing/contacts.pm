@@ -27,6 +27,9 @@ our @EXPORT_OK = qw(
     check_table
     insert_row
     update_row
+
+    findby_reselleridfields
+    findby_id
 );
 
 my $tablename = 'contacts';
@@ -80,6 +83,44 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_reselleridfields {
+
+    my ($reseller_id,$fields,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('reseller_id') . ' = ?';
+    my @params = ($reseller_id);
+    foreach my $field (keys %$fields) {
+        $stmt .= ' AND ' . $db->columnidentifier($field) . ' = ?';
+        push(@params,$fields->{$field});
+    }
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_id {
+
+    my ($id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 

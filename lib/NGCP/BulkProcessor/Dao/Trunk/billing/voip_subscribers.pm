@@ -16,6 +16,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     insert_record
     update_record
+    process_table
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
@@ -33,6 +34,10 @@ our @EXPORT_OK = qw(
 
     findby_domainid_username_states
     countby_status_resellerid
+    process_records
+    find_minmaxid
+    find_random
+    findby_contractid_states
 
     $TERMINATED_STATE
     $ACTIVE_STATE
@@ -101,6 +106,131 @@ sub findby_domainid_username_states {
 
 }
 
+sub findby_contractid_states {
+
+    my ($xa_db,$contract_id,$states,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contract_id') . ' = ?';
+    my @params = ($contract_id);
+    if (defined $states and 'HASH' eq ref $states) {
+        foreach my $in (keys %$states) {
+            my @values = (defined $states->{$in} and 'ARRAY' eq ref $states->{$in} ? @{$states->{$in}} : ($states->{$in}));
+            $stmt .= ' AND ' . $db->columnidentifier('status') . ' ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+            push(@params,@values);
+        }
+    } elsif (defined $states and length($states) > 0) {
+        $stmt .= ' AND ' . $db->columnidentifier('status') . ' = ?';
+        push(@params,$states);
+    }
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub find_minmaxid {
+
+    my ($xa_db,$states,$reseller_id) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my @ids = ();
+    foreach my $func ('MIN','MAX') {
+        my @params = ();
+        my $stmt = 'SELECT ' . $func . '(r1.id) FROM ' . $table . ' AS r1';
+        if ($reseller_id) {
+            $stmt .= ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contracts::gettablename()) . ' AS contract ON r1.contract_id = contract.id' .
+            ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
+        }
+        $stmt .= ' WHERE 1=1';
+        if ($reseller_id) {
+            if ('ARRAY' eq ref $reseller_id) {
+                $stmt .= ' AND contact.reseller_id IN (' . substr(',?' x scalar @$reseller_id,1) . ')';
+                push(@params,@$reseller_id);
+            } else {
+                $stmt .= ' AND contact.reseller_id = ?';
+                push(@params,$reseller_id);
+            }
+        }
+        if (defined $states and 'HASH' eq ref $states) {
+            foreach my $in (keys %$states) {
+                my @values = (defined $states->{$in} and 'ARRAY' eq ref $states->{$in} ? @{$states->{$in}} : ($states->{$in}));
+                $stmt .= ' AND r1.status ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+                push(@params,@values);
+            }
+        } elsif (defined $states and length($states) > 0) {
+            $stmt .= ' AND r1.status = ?';
+            push(@params,$states);
+        }
+        push(@ids,$db->db_get_value($stmt,@params));
+    }
+    return @ids;
+
+}
+
+sub find_random {
+
+    my ($xa_db,$excluding_id,$states,$reseller_id,$min_id,$max_id,$load_recursive) = @_;
+
+    if (not defined $min_id or not defined $max_id) {
+        ($min_id,$max_id) = find_minmaxid($xa_db,$states,$reseller_id);
+    }
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT r1.* FROM ' . $table . ' AS r1' .
+      ' JOIN (SELECT ? + RAND() * ? AS id) AS r2';
+    my @params = ();
+    push(@params,$min_id,$max_id - $min_id);
+    if ($reseller_id) {
+        $stmt .= ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contracts::gettablename()) . ' AS contract ON r1.contract_id = contract.id' .
+        ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
+    }
+    $stmt .= ' WHERE r1.id >= r2.id';
+
+    if (defined $states and 'HASH' eq ref $states) {
+        foreach my $in (keys %$states) {
+            my @values = (defined $states->{$in} and 'ARRAY' eq ref $states->{$in} ? @{$states->{$in}} : ($states->{$in}));
+            $stmt .= ' AND r1.status ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+            push(@params,@values);
+        }
+    } elsif (defined $states and length($states) > 0) {
+        $stmt .= ' AND r1.status = ?';
+        push(@params,$states);
+    }
+    if (defined $excluding_id) {
+        $stmt .= ' AND r1.id != ?';
+        push(@params,$excluding_id);
+    }
+    if ($reseller_id) {
+        if ('ARRAY' eq ref $reseller_id) {
+            $stmt .= ' AND contact.reseller_id IN (' . substr(',?' x scalar @$reseller_id,1) . ')';
+            push(@params,@$reseller_id);
+        } else {
+            $stmt .= ' AND contact.reseller_id = ?';
+            push(@params,$reseller_id);
+        }
+    }
+    $stmt .= ' ORDER BY r1.id ASC LIMIT 1';
+
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
 sub countby_status_resellerid {
 
     my ($status,$reseller_id) = @_;
@@ -119,8 +249,13 @@ sub countby_status_resellerid {
         push(@params,$status);
     }
     if ($reseller_id) {
-        push(@terms,'contact.reseller_id = ?');
-        push(@params,$reseller_id);
+        if ('ARRAY' eq ref $reseller_id) {
+            push(@terms,'contact.reseller_id IN (' . substr(',?' x scalar @$reseller_id,1) . ')');
+            push(@params,@$reseller_id);
+        } else {
+            push(@terms,'contact.reseller_id = ?');
+            push(@params,$reseller_id);
+        }
     }
     if ((scalar @terms) > 0) {
         $stmt .= ' WHERE ' . join(' AND ',@terms);
@@ -189,6 +324,50 @@ sub insert_row {
     }
     return undef;
 
+}
+
+sub process_records {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $blocksize,
+        $numofthreads,
+        $load_recursive) = @params{qw/
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            blocksize
+            numofthreads
+            load_recursive
+        /};
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    return process_table(
+        get_db                      => $get_db,
+        class                       => __PACKAGE__,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,buildrecords_fromrows($rowblock,$load_recursive),$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_dbs,
+        multithreading              => $multithreading,
+        blocksize                   => $blocksize,
+        tableprocessing_threads     => $numofthreads,
+        'select'                    => 'SELECT * FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"',
+        'selectcount'               => 'SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"',
+    );
 }
 
 sub buildrecords_fromrows {
