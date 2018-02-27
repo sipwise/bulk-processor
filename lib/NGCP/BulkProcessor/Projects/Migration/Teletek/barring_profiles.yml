@@ -1,19 +1,22 @@
 mapping:
   Junet:
+    default: 'Junet 38'
     21: 'Junet 21'
     25: 'Junet 25'
     29: 'Junet 29'
     33: 'Junet 33'
   Teleman:
+    default: 'Teleman 38'
     21: 'Teleman 21'
     25: 'Teleman 25'
     29: 'Teleman 29'
     33: 'Teleman 33'
   Teletek:
+    default: 'Teletek 38'    
     21: 'Teletek 21'
     25: 'Teletek 25'
     27: 'Teletek 27'
     29: 'Teletek 29'
     33: 'Teletek 33'
-    25_29: 'Teletek 25 29'
-    25_33: 'Teletek 25 33'
+    25_29: 'Teletek 25'
+    25_33: 'Teletek 25'

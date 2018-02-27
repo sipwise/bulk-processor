@@ -75,7 +75,7 @@ my $LongTruncOk = 0;
 #my $lock_do_chunk = 0; #1;
 #my $lock_get_chunk = 0; #1;
 
-my $rowblock_transactional = 1;
+my $rowblock_transactional = 0;
 
 #SQLite transactions are always serializable.
 
@@ -115,7 +115,7 @@ sub tableidentifier {
 
 }
 
-sub columnidentifier {
+sub _columnidentifier {
 
     my $self = shift;
     my $columnname = shift;
@@ -341,7 +341,11 @@ sub getfieldnames {
 
     my $self = shift;
     my $tablename = shift;
-    my @fieldnames = keys %{$self->db_get_all_hashref('PRAGMA table_info(' . $tablename . ')','name')};
+    #my @fieldnames = keys %{$self->db_get_all_hashref('PRAGMA table_info(' . $tablename . ')','name')};
+    my @fieldnames = ();
+    foreach my $field (@{$self->db_get_all_arrayref('PRAGMA table_info(' . $tablename . ')')}) {
+        push(@fieldnames,$field->{name});
+    }
     return \@fieldnames;
 
 }
@@ -351,13 +355,21 @@ sub getprimarykeycols {
     my $self = shift;
     my $tablename = shift;
     #return $self->db_get_col('SHOW FIELDS FROM ' . $tablename);
-    my $fieldinfo = $self->db_get_all_hashref('PRAGMA table_info(' . $tablename . ')','name');
+    #my $fieldinfo = $self->db_get_all_hashref('PRAGMA table_info(' . $tablename . ')','name');
+    #my @keycols = ();
+    #foreach my $fieldname (keys %$fieldinfo) {
+    #    if ($fieldinfo->{$fieldname}->{'pk'}) {
+    #        push @keycols,$fieldname;
+    #    }
+    #}
+
     my @keycols = ();
-    foreach my $fieldname (keys %$fieldinfo) {
-        if ($fieldinfo->{$fieldname}->{'pk'}) {
-            push @keycols,$fieldname;
+    foreach my $field (@{$self->db_get_all_arrayref('PRAGMA table_info(' . $tablename . ')')}) {
+        if ($field->{'pk'}) {
+            push(@keycols,$field->{name});
         }
     }
+
     return \@keycols;
 
 }
@@ -485,6 +497,13 @@ sub multithreading_supported {
 
     my $self = shift;
     return 1;
+
+}
+
+sub rowblock_transactional {
+
+    my $self = shift;
+    return $rowblock_transactional;
 
 }
 

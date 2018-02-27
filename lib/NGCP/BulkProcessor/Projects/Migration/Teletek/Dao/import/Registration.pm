@@ -59,6 +59,7 @@ our @fieldnames = (
 
     #calculated fields at the end!
     'rownum',
+    'filenum',
     'filename',
 );
 
@@ -68,7 +69,7 @@ my $expected_fieldnames = [
 ];
 
 # table creation:
-my $primarykey_fieldnames = [ 'sip_username' ];
+my $primarykey_fieldnames = [ 'sip_username' ]; #, 'domain', 'contact' ];
 my $indexes = {
     $tablename . '_rownum' => [ 'rownum(11)' ],
     $tablename . '_delta' => [ 'delta(7)' ],
