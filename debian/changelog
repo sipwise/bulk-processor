@@ -1,3 +1,15 @@
+ngcp-bulk-processor (6.2.1.0+0~mr6.2.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [f8f1e28] TT#30671 TT#33351 balance free cash restauration tool
+
+  [ Alexander Lutay ]
+  * [e5d8151] TT#33911 Perform 'wrap-and-sort -sat'
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 03 Apr 2018 22:25:31 +0200
+
 ngcp-bulk-processor (6.2.0.0+0~mr6.2.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
