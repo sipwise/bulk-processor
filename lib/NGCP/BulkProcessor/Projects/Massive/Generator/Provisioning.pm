@@ -928,6 +928,7 @@ sub _provision_subscriber_init_context {
     $context->{contract} = {
         external_id => undef, #xxx$subscriber->{customer_id},
         create_timestamp => $context->{now},
+        product_id => $context->{sip_account_product}->{id},
         contact => {
             reseller_id => $context->{reseller}->{id},
 

@@ -69,6 +69,7 @@ my $expected_fieldnames = [
     'invoice_template_id',
     'vat_rate',
     'add_vat',
+    'product_id',
 ];
 
 my $indexes = {};
