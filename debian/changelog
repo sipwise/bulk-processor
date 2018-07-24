@@ -1,3 +1,12 @@
+ngcp-bulk-processor (6.4.1.0+0~mr6.4.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [8a09b9a] TT#37115 normalize line endings
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 24 Jul 2018 13:32:02 +0200
+
 ngcp-bulk-processor (6.4.0.0+0~mr6.4.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
