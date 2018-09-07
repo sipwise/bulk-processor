@@ -22,7 +22,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
-use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 
 require Exporter;
@@ -183,7 +183,7 @@ sub countby_free_cash {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT COUNT(DISTINCT c.id) FROM ' . $table . ' AS c' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::gettablename()) . ' AS bm ON bm.contract_id = c.id' .
+    ' INNER JOIN ' . $db->tableidentifier('v_actual_billing_profiles') . ' AS bm ON bm.contract_id = c.id' .
     ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::gettablename()) . ' AS bp ON bp.id = bm.billing_profile_id' .
     ' WHERE c.status != "terminated" AND bp.interval_free_cash <> 0.0';
 
@@ -285,7 +285,7 @@ sub process_free_cash_contracts {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'FROM ' . $table . ' AS c' .
-    ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::gettablename()) . ' AS bm ON bm.contract_id = c.id' .
+    ' INNER JOIN ' . $db->tableidentifier('v_actual_billing_profiles') . ' AS bm ON bm.contract_id = c.id' .
     ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::gettablename()) . ' AS bp ON bp.id = bm.billing_profile_id' .
     ' WHERE c.status != "terminated" AND bp.interval_free_cash <> 0.0';
 
