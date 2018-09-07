@@ -46,7 +46,9 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::products qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contacts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
-use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::contracts_billing_profile_network qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::contracts_billing_profile_network_schedule qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::domains qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::resellers qw();
@@ -89,6 +91,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::Utils qw(create_uuid threadid timestamp zerofill); # stringtobool check_ipnet trim);
 #use NGCP::BulkProcessor::DSSorter qw(sort_by_configs);
 use NGCP::BulkProcessor::RandomString qw(createtmpstring);
+use NGCP::BulkProcessor::SqlConnectors::MySQLDB qw();
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -190,6 +193,7 @@ sub _provision_subscriber {
         my $retry = 1;
         while ($retry > 0) {
             eval {
+                $context->{db}->set_transaction_isolation($NGCP::BulkProcessor::SqlConnectors::MySQLDB::READ_COMMITTED);
                 $context->{db}->db_begin();
                 #_info($context,"test" . $subscriber_count);
                 #die() if (($tid == 1 or $tid == 0) and $subscriber_count == 500);
@@ -547,11 +551,15 @@ sub _create_contract {
         $context->{bill_subscriber}->{contract_id} = $context->{contract}->{id};
         $context->{prov_subscriber}->{account_id} = $context->{contract}->{id};
 
-        $context->{contract}->{billing_mapping_id} = NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::insert_row($context->{db},
-            billing_profile_id => $context->{billing_profile}->{id},
-            contract_id => $context->{contract}->{id},
-            product_id => $context->{sip_account_product}->{id},
+        NGCP::BulkProcessor::Dao::Trunk::billing::contracts_billing_profile_network_schedule::append_billing_mappings($context->{db},
+            $context->{contract}->{id},
+            [{ billing_profile_id => $context->{billing_profile}->{id}, }],
         );
+        #$context->{contract}->{billing_mapping_id} = NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings::insert_row($context->{db},
+        #    billing_profile_id => $context->{billing_profile}->{id},
+        #    contract_id => $context->{contract}->{id},
+        #    product_id => $context->{sip_account_product}->{id},
+        #);
 
         $context->{contract}->{contract_balance_id} = NGCP::BulkProcessor::Dao::Trunk::billing::contract_balances::insert_row($context->{db},
             contract_id => $context->{contract}->{id},
