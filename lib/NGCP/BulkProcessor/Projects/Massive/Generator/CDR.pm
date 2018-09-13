@@ -160,6 +160,7 @@ sub _generate_cdr {
             next unless _generate_cdr_init_context($context);
         };
         if ($@ and not $skip_errors) {
+            print $@;
             undef $context->{db};
             destroy_dbs();
             lock $context->{errorstates};
@@ -198,6 +199,7 @@ sub _generate_cdr {
                 sleep($sleep);
                 $retry += 1;
             } elsif (not $skip_errors) {
+                print $err;
                 undef $context->{db};
                 destroy_dbs();
                 lock $context->{errorstates};
@@ -459,8 +461,12 @@ sub _prepare_offnet_subscriber_info {
     } else {
 		$username = $username_primary_number;
 	}
-	$offnet_domain_subscriber_map{$domain} = {} if not exists $offnet_domain_subscriber_map{$domain};
-	$offnet_domain_subscriber_map{$domain}->{$username} = 1;
+	unless (exists $offnet_domain_subscriber_map{$domain}) {
+        my %dom : shared = ();
+        $dom{$username} = 1;
+        $offnet_domain_subscriber_map{$domain} = \%dom;
+        #$offnet_domain_subscriber_map{$domain}->{$username} = 1;
+    }
 	return { username => $username, domain => $domain };
 }
 

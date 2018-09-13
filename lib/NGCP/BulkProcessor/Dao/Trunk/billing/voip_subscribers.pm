@@ -190,15 +190,23 @@ sub find_random {
     $xa_db //= $db;
     my $table = $db->tableidentifier($tablename);
 
+    die("less than 2 subscriber to randomize") if ($max_id - $min_id) < 2;
+    my $rand = $min_id + int(rand($max_id - $min_id) + 0.5);
+    if (defined $excluding_id) {
+        while ($rand == $excluding_id) {
+            $rand = $min_id + int(rand($max_id - $min_id) + 0.5);
+        }
+    }
     my $stmt = 'SELECT r1.* FROM ' . $table . ' AS r1' .
-      ' JOIN (SELECT ? + RAND() * ? AS id) AS r2';
+      ' JOIN (SELECT ? AS id) AS r2';
     my @params = ();
-    push(@params,$min_id,$max_id - $min_id);
+    push(@params,$rand);
     if ($reseller_id) {
         $stmt .= ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contracts::gettablename()) . ' AS contract ON r1.contract_id = contract.id' .
         ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
     }
-    $stmt .= ' WHERE r1.id >= r2.id';
+    $stmt .= ' WHERE r1.id >= r2.id'; # AND r1.id <= ?';
+    #push(@params,$max_id);
 
     if (defined $states and 'HASH' eq ref $states) {
         foreach my $in (keys %$states) {
@@ -227,7 +235,10 @@ sub find_random {
 
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
+    my $result = buildrecords_fromrows($rows,$load_recursive)->[0];
+    die($stmt,join("-",@params)) unless $result;
+
+    return $result;
 
 }
 
