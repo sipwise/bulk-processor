@@ -1,3 +1,13 @@
+ngcp-bulk-processor (7.0.0.0+0~mr7.0.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [bb6291e] TT#44095 adjust subscriber/cdr generator to new billing mappings
+  * [5c457a9] TT#44263 support generating trunk call
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 24 Sep 2018 18:51:10 +0200
+
 ngcp-bulk-processor (6.5.0.0+0~mr6.5.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
