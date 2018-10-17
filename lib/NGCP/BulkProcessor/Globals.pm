@@ -51,6 +51,8 @@ our @EXPORT_OK = qw(
 	$LongReadLen_limit
 	$transfer_defer_indexes
 
+    $rowblock_transactional
+
 	$accounting_databasename
 	$accounting_username
 	$accounting_password
@@ -164,7 +166,7 @@ our $LongReadLen_limit = 128*1024; #longest LOB field size in bytes
 our $appstartsecs = Time::HiRes::time();
 
 
-
+our $rowblock_transactional = undef; #connector default
 
 our	$accounting_databasename = 'accounting';
 our $accounting_username = 'root';
@@ -324,7 +326,7 @@ sub update_masterconfig {
         }
         $cells_transfer_memory_limit = $data->{cells_transfer_memory_limit} if exists $data->{cells_transfer_memory_limit};
         $transfer_defer_indexes = $data->{transfer_defer_indexes} if exists $data->{transfer_defer_indexes};
-
+        $rowblock_transactional = $data->{rowblock_transactional} if exists $data->{rowblock_transactional};
 
         if (defined $split_tuplecode and ref $split_tuplecode eq 'CODE') {
             @jobservers = &$split_tuplecode($data->{jobservers}) if exists $data->{jobservers};
