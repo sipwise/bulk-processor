@@ -52,6 +52,7 @@ our @EXPORT_OK = qw(
     rowtransferred
 
     rowinserted
+    rowupserted
     rowupdated
     rowsdeleted
     totalrowsdeleted
@@ -475,6 +476,15 @@ sub rowinserted {
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
         $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row inserted');
+    }
+
+}
+
+sub rowupserted {
+
+    my ($db,$tablename,$logger) = @_;
+    if (defined $logger) {
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row upserted');
     }
 
 }

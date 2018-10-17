@@ -5,6 +5,8 @@ use strict;
 
 use NGCP::BulkProcessor::Globals qw(
 
+    $rowblock_transactional
+
     $accounting_databasename
     $accounting_username
     $accounting_password
@@ -112,7 +114,7 @@ sub get_accounting_db {
     my ($instance_name,$reconnect) = @_;
     my $name = get_connectorinstancename($instance_name);
     if (!defined $accounting_dbs->{$name}) {
-        $accounting_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($instance_name);
+        $accounting_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($rowblock_transactional,$instance_name);
         if (!defined $reconnect) {
             $reconnect = 1;
         }
@@ -138,7 +140,7 @@ sub get_billing_db {
     my ($instance_name,$reconnect) = @_;
     my $name = get_connectorinstancename($instance_name);
     if (!defined $billing_dbs->{$name}) {
-        $billing_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($instance_name);
+        $billing_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($rowblock_transactional,$instance_name);
         if (!defined $reconnect) {
             $reconnect = 1;
         }
@@ -163,7 +165,7 @@ sub get_provisioning_db {
     my ($instance_name,$reconnect) = @_;
     my $name = get_connectorinstancename($instance_name);
     if (!defined $provisioning_dbs->{$name}) {
-        $provisioning_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($instance_name);
+        $provisioning_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($rowblock_transactional,$instance_name);
         if (!defined $reconnect) {
             $reconnect = 1;
         }
@@ -188,7 +190,7 @@ sub get_kamailio_db {
     my ($instance_name,$reconnect) = @_;
     my $name = get_connectorinstancename($instance_name);
     if (!defined $kamailio_dbs->{$name}) {
-        $kamailio_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($instance_name);
+        $kamailio_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($rowblock_transactional,$instance_name);
         if (!defined $reconnect) {
             $reconnect = 1;
         }
@@ -214,7 +216,7 @@ sub get_xa_db {
     my ($instance_name,$reconnect) = @_;
     my $name = get_connectorinstancename($instance_name);
     if (!defined $xa_dbs->{$name}) {
-        $xa_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($instance_name);
+        $xa_dbs->{$name} = NGCP::BulkProcessor::SqlConnectors::MySQLDB->new($rowblock_transactional,$instance_name);
         if (!defined $reconnect) {
             $reconnect = 1;
         }
