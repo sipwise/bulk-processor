@@ -1,6 +1,7 @@
 package NGCP::BulkProcessor::Dao::Trunk::accounting::cdr;
 use strict;
 
+#use Tie::IxHash;
 ## no critic
 
 use NGCP::BulkProcessor::Logging qw(
@@ -10,6 +11,7 @@ use NGCP::BulkProcessor::Logging qw(
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_accounting_db
+    destroy_dbs
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -17,8 +19,12 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     insert_record
     update_record
     copy_row
+
+    process_table
 );
 use NGCP::BulkProcessor::SqlRecord qw();
+
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -31,6 +37,9 @@ our @EXPORT_OK = qw(
 
     delete_callids
     countby_ratingstatus
+
+    findby_callidprefix
+    process_unexported
 
 );
 #process_records
@@ -128,6 +137,12 @@ my $expected_fieldnames = [
 "export_status",
 ];
 
+my @callid_suffixes = ();
+our $PBXSUFFIX = '_pbx-1';
+push(@callid_suffixes,$PBXSUFFIX);
+our $XFERSUFFIX = '_xfer-1';
+push(@callid_suffixes,$XFERSUFFIX);
+
 my $indexes = {};
 
 my $insert_unique_fields = [];
@@ -192,6 +207,31 @@ sub countby_ratingstatus {
 
 }
 
+sub findby_callidprefix {
+
+    my ($xa_db,$call_id,$joins,$conditions,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $suffixre = '(' . join('|', map { quotemeta($_); } @callid_suffixes) . ')+$';
+    $call_id =~ s/$suffixre//g;
+    $call_id =~ s/%/\\%/g;
+
+    my @conditions = @{$conditions // []};
+    push(@conditions,{ $table . '.call_id' => { 'LIKE' => '?' } });
+    my $stmt = 'SELECT ' . join(',', map { $table . '.' . $db->columnidentifier($_); } @$expected_fieldnames) . ' ' .
+        _get_export_stmt($db,undef,$joins,\@conditions) .
+        ' ORDER BY LENGTH(' . $table . '.call_id' . ') ASC, ' . $table . '.start_time ASC';
+    my @params = ($call_id . '%');
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
 sub update_row {
 
     my ($xa_db,$data) = @_;
@@ -205,51 +245,108 @@ sub insert_row {
 
     my $db = &$get_db();
     my $xa_db = shift // $db;
-    if ('HASH' eq ref $_[0]) {
-        my ($data,$insert_ignore) = @_;
-        check_table();
-        if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
-            return $xa_db->db_last_insert_id();
-        }
-    } else {
-        #my %params = @_;
-        #my ($contract_id,
-        #    $domain_id,
-        #    $username,
-        #    $uuid) = @params{qw/
-        #        contract_id
-        #        domain_id
-        #        username
-        #        uuid
-        #    /};
-        #
-        #if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-        #        $db->columnidentifier('contact_id') . ', ' .
-        #        $db->columnidentifier('contract_id') . ', ' .
-        #        $db->columnidentifier('domain_id') . ', ' .
-        #        $db->columnidentifier('external_id') . ', ' .
-        #        $db->columnidentifier('primary_number_id') . ', ' .
-        #        $db->columnidentifier('status') . ', ' .
-        #        $db->columnidentifier('username') . ', ' .
-        #        $db->columnidentifier('uuid') . ') VALUES (' .
-        #        'NULL, ' .
-        #        '?, ' .
-        #        '?, ' .
-        #        'NULL, ' .
-        #        'NULL, ' .
-        #        '\'' . $ACTIVE_STATE . '\', ' .
-        #        '?, ' .
-        #        '?)',
-        #        $contract_id,
-        #        $domain_id,
-        #        $username,
-        #        $uuid,
-        #    )) {
-        #    rowinserted($db,$tablename,getlogger(__PACKAGE__));
-        #    return $xa_db->db_last_insert_id();
-        #}
+
+    my ($data,$insert_ignore) = @_;
+    check_table();
+    if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
+        return $xa_db->db_last_insert_id();
     }
     return undef;
+
+}
+
+sub process_unexported {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads,
+        $blocksize,
+        $joins,
+        $conditions,
+        #$sort,
+        $limit) = @params{qw/
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+            blocksize
+            joins
+            conditions
+            limit
+        /};
+    #sort
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = _get_export_stmt($db,$static_context,$joins,$conditions);
+
+    return process_table(
+        get_db                      => $get_db,
+        class                       => __PACKAGE__,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                #my %cdr_id_map = ();
+                #tie(%cdr_id_map, 'Tie::IxHash');
+                #if ($rowblock) {
+                #    foreach my $record (@$rowblock) {
+                #        $cdr_id_map{$record->[0]} = $record->[1];
+                #    }
+                #}
+                #return 0 if $row_offset >= $limit;
+                return &$process_code($context,$rowblock,$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_dbs,
+        multithreading              => $multithreading,
+        tableprocessing_threads     => $numofthreads,
+        blocksize                   => $blocksize,
+        #select                      => $db->paginate_sort_query('SELECT ' . $table . '.* ' . $stmt,undef,undef,$sort),
+        select                      => 'SELECT ' . $table . '.' . $db->columnidentifier('id') . ', ' . $table . '.' . $db->columnidentifier('call_id') .
+                                       ' ' . $stmt . ' ORDER BY ' . $table . '.' . $db->columnidentifier('id'),
+        selectcount                 => 'SELECT COUNT(1) FROM (' . $db->paginate_sort_query('SELECT 1 ' . $stmt,0,$limit,undef) . ') AS __cnt',
+    );
+}
+
+sub _get_export_stmt {
+
+    my ($db,$static_context,$joins,$conditions) = @_;
+
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = "FROM " . $table;
+    my @intjoins = ();
+    if (defined $joins and (scalar @$joins) > 0) {
+        foreach my $f (@$joins) {
+            my ($table, $keys) = %{ $f };
+            my ($foreign_key, $own_key) = %{ $keys };
+            push @intjoins, "LEFT JOIN $table ON $foreign_key = $own_key";
+        }
+    }
+    my @conds = ();
+    if (defined $static_context and $static_context->{export_status_id}) {
+        push @intjoins, 'LEFT JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::gettablename()) . ' AS __cesd ON __cesd.cdr_id = ' . $table . '.id AND __cesd.status_id = ' . $static_context->{export_status_id};
+        push @conds, '(__cesd.export_status = "' . $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::UNEXPORTED . '" OR __cesd.export_status IS NULL)';
+    }
+    $stmt .= " " . join(" ", @intjoins) if (scalar @intjoins) > 0;
+    if (defined $conditions and (scalar @$conditions) > 0) {
+        foreach my $f (@$conditions) {
+            my ($field, $match) = %{ $f };
+            my ($op, $val) = %{ $match };
+            push @conds, "$field $op $val";
+        }
+    }
+    $stmt .= " WHERE " . join(" AND ", @conds) if (scalar @conds) > 0;
+    return $stmt;
 
 }
 

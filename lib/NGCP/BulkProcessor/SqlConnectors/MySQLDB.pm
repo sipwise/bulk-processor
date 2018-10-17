@@ -51,7 +51,7 @@ my $net_read_timeout = 300;
 #my $lock_do_chunk = 0; #1;
 #my $lock_get_chunk = 0;
 
-my $rowblock_transactional = 1;
+my $default_rowblock_transactional = 1;
 
 my $serialization_level = ''; #'SERIALIZABLE'
 
@@ -60,8 +60,10 @@ our $READ_COMMITTED = 'READ COMMITTED';
 sub new {
 
     my $class = shift;
-
+    my $rowblock_transactional = shift;
     my $self = NGCP::BulkProcessor::SqlConnector->new(@_);
+
+    $self->{rowblock_transactional} = $rowblock_transactional // $default_rowblock_transactional;
 
     $self->{host} = undef;
     $self->{port} = undef;
@@ -455,7 +457,7 @@ sub multithreading_supported {
 sub rowblock_transactional {
 
     my $self = shift;
-    return $rowblock_transactional;
+    return $self->{rowblock_transactional};
 
 }
 
@@ -536,7 +538,7 @@ sub db_do_begin {
     my $query = shift;
     #my $tablename = shift;
 
-    $self->SUPER::db_do_begin($query,$rowblock_transactional,@_);
+    $self->SUPER::db_do_begin($query,$self->{rowblock_transactional},@_);
 
 }
 
@@ -547,7 +549,7 @@ sub db_get_begin {
     #my $tablename = shift;
     #my $lock = shift;
 
-    $self->SUPER::db_get_begin($query,$rowblock_transactional,@_);
+    $self->SUPER::db_get_begin($query,$self->{rowblock_transactional},@_);
 
 }
 
@@ -557,7 +559,7 @@ sub db_finish {
     #my $unlock = shift;
     my $rollback = shift;
 
-    $self->SUPER::db_finish($rowblock_transactional,$rollback);
+    $self->SUPER::db_finish($self->{rowblock_transactional},$rollback);
 
 }
 
