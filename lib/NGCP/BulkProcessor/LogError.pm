@@ -27,7 +27,7 @@ use NGCP::BulkProcessor::Utils qw(
     create_guid
     getscriptpath
     timestamp
-    secs_to_years
+    to_duration_string
 );
 
 use POSIX qw(ceil); # locale_h);
@@ -112,7 +112,7 @@ sub done {
 
     my $appexitsecs = Time::HiRes::time();
     #$message .= "\n\n" . sprintf("%.2f",$appexitsecs - $appstartsecs) . ' seconds';
-    $message .= "\n\n" . 'time elapsed: ' . secs_to_years(ceil($appexitsecs - $appstartsecs));
+    $message .= "\n\n" . 'time elapsed: ' . [ to_duration_string(ceil($appexitsecs - $appstartsecs)) ]->[0];
 
     if (defined $logger) {
         $logger->info($message);
@@ -150,7 +150,7 @@ sub completion {
 
     my $appexitsecs = Time::HiRes::time();
     #$message .= "\n\n" . sprintf("%.2f",$appexitsecs - $appstartsecs) . ' seconds';
-    $message .= "\n\n" . 'time elapsed: ' . secs_to_years(ceil($appexitsecs - $appstartsecs));
+    $message .= "\n\n" . 'time elapsed: ' . [ to_duration_string(ceil($appexitsecs - $appstartsecs)) ]->[0];
 
     if (defined $logger) {
         $logger->info($message);
@@ -204,7 +204,7 @@ sub terminate {
 
         my $appexitsecs = Time::HiRes::time();
         #$message .= "\n\n" . sprintf("%.2f",$appexitsecs - $appstartsecs) . ' seconds';
-        $message .= "\n\n" . 'time elapsed: ' . secs_to_years(ceil($appexitsecs - $appstartsecs));
+        $message .= "\n\n" . 'time elapsed: ' . [ to_duration_string(ceil($appexitsecs - $appstartsecs)) ]->[0];
 
         if (length($erroremailrecipient) > 0 and defined $logger) {
             my ($mailresult,$mailresultmessage) = send_message($erroremailrecipient,$erroremailsubject . $logger->{category},getscriptpath() . ":\n\n" . wrap_mailbody($message) . "\n\n" . $signature,\&fileerror,\&emailwarn);
