@@ -6,7 +6,7 @@ use strict;
 use threads;
 
 #use POSIX qw(strtod);
-use POSIX qw(strtod locale_h);
+use POSIX qw(strtod locale_h floor fmod);
 setlocale(LC_NUMERIC, 'C');
 
 use Data::UUID qw();
@@ -74,6 +74,7 @@ our @EXPORT_OK = qw(
     get_year
     get_year_month
     get_year_month_day
+    to_duration_string
     secs_to_years
     zerofill
     trim
@@ -826,6 +827,288 @@ sub secs_to_years {
   } else {
     return $time_in_secs;
   }
+}
+
+sub to_duration_string {
+    my ($duration_secs,$most_significant,$least_significant,$least_significant_decimals,$loc_code) = @_;
+    $most_significant //= 'years';
+    $least_significant //= 'seconds';
+    #$loc_code //= sub { return shift; };
+    my $abs = abs($duration_secs);
+    my ($years,$months,$days,$hours,$minutes,$seconds);
+    my $result = '';
+    if ('seconds' ne $least_significant) {
+        $abs = $abs / 60.0; #minutes
+        if ('minutes' ne $least_significant) {
+            $abs = $abs / 60.0; #hours
+            if ('hours' ne $least_significant) {
+                $abs = $abs / 24.0; #days
+                if ('days' ne $least_significant) {
+                    $abs = $abs / 30.0; #months
+                    if ('months' ne $least_significant) {
+                        $abs = $abs / 12.0; #years
+                        if ('years' ne $least_significant) {
+                            die("unknown least significant duration unit-of-time: '$least_significant'");
+                        } else {
+                            $seconds = 0.0;
+                            $minutes = 0.0;
+                            $hours = 0.0;
+                            $days = 0.0;
+                            $months = 0.0;
+                            if ('years' eq $most_significant) {
+                                $years = $abs;
+                            } else {
+                                die("most significant duration unit-of-time '$most_significant' lower than least significant duration unit-of-time '$least_significant'");
+                            }
+                        }
+                    } else {
+                        $seconds = 0.0;
+                        $minutes = 0.0;
+                        $hours = 0.0;
+                        $days = 0.0;
+                        $years = 0.0;
+                        if ('months' eq $most_significant) {
+                            $months = $abs;
+                        } else {
+                            $months = ($abs >= 12.0) ? fmod($abs,12.0) : $abs;
+                            $abs = $abs / 12.0;
+                            if ('years' eq $most_significant) {
+                                $years = floor($abs);
+                            } else {
+                                die("most significant duration unit-of-time '$most_significant' lower than least significant duration unit-of-time '$least_significant'");
+                            }
+                        }
+                    }
+                } else {
+                    $seconds = 0.0;
+                    $minutes = 0.0;
+                    $hours = 0.0;
+                    $months = 0.0;
+                    $years = 0.0;
+                    if ('days' eq $most_significant) {
+                        $days = $abs;
+                    } else {
+                        $days = ($abs >= 30.0) ? fmod($abs,30.0) : $abs;
+                        $abs = $abs / 30.0;
+                        if ('months' eq $most_significant) {
+                            $months = floor($abs);
+                        } else {
+                            $months = ($abs >= 12.0) ? fmod($abs,12.0) : $abs;
+                            $abs = $abs / 12.0;
+                            if ('years' eq $most_significant) {
+                                $years = floor($abs);
+                            } else {
+                                die("most significant duration unit-of-time '$most_significant' lower than least significant duration unit-of-time '$least_significant'");
+                            }
+                        }
+                    }
+                }
+            } else {
+                $seconds = 0.0;
+                $minutes = 0.0;
+                $days = 0.0;
+                $months = 0.0;
+                $years = 0.0;
+                if ('hours' eq $most_significant) {
+                    $hours = $abs;
+                } else {
+                    $hours = ($abs >= 24.0) ? fmod($abs,24.0) : $abs;
+                    $abs = $abs / 24.0;
+                    if ('days' eq $most_significant) {
+                        $days = floor($abs);
+                    } else {
+                        $days = ($abs >= 30.0) ? fmod($abs,30) : $abs;
+                        $abs = $abs / 30.0;
+                        if ('months' eq $most_significant) {
+                            $months = floor($abs);
+                        } else {
+                            $months = ($abs >= 12.0) ? fmod($abs,12.0) : $abs;
+                            $abs = $abs / 12.0;
+                            if ('years' eq $most_significant) {
+                                $years = floor($abs);
+                            } else {
+                                die("most significant duration unit-of-time '$most_significant' lower than least significant duration unit-of-time '$least_significant'");
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            $seconds = 0.0;
+            $hours = 0.0;
+            $days = 0.0;
+            $months = 0.0;
+            $years = 0.0;
+            if ('minutes' eq $most_significant) {
+                $minutes = $abs;
+            } else {
+                $minutes = ($abs >= 60.0) ? fmod($abs,60.0) : $abs;
+                $abs = $abs / 60.0;
+                if ('hours' eq $most_significant) {
+                    $hours = floor($abs);
+                } else {
+                    $hours = ($abs >= 24.0) ? fmod($abs,24.0) : $abs;
+                    $abs = $abs / 24.0;
+                    if ('days' eq $most_significant) {
+                        $days = floor($abs);
+                    } else {
+                        $days = ($abs >= 30.0) ? fmod($abs,30.0) : $abs;
+                        $abs = $abs / 30.0;
+                        if ('months' eq $most_significant) {
+                            $months = floor($abs);
+                        } else {
+                            $months = ($abs >= 12.0) ? fmod($abs,12.0) : $abs;
+                            $abs = $abs / 12.0;
+                            if ('years' eq $most_significant) {
+                                $years = floor($abs);
+                            } else {
+                                die("most significant duration unit-of-time '$most_significant' lower than least significant duration unit-of-time '$least_significant'");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        $minutes = 0.0;
+        $hours = 0.0;
+        $days = 0.0;
+        $months = 0.0;
+        $years = 0.0;
+        if ('seconds' eq $most_significant) {
+            $seconds = $abs;
+        } else {
+            $seconds = ($abs >= 60.0) ? fmod($abs,60.0) : $abs;
+            $abs = $abs / 60.0;
+            if ('minutes' eq $most_significant) {
+                $minutes = floor($abs);
+            } else {
+                $minutes = ($abs >= 60.0) ? fmod($abs,60.0) : $abs;
+                $abs = $abs / 60.0;
+                if ('hours' eq $most_significant) {
+                    $hours = floor($abs);
+                } else {
+                    $hours = ($abs >= 24.0) ? fmod($abs,24.0) : $abs;
+                    $abs = $abs / 24.0;
+                    if ('days' eq $most_significant) {
+                        $days = floor($abs);
+                    } else {
+                        $days = ($abs >= 30.0) ? fmod($abs,30.0) : $abs;
+                        $abs = $abs / 30.0;
+                        if ('minutes' eq $most_significant) {
+                            $months = floor($abs);
+                        } else {
+                            $months = ($abs >= 12.0) ? fmod($abs,12.0) : $abs;
+                            $abs = $abs / 12.0;
+                            if ('years' eq $most_significant) {
+                                $years = floor($abs);
+                            } else {
+                                die("most significant duration unit-of-time '$most_significant' lower than least significant duration unit-of-time '$least_significant'");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if ($years > 0.0) {
+        if ($months > 0.0 || $days > 0.0 || $hours > 0.0 || $minutes > 0.0 || $seconds > 0.0) {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$years, 0, 'years');
+        } else {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$years, $least_significant_decimals, 'years');
+        }
+    }
+    if ($months > 0.0) {
+        if ($years > 0.0) {
+            $result .= ', ';
+        }
+        if ($days > 0.0 || $hours > 0.0 || $minutes > 0.0 || $seconds > 0.0) {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$months, 0, 'months');
+        } else {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$months, $least_significant_decimals, 'months');
+        }
+    }
+    if ($days > 0.0) {
+        if ($years > 0.0 || $months > 0.0) {
+            $result .= ', ';
+        }
+        if ($hours > 0.0 || $minutes > 0.0 || $seconds > 0.0) {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$days, 0, 'days');
+        } else {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$days, $least_significant_decimals, 'days');
+        }
+    }
+    if ($hours > 0.0) {
+        if ($years > 0.0 || $months > 0.0 || $days > 0.0) {
+            $result .= ', ';
+        }
+        if ($minutes > 0.0 || $seconds > 0.0) {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$hours, 0, 'hours');
+        } else {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$hours, $least_significant_decimals, 'hours');
+        }
+    }
+    if ($minutes > 0.0) {
+        if ($years > 0.0 || $months > 0.0 || $days > 0.0 || $hours > 0.0) {
+            $result .= ', ';
+        }
+        if ($seconds > 0.0) {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$minutes, 0, 'minutes');
+        } else {
+            $result .= _duration_unit_of_time_value_to_string($loc_code,$minutes, $least_significant_decimals, 'minutes');
+        }
+    }
+    if ($seconds > 0.0) {
+        if ($years > 0.0 || $months > 0.0 || $days > 0.0 || $hours > 0.0 || $minutes > 0.0) {
+            $result .= ', ';
+        }
+        $result .= _duration_unit_of_time_value_to_string($loc_code,$seconds, $least_significant_decimals, 'seconds');
+    }
+    if (length($result) == 0) {
+        $result .= _duration_unit_of_time_value_to_string($loc_code,0.0, $least_significant_decimals, $least_significant);
+    }
+    return ($result,$years,$months,$days,$hours,$minutes,$seconds);
+}
+
+sub _duration_unit_of_time_value_to_string {
+    my ($loc_code,$value, $decimals, $unit_of_time) = @_;
+    my $result = '';
+    my $unit_label_plural = '';
+    my $unit_label_singular = '';
+    if (defined $loc_code) {
+        if ('seconds' eq $unit_of_time) {
+            $unit_label_plural = ' ' . &$loc_code('seconds');
+            $unit_label_singular = ' ' . &$loc_code("second");
+        } elsif ('minutes' eq $unit_of_time) {
+            $unit_label_plural = ' ' . &$loc_code('minutes');
+            $unit_label_singular = ' ' . &$loc_code("minute");
+        } elsif ('hours' eq $unit_of_time) {
+            $unit_label_plural = ' ' . &$loc_code('hours');
+            $unit_label_singular = ' ' . &$loc_code("hour");
+        } elsif ('days' eq $unit_of_time) {
+            $unit_label_plural = ' ' . &$loc_code('days');
+            $unit_label_singular = ' ' . &$loc_code("day");
+        } elsif ('months' eq $unit_of_time) {
+            $unit_label_plural = ' ' . &$loc_code('months');
+            $unit_label_singular = ' ' . &$loc_code("month");
+        } elsif ('years' eq $unit_of_time) {
+            $unit_label_plural = ' ' . &$loc_code('years');
+            $unit_label_singular = ' ' . &$loc_code("year");
+        }
+    }
+    if ($decimals < 1) {
+        if (int($value) == 1) {
+            $result .= '1';
+            $result .= $unit_label_singular;
+        } else {
+            $result .= int($value);
+            $result .= $unit_label_plural;
+        }
+    } else {
+        $result .= sprintf('%.' . $decimals . 'f', $value);
+        $result .= $unit_label_plural;
+    }
+    return $result;
 }
 
 sub get_cpucount {
