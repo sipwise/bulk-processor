@@ -53,6 +53,9 @@ our @EXPORT_OK = qw(
     $export_cdr_conditions
     $export_cdr_limit
     $export_cdr_stream
+
+    $domestic_destination_pattern
+    $international_destination_pattern
 );
 #update_provider_config
 #$deadlock_retries
@@ -75,6 +78,8 @@ our $export_cdr_conditions = [];
 our $export_cdr_limit = undef;
 our $export_cdr_stream = undef;
 
+our $domestic_destination_pattern = undef;
+our $international_destination_pattern = undef;
 
 sub update_settings {
 
@@ -105,7 +110,9 @@ sub update_settings {
 
         my $parse_result;
         ($parse_result,$export_cdr_joins) = _parse_export_joins($data->{export_cdr_joins},$configfile);
+        $result &= $parse_result;
         ($parse_result,$export_cdr_conditions) = _parse_export_joins($data->{export_cdr_conditions},$configfile);
+        $result &= $parse_result;
 
         $export_cdr_limit = $data->{export_cdr_limit} if exists $data->{export_cdr_limit};
         $export_cdr_stream = $data->{export_cdr_stream} if exists $data->{export_cdr_stream};
@@ -113,6 +120,13 @@ sub update_settings {
         #if ((confval("MAINTENANCE") // 'no') eq 'yes') {
         #        exit(0);
         #}
+        my $regexp_result;
+        $domestic_destination_pattern = $data->{domestic_destination_pattern} if exists $data->{domestic_destination_pattern};
+        ($regexp_result,$domestic_destination_pattern) = parse_regexp($domestic_destination_pattern,$configfile);
+        $result &= $regexp_result;
+        $international_destination_pattern = $data->{international_destination_pattern} if exists $data->{international_destination_pattern};
+        ($regexp_result,$international_destination_pattern) = parse_regexp($international_destination_pattern,$configfile);
+        $result &= $regexp_result;
 
         return $result;
 
