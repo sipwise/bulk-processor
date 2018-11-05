@@ -7,7 +7,7 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Format::Structure qw();
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::HexId qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::StructureCode qw($STRUCTURE_CODE_0510);
-use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallTypeCode qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SensorType qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SensorId qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::RecordingOfficeType qw();
@@ -58,7 +58,7 @@ sub new {
         @_,
     );
     $self->_add_field($self->{structure_code});
-    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallTypeCode->new(
+    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType->new(
         @_,
     ));
     $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SensorType->new(

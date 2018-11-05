@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature;
+package NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber;
 use strict;
 
 ## no critic
@@ -10,25 +10,12 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Format::Field qw($TERMINATOR);
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::Projects::Export::Ama::Format::Field);
 our @EXPORT_OK = qw(
-    $OTHER
-    $THREE_WAY
-    $CF_LEG
-    $CFB_LEG
-    $BTUP_CBWF
-    $ROUTE_OPT_IND
+
 );
 
-my $field_name = "service feature";
+my $field_name = "file sequence number";
 my $length = 4;
-my @param_names = qw/service_feature/;
-
-our $OTHER = '000';
-our $THREE_WAY = '010';
-our $CF_LEG = '012';
-our $CFB_LEG = '014';
-our $BTUP_CBWF = '029';
-our $ROUTE_OPT_IND = '156';
-#800-999 = generic value
+my @param_names = qw/sequence_number/;
 
 sub new {
 
@@ -38,7 +25,6 @@ sub new {
         name => $field_name,
         length => $length,
         @_);
-    #$self->{service_feature} //= 0;
 
     return $self;
 
@@ -54,9 +40,9 @@ sub _get_param_names {
 sub get_hex {
 
     my $self = shift;
-    my ($service_feature) = $self->_get_params(@_);
-    die("invalid service feature '$service_feature'") unless length($service_feature) == 3;
-    return $service_feature . $TERMINATOR;
+    my ($sequence_number) = $self->_get_params(@_);
+    die("invalid sequence number '$sequence_number'") if ($sequence_number < 1 or $sequence_number > 999);
+    return $sequence_number . $TERMINATOR;
 
 }
 
