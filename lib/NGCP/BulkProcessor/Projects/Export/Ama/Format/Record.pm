@@ -9,6 +9,8 @@ our @EXPORT_OK = qw(
 
 );
 
+my $record_descriptor_word_length = 8;
+
 sub new {
 
     my $class = shift;
@@ -35,7 +37,7 @@ sub get_hex {
 
 sub get_length {
     my $self = shift;
-    my $length = 8; #RDW
+    my $length = $record_descriptor_word_length;
     $length += $self->{structure}->get_length(@_);
     foreach my $module (@{$self->{modules}}) {
         next unless $module->get_enabled(@_);
