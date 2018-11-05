@@ -11,7 +11,7 @@ use NGCP::BulkProcessor::Calendar qw(current_local);
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Record qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure0510 qw();
 
-use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallTypeCode qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField qw();
@@ -26,7 +26,7 @@ my $duration = 123.456;
 
 my $test = NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
     NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure0510->new(
-        call_type_code => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallTypeCode::STATION_PAID,
+        call_type => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType::STATION_PAID,
 
         rewritten => 0,
         sensor_id => '008708', #  Graz
@@ -36,7 +36,7 @@ my $test = NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
 
         date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($dt),
 
-        service_feature_code => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature::OTHER,
+        service_feature => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature::OTHER,
 
         originating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($source),
         originating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($source),
@@ -64,5 +64,3 @@ if (open(my $fh,">:raw",'test.ama')) {
 } else {
     #fileerror("failed to open $self->{crt_path}: $!",getlogger(__PACKAGE__));
 }
-
-
