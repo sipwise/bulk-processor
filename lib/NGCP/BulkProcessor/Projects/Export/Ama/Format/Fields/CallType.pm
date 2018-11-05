@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallTypeCode;
+package NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType;
 use strict;
 
 ## no critic
@@ -12,6 +12,7 @@ our @EXPORT_OK = qw(
     $STATION_SPECIAL_CALLING
     $FLAT_RATE
     $FREE_CALL
+    $TRANSFER
     $OPERATING_COMPANY_NUMBER_SERVICE_CALLS
     $MDRRAO
     $ON_NET_PRIVATE_VIRTUAL_NETWORK
@@ -20,12 +21,13 @@ our @EXPORT_OK = qw(
 
 my $field_name = "call type code";
 my $length = 4;
-my @param_names = qw/call_type_code/;
+my @param_names = qw/call_type/;
 
 our $STATION_PAID = '006';
 our $STATION_SPECIAL_CALLING = '015';
 our $FLAT_RATE = '067';
 our $FREE_CALL = '074';
+our $TRANSFER = '092';
 our $OPERATING_COMPANY_NUMBER_SERVICE_CALLS = '142';
 our $MDRRAO = '159';
 our $ON_NET_PRIVATE_VIRTUAL_NETWORK = '160';
@@ -55,9 +57,9 @@ sub _get_param_names {
 sub get_hex {
 
     my $self = shift;
-    my ($call_type_code) = $self->_get_params(@_);
-    die("invalid call type code '$call_type_code'") unless length($call_type_code) == 3;
-    return $call_type_code . $TERMINATOR;
+    my ($call_type) = $self->_get_params(@_);
+    die("invalid call type '$call_type'") unless length($call_type) == 3;
+    return $call_type . $TERMINATOR;
 
 }
 
