@@ -12,15 +12,15 @@ use Fcntl qw(LOCK_EX LOCK_NB);
 use NGCP::BulkProcessor::Globals qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
     update_settings
-    check_dry
     $output_path
     $defaultsettings
     $defaultconfig
-    $dry
     $skip_errors
     $force
 
 );
+#$dry
+#check_dry
 #@provider_config
 #@providers
 #$providers_yml
@@ -99,8 +99,7 @@ sub init {
         "config=s" => \$configfile,
         "settings=s" => \$settingsfile,
         "task=s" => $tasks,
-        #"run=s" => \$run_id,
-        "dry" => \$dry,
+        #"dry" => \$dry,
         "skip-errors" => \$skip_errors,
         "force" => \$force,
     ); # or scripterror('error in command line arguments',getlogger(getscriptpath()));
@@ -134,7 +133,7 @@ sub main() {
 
             } elsif (lc($export_cdr_task_opt) eq lc($task)) {
                 if (taskinfo($export_cdr_task_opt,$result,1)) {
-                    next unless check_dry();
+                    #next unless check_dry();
                     $result &= export_cdr_task(\@messages);
                     $completion |= 1;
                 }
