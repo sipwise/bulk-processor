@@ -8,6 +8,7 @@ use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../../../');
 
 use NGCP::BulkProcessor::Calendar qw(current_local);
 
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::File qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Record qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure0510 qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9013 qw();
@@ -26,80 +27,83 @@ my $source = "43011001";
 my $destination = "43011002";
 my $duration = 123.456;
 
-my $transfer_in = NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
-    NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9013->new(
+my $file = NGCP::BulkProcessor::Projects::Export::Ama::Format::File->new(
 
-        rewritten => 0,
-        sensor_id => '008708', #  Graz
-
-        padding => 0,
-        recording_office_id => '008708',
-
-        date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($dt),
-
-        connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($dt),
-
-        file_sequence_number => 1,
-    )
 );
 
-my @records = ();
-push(@records,NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
-    NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure0510->new(
-        call_type => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType::STATION_PAID,
+my $limit = 1000;
+my $i = 0;
+while ($i < $limit) {
+    $file->write_record(sub {
+        return NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
+            NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9013->new(
 
-        rewritten => 0,
-        sensor_id => '008708', #  Graz
+                rewritten => 0,
+                sensor_id => '008708', #  Graz
 
-        padding => 0,
-        recording_office_id => '008708',
+                padding => 0,
+                recording_office_id => '008708',
 
-        date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($dt),
+                date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($dt),
 
-        service_feature => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature::OTHER,
+                connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($dt),
 
-        originating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($source),
-        originating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($source),
-        originating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($source),
+                file_sequence_number => 1,
+            )
+        );
 
-        domestic_international => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::get_number_domestic_international($destination),
+    }, sub {
+        return NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
+            NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure0510->new(
+                call_type => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType::STATION_PAID,
 
-        terminating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($destination),
-        terminating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($destination),
-        terminating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($destination),
+                rewritten => 0,
+                sensor_id => '008708', #  Graz
 
-        connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($dt),
-        elapsed_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ElapsedTime::get_elapsed_time($duration),
-    )
-));
+                padding => 0,
+                recording_office_id => '008708',
 
-my $transfer_out = NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
-    NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9014->new(
+                date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($dt),
 
-        rewritten => 0,
-        sensor_id => '008708', #  Graz
+                service_feature => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature::OTHER,
 
-        padding => 0,
-        recording_office_id => '008708',
+                originating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($source),
+                originating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($source),
+                originating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($source),
 
-        date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($dt),
+                domestic_international => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::get_number_domestic_international($destination),
 
-        connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($dt),
+                terminating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($destination),
+                terminating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($destination),
+                terminating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($destination),
 
-        file_sequence_number => 1,
+                connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($dt),
+                elapsed_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ElapsedTime::get_elapsed_time($duration),
+            )
+        );
+    }, sub {
 
-        => (scalar @records),
-    )
-);
+        return NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
+            NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9014->new(
 
-print $test->{structure}->to_string()."\n";
-print $test->get_hex();
+                rewritten => 0,
+                sensor_id => '008708', #  Graz
+        
+                padding => 0,
+                recording_office_id => '008708',
 
-unlink 'test.ama';
-if (open(my $fh,">:raw",'test.ama')) {
-    print $fh pack('H*','004f0000' . $test->get_hex());
-    close $fh;
-    #restdebug($self,"$self->{crt_path} saved",getlogger(__PACKAGE__));
-} else {
-    #fileerror("failed to open $self->{crt_path}: $!",getlogger(__PACKAGE__));
+                date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($dt),
+
+                connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($dt),
+
+                file_sequence_number => 1,
+
+                => (scalar @records),
+            )
+        );
+    });
+    $i++;
 }
+
+#print $test->{structure}->to_string()."\n";
+#print $test->get_hex();
