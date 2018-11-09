@@ -35,15 +35,13 @@ our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     update_settings
 
-    check_dry
-
     $input_path
     $output_path
 
     $defaultsettings
     $defaultconfig
 
-    $dry
+
     $skip_errors
     $force
 
@@ -57,6 +55,8 @@ our @EXPORT_OK = qw(
     $domestic_destination_pattern
     $international_destination_pattern
 );
+#check_dry
+#$dry
 #update_provider_config
 #$deadlock_retries
 #$generate_cdr_count
@@ -68,7 +68,7 @@ our $input_path = $working_path . 'input/';
 our $output_path = $working_path . 'output/';
 
 our $force = 0;
-our $dry = 0;
+#our $dry = 0;
 our $skip_errors = 0;
 
 our $export_cdr_multithreading = $enablemultithreading;
@@ -102,7 +102,7 @@ sub update_settings {
         #    $report_filename = undef;
         #}
 
-        $dry = $data->{dry} if exists $data->{dry};
+        #$dry = $data->{dry} if exists $data->{dry};
         $skip_errors = $data->{skip_errors} if exists $data->{skip_errors};
 
         $export_cdr_multithreading = $data->{export_cdr_multithreading} if exists $data->{export_cdr_multithreading};
@@ -194,27 +194,6 @@ sub _parse_export_conditions {
         }
     }
     return (1,\@conditions);
-}
-
-sub check_dry {
-
-    if ($dry) {
-        scriptinfo('running in dry mode - NGCP databases will not be modified',getlogger(__PACKAGE__));
-        return 1;
-    } else {
-        scriptinfo('NO DRY MODE - NGCP DATABASES WILL BE MODIFIED!',getlogger(__PACKAGE__));
-        if (!$force) {
-            if ('yes' eq lc(prompt("Type 'yes' to proceed: "))) {
-                return 1;
-            } else {
-                return 0;
-            }
-        } else {
-            scriptinfo('force option applied',getlogger(__PACKAGE__));
-            return 1;
-        }
-    }
-
 }
 
 1;
