@@ -1,3 +1,14 @@
+ngcp-bulk-processor (7.0.1.0+0~mr7.0.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [4066bcd] TT#45958 ama exporter: iterate unexported cdrs
+  * [e1a7da3] TT#46262 AMA format writer objects: structure 0510
+  * [135dec4] TT#46752 AMA format writer objects: structure 9013, 9014
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 12 Nov 2018 22:32:16 +0100
+
 ngcp-bulk-processor (7.0.0.0+0~mr7.0.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
