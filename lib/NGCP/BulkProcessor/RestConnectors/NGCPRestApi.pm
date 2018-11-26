@@ -34,7 +34,7 @@ use NGCP::BulkProcessor::RestConnector qw(_add_headers convert_bools);
 
 use NGCP::BulkProcessor::Calendar qw(get_fake_now_string);
 
-use NGCP::BulkProcessor::Utils qw(makepath cleanupdir);
+use NGCP::BulkProcessor::Utils qw(makepath cleanupdir booltostring);
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::RestConnector);
@@ -52,6 +52,7 @@ my $API_CERT_DIR = 'apicerts/';
 my $API_CERT_FILENAME_FORMAT = '%s%s.pem';
 
 my $default_collection_page_size = 10;
+my $first_collection_page_num = 1;
 my $first_page_num = 1;
 
 my $contenttype = 'application/json';
@@ -270,12 +271,16 @@ sub _add_delete_headers {
 sub _get_page_num_query_param {
     my $self = shift;
     my ($page_num) = @_;
-    if (defined $page_num) {
-        $page_num += $first_page_num;
-    } else {
-        $page_num = $first_page_num;
+    if (defined $page_num and length($page_num) > 0) {
+        return 'page=' . $page_num;
     }
-    return 'page=' . $page_num;
+    return undef;
+    #if (defined $page_num) {
+    #    $page_num += $first_page_num;
+    #} else {
+    #    $page_num = $first_page_num;
+    #}
+    #return (defined $page_num ? 'p=' . $page_num : undef);
 }
 
 sub _get_page_size_query_param {
@@ -283,6 +288,12 @@ sub _get_page_size_query_param {
     my ($page_size) = @_;
     $page_size //= $default_collection_page_size;
     return 'size=' . $page_size;
+}
+
+sub _get_total_count_expected_query_param {
+    my $self = shift;
+    my ($total_count_expected) = @_;
+    return ($total_count_expected ? '' : 'no_count=' . booltostring(1));
 }
 
 sub extract_collection_items {
@@ -307,6 +318,11 @@ sub extract_collection_items {
 sub get_defaultcollectionpagesize {
     my $self = shift;
     return $default_collection_page_size;
+}
+
+sub get_firstcollectionpagenum {
+    my $self = shift;
+    return $first_collection_page_num;
 }
 
 sub _request_error {
