@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::RestRequests::Trunk::BillingProfiles;
+package NGCP::BulkProcessor::RestRequests::Trunk::ProfilePackages;
 use strict;
 
 ## no critic
@@ -9,7 +9,6 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 );
 
 use NGCP::BulkProcessor::RestProcessor qw(
-    process_collection
     copy_row
     get_query_string
 );
@@ -22,14 +21,13 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::RestItem);
 our @EXPORT_OK = qw(
     get_item
     create_item
-    process_items
     get_item_path
     findby_resellerid
-    findby_handle
+    findby_name
 );
 
 my $get_restapi = \&get_ngcp_restapi;
-my $resource = 'billingprofiles';
+my $resource = 'profilepackages';
 my $item_relation = 'ngcp:' . $resource;
 my $get_item_path_query = sub {
     my ($id) = @_;
@@ -43,31 +41,34 @@ my $findby_resellerid_path_query = sub {
     $filters->{reseller_id} = $reseller_id if defined $reseller_id;
     return 'api/' . $resource . '/' . get_query_string($filters);
 };
-my $findby_handle_path_query = sub {
-    my ($handle) = @_;
+my $findby_name_path_query = sub {
+    my ($name) = @_;
     my $filters = {};
-    $filters->{handle} = $handle if defined $handle;
+    $filters->{name} = $name if defined $name;
     return 'api/' . $resource . '/' . get_query_string($filters);
 };
 
 my $fieldnames = [
-    'currency',
-    'fraud_daily_limit',
-    'fraud_daily_lock',
-    'fraud_daily_notify',
-    'fraud_interval_limit',
-    'fraud_interval_lock',
-    'fraud_interval_notify',
-    'fraud_use_reseller_rates',
-    'handle',
-    'interval_charge',
-    'interval_free_cash',
-    'interval_free_time',
+
+    'balance_interval_start_mode',
+    'balance_interval_unit',
+    'balance_interval_value',
+    'carry_over_mode',
+    'description',
+    'initial_balance',
+    'initial_profiles',
     'name',
-    'peaktime_special',
-    'peaktime_weekdays',
-    'prepaid',
+    'notopup_discard_intervals',
     'reseller_id',
+    'service_charge',
+    'timely_duration_unit',
+    'timely_duration_value',
+    'topup_lock_level',
+    'topup_profiles',
+    'underrun_lock_level',
+    'underrun_lock_threshold',
+    'underrun_profile_threshold',
+    'underrun_profiles',
 
     'id',
 ];
@@ -100,11 +101,11 @@ sub findby_resellerid {
 
 }
 
-sub findby_handle {
+sub findby_name {
 
-    my ($handle,$load_recursive,$headers) = @_;
+    my ($name,$load_recursive,$headers) = @_;
     my $restapi = &$get_restapi();
-    return builditems_fromrows($restapi->extract_collection_items($restapi->get(&$findby_handle_path_query($handle),$headers),undef,undef,
+    return builditems_fromrows($restapi->extract_collection_items($restapi->get(&$findby_name_path_query($name),$headers),undef,undef,
         { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation }),$load_recursive);
 
 }
@@ -144,45 +145,6 @@ sub builditems_fromrows {
     }
     return undef;
 
-}
-
-sub process_items {
-
-    my %params = @_;
-    my ($process_code,
-        $static_context,
-        $blocksize,
-        $init_process_context_code,
-        $uninit_process_context_code,
-        $multithreading,
-        $numofthreads,
-        $load_recursive) = @params{qw/
-            process_code
-            static_context
-            blocksize
-            init_process_context_code
-            uninit_process_context_code
-            multithreading
-            numofthreads
-            load_recursive
-        /};
-
-    return process_collection(
-        get_restapi                     => $get_restapi,
-        path_query                      => $collection_path_query,
-        headers                         => undef, #faketime,..
-        extract_collection_items_params => { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation },
-        process_code                    => sub {
-                my ($context,$rowblock,$row_offset) = @_;
-                return &$process_code($context,builditems_fromrows($rowblock,$load_recursive),$row_offset);
-            },
-        static_context                  => $static_context,
-        blocksize                       => $blocksize,
-        init_process_context_code       => $init_process_context_code,
-        uninit_process_context_code     => $uninit_process_context_code,
-        multithreading                  => $multithreading,
-        collectionprocessing_threads    => $numofthreads,
-    );
 }
 
 sub get_item_path {
