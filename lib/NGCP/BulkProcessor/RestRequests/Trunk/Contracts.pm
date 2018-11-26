@@ -9,7 +9,9 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 );
 
 use NGCP::BulkProcessor::RestProcessor qw(
+    process_collection
     copy_row
+    get_query_string
 );
 
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw();
@@ -21,6 +23,7 @@ our @EXPORT_OK = qw(
     get_item
     create_item
     set_item
+    process_items
     update_item
     get_item_path
 );
@@ -116,6 +119,45 @@ sub builditems_fromrows {
     }
     return undef;
 
+}
+
+sub process_items {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $blocksize,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads,
+        $load_recursive) = @params{qw/
+            process_code
+            static_context
+            blocksize
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+            load_recursive
+        /};
+
+    return process_collection(
+        get_restapi                     => $get_restapi,
+        path_query                      => $collection_path_query . '?not_status=terminated&order_by=id&order_by_direction=asc',
+        headers                         => undef, #faketime,..
+        extract_collection_items_params => { $NGCP::BulkProcessor::RestConnectors::NGCPRestApi::ITEM_REL_PARAM => $item_relation },
+        process_code                    => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,builditems_fromrows($rowblock,$load_recursive),$row_offset);
+            },
+        static_context                  => $static_context,
+        blocksize                       => $blocksize,
+        init_process_context_code       => $init_process_context_code,
+        uninit_process_context_code     => $uninit_process_context_code,
+        multithreading                  => $multithreading,
+        collectionprocessing_threads    => $numofthreads,
+    );
 }
 
 sub get_item_path {
