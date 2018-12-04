@@ -13,7 +13,7 @@ require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::FileProcessor);
 our @EXPORT_OK = qw();
 
-my $default_lineseparator = '\\n\\r|\\r|\\n';
+my $default_lineseparator = '\\r\\n|\\r|\\n'; #\\n\\r
 my $default_fieldseparator = ",";
 my $default_encoding = 'UTF-8';
 

@@ -394,7 +394,7 @@ sub _unfold_number_ranges {
 
     my ($context,$record,$rows) = @_;
 
-    sub create_new_record_code{}
+    #sub create_new_record_code{}
 
     my $result = 0;
     my @fieldnames = @{$context->{fieldnames}};
