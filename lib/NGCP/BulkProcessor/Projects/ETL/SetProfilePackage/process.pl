@@ -48,6 +48,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
 );
 use NGCP::BulkProcessor::Array qw(removeduplicates);
 use NGCP::BulkProcessor::Utils qw(getscriptpath prompt cleanupdir);
+use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw(cleanupcertfiles);
 use NGCP::BulkProcessor::Mail qw(
     cleanupmsgfiles
 );
@@ -166,6 +167,7 @@ sub cleanup_task {
         #cleanupdbfiles() if $clean_generated;
         cleanuplogfiles(\&fileerror,\&filewarn,($currentlogfile,$attachmentlogfile));
         cleanupmsgfiles(\&fileerror,\&filewarn);
+        cleanupcertfiles();
         #cleanupdir($output_path,1,\&filewarn,getlogger(getscriptpath())) if $clean_generated;
         #cleanupdir($rollback_path,1,\&filewarn,getlogger(getscriptpath())) if $clean_generated;
         $result = 1;
