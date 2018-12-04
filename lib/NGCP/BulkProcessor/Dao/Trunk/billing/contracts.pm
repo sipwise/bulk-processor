@@ -34,6 +34,7 @@ our @EXPORT_OK = qw(
 
     countby_status_resellerid
     findby_contactid
+    findby_externalid
     findby_id
     forupdate_id
 
@@ -102,6 +103,23 @@ sub findby_contactid {
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
             $db->columnidentifier('contact_id') . ' = ?';
     my @params = ($contact_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_externalid {
+
+    my ($external_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('external_id') . ' = ?';
+    my @params = ($external_id);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);
