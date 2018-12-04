@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::UPCAT::Provisioning;
+package NGCP::BulkProcessor::Projects::Migration::Teletek::Provisioning;
 use strict;
 
 ## no critic

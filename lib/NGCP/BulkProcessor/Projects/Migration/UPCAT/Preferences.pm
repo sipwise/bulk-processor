@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::UPCAT::Preferences;
+package NGCP::BulkProcessor::Projects::Migration::Teletek::Preferences;
 use strict;
 
 ## no critic
