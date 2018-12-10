@@ -1,3 +1,12 @@
+ngcp-bulk-processor (7.0.2.0+0~mr7.0.2.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [bde62fa] TT#47531 process contracts/set profile package
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 10 Dec 2018 22:04:41 +0100
+
 ngcp-bulk-processor (7.0.1.0+0~mr7.0.1.0) unstable; urgency=medium
 
   [ Rene Krenn ]
