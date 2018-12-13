@@ -1,3 +1,17 @@
+ngcp-bulk-processor (6.5.2.2+0~mr6.5.2.2) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [6681995] TT#45958 ama exporter: iterate unexported cdrs
+  * [829e98f] TT#46262 AMA format writer objects: structure 0510
+  * [fed4271] TT#46752 AMA format writer objects: structure 9013, 9014
+  * [3ca0588] TT#46754 ama "block" and "file" objects WIP
+  * [5ccd52c] TT#47531 process contracts/set profile package
+  * [13d1b01] TT#48101 upc AT importer
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 13 Dec 2018 16:17:27 +0100
+
 ngcp-bulk-processor (6.5.2.1+0~mr6.5.2.1) unstable; urgency=medium
 
   * New release.
