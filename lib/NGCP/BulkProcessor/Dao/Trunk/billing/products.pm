@@ -21,6 +21,7 @@ our @EXPORT_OK = qw(
 
     findby_resellerid_handle
     $SIP_ACCOUNT_HANDLE
+    $PBX_ACCOUNT_HANDLE
 );
 
 my $tablename = 'products';
@@ -41,6 +42,7 @@ my $expected_fieldnames = [
 my $indexes = {};
 
 our $SIP_ACCOUNT_HANDLE = 'SIP_ACCOUNT';
+our $PBX_ACCOUNT_HANDLE = 'PBX_ACCOUNT';
 
 sub new {
 
