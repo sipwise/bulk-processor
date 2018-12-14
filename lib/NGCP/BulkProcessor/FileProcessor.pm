@@ -33,7 +33,7 @@ use NGCP::BulkProcessor::Utils qw(threadid);
 
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw();
+our @EXPORT_OK = qw(create_process_context);
 
 my $thread_sleep_secs = 0.1;
 
@@ -135,7 +135,7 @@ sub process {
             for (my $i = 0; $i < $self->{numofthreads}; $i++) {
                 filethreadingdebug('starting processor thread ' . ($i + 1) . ' of ' . $self->{numofthreads},getlogger(__PACKAGE__));
                 my $processor = threads->create(\&_process,
-                                              _create_process_context($static_context,
+                                              create_process_context($static_context,
                                               { queue                => $queue,
                                                 errorstates          => \%errorstates,
                                                 readertid              => $reader->tid(),
@@ -168,7 +168,7 @@ sub process {
 
         } else {
 
-            my $context = _create_process_context($static_context,{ instance => $self,
+            my $context = create_process_context($static_context,{ instance => $self,
                             filename => $file,
                             tid      => $tid,
                             });
@@ -524,7 +524,7 @@ sub _get_stop_consumer_thread {
 
 }
 
-sub _create_process_context {
+sub create_process_context {
 
     my $context = {};
     foreach my $ctx (@_) {

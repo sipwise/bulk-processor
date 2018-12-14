@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber;
+package NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber;
 use strict;
 
 ## no critic
@@ -62,7 +62,7 @@ our @EXPORT_OK = qw(
 #    findby_sipusername
 #    list_barring_resellernames
 
-my $tablename = 'subscriber';
+my $tablename = 'mta_subscriber';
 my $get_db = \&get_import_db;
 #my $get_tablename = \&import_db_tableidentifier;
 

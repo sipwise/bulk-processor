@@ -29,7 +29,7 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::domains qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::domain_resellers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 
-use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber qw();
+#use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
