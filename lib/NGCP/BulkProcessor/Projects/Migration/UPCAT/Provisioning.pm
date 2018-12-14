@@ -10,18 +10,32 @@ use String::MkPasswd qw();
 use JSON -support_by_pp, -no_export;
 use Tie::IxHash;
 
+use Encode qw();
+
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::Settings qw(
     $dry
     $skip_errors
     $report_filename
 
-    $provision_subscriber_multithreading
-    $provision_subscriber_numofthreads
-    $webpassword_length
-    $webusername_length
-    $sippassword_length
+    $provision_mta_subscriber_multithreading
+    $provision_mta_subscriber_numofthreads
+    $mta_webpassword_length
+    $mta_webusername_length
+    $mta_sippassword_length
 
     $barring_profiles
+
+    $provision_ccs_subscriber_multithreading
+    $provision_ccs_subscriber_numofthreads
+
+    split_number
+
+    $ccs_reseller_name
+    $ccs_billing_profile_name
+    $ccs_domain
+    $ccs_sippassword_length
+
+    @css_trusted_source_ips
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -35,7 +49,8 @@ use NGCP::BulkProcessor::LogError qw(
     fileerror
 );
 
-use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::products qw();
@@ -60,10 +75,10 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
 #use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
 #use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets qw();
 #use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
-#use NGCP::BulkProcessor::Dao::Trunk::kamailio::location qw();
+use NGCP::BulkProcessor::Dao::Trunk::kamailio::location qw();
 
 use NGCP::BulkProcessor::RestRequests::Trunk::Subscribers qw();
 use NGCP::BulkProcessor::RestRequests::Trunk::Customers qw();
@@ -93,8 +108,8 @@ use NGCP::BulkProcessor::RandomString qw(createtmpstring);
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-    provision_subscribers
-
+    provision_mta_subscribers
+    provision_ccs_subscribers
 );
 
 my $split_ipnets_pattern =  join('|',(
@@ -108,15 +123,17 @@ my $file_lock :shared = undef;
 
 my $default_barring = 'default';
 
-sub provision_subscribers {
+my $ccs_contact_identifier_field = 'gpp9';
+
+sub provision_mta_subscribers {
 
     my $static_context = { now => timestamp(), _rowcount => undef };
-    my $result = _provision_subscribers_checks($static_context);
+    my $result = _provision_mta_subscribers_checks($static_context);
 
     destroy_all_dbs();
     my $warning_count :shared = 0;
     my %nonunique_contacts :shared = ();
-    return ($result && NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::process_records(
+    return ($result && NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::process_records(
         static_context => $static_context,
         process_code => sub {
             my ($context,$records,$row_offset) = @_;
@@ -125,8 +142,8 @@ sub provision_subscribers {
             my @report_data = ();
             foreach my $domain_sipusername (@$records) {
                 $context->{_rowcount} += 1;
-                next unless _provision_susbcriber($context,
-                    NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::findby_domain_sipusername(@$domain_sipusername));
+                next unless _provision_mta_susbcriber($context,
+                    NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::findby_domain_sipusername(@$domain_sipusername));
                 push(@report_data,_get_report_obj($context));
             }
             #cleanup_aig_sequence_ids($context);
@@ -163,8 +180,8 @@ sub provision_subscribers {
             }
         },
         load_recursive => 0,
-        multithreading => $provision_subscriber_multithreading,
-        numofthreads => $provision_subscriber_numofthreads,
+        multithreading => $provision_mta_subscriber_multithreading,
+        numofthreads => $provision_mta_subscriber_numofthreads,
     ),$warning_count,\%nonunique_contacts);
 
 }
@@ -202,10 +219,10 @@ sub _get_report_obj {
     return \%dump;
 }
 
-sub _provision_susbcriber {
+sub _provision_mta_susbcriber {
     my ($context,$subscriber_group) = @_;
 
-    return 0 unless _provision_susbcriber_init_context($context,$subscriber_group);
+    return 0 unless _provision_mta_susbcriber_init_context($context,$subscriber_group);
 
     eval {
         lock $db_lock;
@@ -221,14 +238,14 @@ sub _provision_susbcriber {
 
         if ((scalar @$existing_billing_voip_subscribers) == 0) {
 
-            _update_contact($context);
+            _update_mta_contact($context);
             _update_contract($context);
             #{
             #    lock $db_lock; #concurrent writes to voip_numbers causes deadlocks
                 _update_subscriber($context);
                 _create_aliases($context);
             #}
-            _update_preferences($context);
+            _update_mta_preferences($context);
             #_set_registrations($context);
             #_set_callforwards($context);
             #todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
@@ -261,25 +278,25 @@ sub _provision_susbcriber {
 
 }
 
-sub _provision_subscribers_checks {
+sub _provision_mta_subscribers_checks {
     my ($context) = @_;
 
     my $result = 1;
 
     my $subscribercount = 0;
     eval {
-        $subscribercount = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::countby_ccacsn();
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_ccacsn();
     };
     if ($@ or $subscribercount == 0) {
-        rowprocessingerror(threadid(),'please import subscribers first',getlogger(__PACKAGE__));
+        rowprocessingerror(threadid(),'please import mta subscribers first',getlogger(__PACKAGE__));
         $result = 0; #even in skip-error mode..
     } else {
-        processing_info(threadid(),"$subscribercount subscriber found",getlogger(__PACKAGE__));
+        processing_info(threadid(),"$subscribercount mta subscriber found",getlogger(__PACKAGE__));
     }
 
     my $domain_billingprofilename_resellernames = [];
     eval {
-        $domain_billingprofilename_resellernames = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::list_domain_billingprofilename_resellernames();
+        $domain_billingprofilename_resellernames = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::list_domain_billingprofilename_resellernames();
     };
     if ($@ or (scalar @$domain_billingprofilename_resellernames) == 0) {
         rowprocessingerror(threadid(),"no domains/billing profile names/reseller names",getlogger(__PACKAGE__));
@@ -380,66 +397,11 @@ sub _provision_subscribers_checks {
         processing_info(threadid(),"$NGCP::BulkProcessor::Dao::Trunk::billing::products::SIP_ACCOUNT_HANDLE product found",getlogger(__PACKAGE__));
     }
 
-    $context->{attributes} = {};
-
-    eval {
-        $context->{attributes}->{allowed_clis} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ALLOWED_CLIS_ATTRIBUTE);
-    };
-    if ($@ or not defined $context->{attributes}->{allowed_clis}) {
-        rowprocessingerror(threadid(),'cannot find allowed_clis attribute',getlogger(__PACKAGE__));
-        $result = 0; #even in skip-error mode..
-    } else {
-        processing_info(threadid(),"allowed_clis attribute found",getlogger(__PACKAGE__));
-    }
-
-    eval {
-        $context->{attributes}->{cli} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CLI_ATTRIBUTE);
-    };
-    if ($@ or not defined $context->{attributes}->{cli}) {
-        rowprocessingerror(threadid(),'cannot find cli attribute',getlogger(__PACKAGE__));
-        $result = 0; #even in skip-error mode..
-    } else {
-        processing_info(threadid(),"cli attribute found",getlogger(__PACKAGE__));
-    }
-
-    eval {
-        $context->{attributes}->{ac} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::AC_ATTRIBUTE);
-    };
-    if ($@ or not defined $context->{attributes}->{ac}) {
-        rowprocessingerror(threadid(),'cannot find ac attribute',getlogger(__PACKAGE__));
-        $result = 0; #even in skip-error mode..
-    } else {
-        processing_info(threadid(),"ac attribute found",getlogger(__PACKAGE__));
-    }
-
-    eval {
-        $context->{attributes}->{cc} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CC_ATTRIBUTE);
-    };
-    if ($@ or not defined $context->{attributes}->{cc}) {
-        rowprocessingerror(threadid(),'cannot find cc attribute',getlogger(__PACKAGE__));
-        $result = 0; #even in skip-error mode..
-    } else {
-        processing_info(threadid(),"cc attribute found",getlogger(__PACKAGE__));
-    }
-
-    eval {
-        $context->{attributes}->{account_id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
-            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ACCOUNT_ID_ATTRIBUTE);
-    };
-    if ($@ or not defined $context->{attributes}->{account_id}) {
-        rowprocessingerror(threadid(),'cannot find account_id attribute',getlogger(__PACKAGE__));
-        $result = 0; #even in skip-error mode..
-    } else {
-        processing_info(threadid(),"account_id attribute found",getlogger(__PACKAGE__));
-    }
+    $result = _provision_subscribers_base_prefs_checks($context,$result);
 
     my $barring_resellernames = [];
     eval {
-        $barring_resellernames = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::list_barring_resellernames();
+        $barring_resellernames = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::list_barring_resellernames();
     };
     if ($@) {
         rowprocessingerror(threadid(),'error retrieving barrings',getlogger(__PACKAGE__));
@@ -530,7 +492,7 @@ sub _check_ncos_level {
     return $result;
 }
 
-sub _update_contact {
+sub _update_mta_contact {
 
     my ($context) = @_;
 
@@ -697,7 +659,7 @@ sub _update_subscriber {
 
 }
 
-sub _update_preferences {
+sub _update_mta_preferences {
 
     my ($context) = @_;
 
@@ -830,7 +792,7 @@ sub _create_aliases {
     return $result;
 }
 
-sub _provision_susbcriber_init_context {
+sub _provision_mta_susbcriber_init_context {
 
     my ($context,$subscriber_group) = @_;
 
@@ -944,7 +906,7 @@ sub _provision_susbcriber_init_context {
     }
 
     unless (defined $context->{prov_subscriber}->{password} and length($context->{prov_subscriber}->{password}) > 0) {
-        my $generated = _generate_sippassword();
+        my $generated = _generate_sippassword($mta_sippassword_length);
         $context->{prov_subscriber}->{password} = $generated;
         _info($context,"empty sip_password, using generated '$generated'",1);
     }
@@ -964,14 +926,14 @@ sub _provision_susbcriber_init_context {
             @{NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::findby_domain_webusername(
             $first->{domain},$webusername)};
         if ((scalar keys %webusername_dupes) > 1) {
-            my $generated = _generate_webusername(); #$first->{sip_username};
+            my $generated = _generate_webusername($mta_webusername_length); #$first->{sip_username};
             _info($context,"duplicate web_username '$webusername', using generated '$generated'",1);
             $context->{prov_subscriber}->{webusername} = $generated;
         }
 
         #$context->{prov_subscriber}->{webpassword} = $first->{web_password};
         if (not (defined $context->{prov_subscriber}->{webpassword} and length($context->{prov_subscriber}->{webpassword}) > 0)) {
-            my $generated = _generate_webpassword();
+            my $generated = _generate_webpassword($mta_webpassword_length);
             _info($context,"empty web_password for web_username '$webusername', using generated '$generated'",1);
             $context->{prov_subscriber}->{webpassword} = $generated;
         #} elsif (defined $first->{web_password} and length($first->{web_password}) < 8) {
@@ -1046,6 +1008,7 @@ sub _provision_susbcriber_init_context {
 
 
 sub _generate_webpassword {
+    my $webpassword_length = shift;
     return String::MkPasswd::mkpasswd(
         -length => $webpassword_length,
         -minnum => 1, -minlower => 1, -minupper => 1, -minspecial => 1,
@@ -1054,10 +1017,12 @@ sub _generate_webpassword {
 }
 
 sub _generate_sippassword {
+    my $sippassword_length = shift;
     return createtmpstring($sippassword_length);
 }
 
 sub _generate_webusername {
+    my $webusername_length = shift;
     return createtmpstring($webusername_length);
 }
 
@@ -1067,6 +1032,546 @@ sub _apply_reseller_mapping {
     #    return $reseller_mapping->{$reseller_name};
     #}
     return $reseller_name;
+}
+
+
+
+
+sub provision_ccs_subscribers {
+
+    my $static_context = { now => timestamp(), _rowcount => undef };
+    my $result = _provision_ccs_subscribers_checks($static_context);
+
+    destroy_all_dbs();
+    my $warning_count :shared = 0;
+    return ($result && NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::process_records(
+        static_context => $static_context,
+        process_code => sub {
+            my ($context,$records,$row_offset) = @_;
+            ping_all_dbs();
+            $context->{_rowcount} = $row_offset;
+            my @report_data = ();
+            foreach my $switch_number (@$records) {
+                $context->{_rowcount} += 1;
+                next unless _provision_ccs_susbcriber($context,
+                    NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::findby_switch_number(@$switch_number));
+                push(@report_data,_get_report_obj($context));
+            }
+            #cleanup_aig_sequence_ids($context);
+            if (defined $report_filename) {
+                lock $file_lock;
+                open(my $fh, '>>', $report_filename) or fileerror('cannot open file ' . $report_filename . ': ' . $!,getlogger(__PACKAGE__));
+                binmode($fh);
+                print $fh JSON::to_json(\@report_data,{ allow_nonref => 1, allow_blessed => 1, convert_blessed => 1, pretty => 1, });
+                close $fh;
+            }
+            return 1;
+        },
+        init_process_context_code => sub {
+            my ($context)= @_;
+            $context->{db} = &get_xa_db();
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
+
+        },
+        uninit_process_context_code => sub {
+            my ($context)= @_;
+            undef $context->{db};
+            destroy_all_dbs();
+            {
+                lock $warning_count;
+                $warning_count += $context->{warning_count};
+            }
+        },
+        load_recursive => 0,
+        multithreading => $provision_ccs_subscriber_multithreading,
+        numofthreads => $provision_ccs_subscriber_numofthreads,
+    ),$warning_count);
+
+}
+
+sub _provision_ccs_susbcriber {
+    my ($context,$subscriber_group) = @_;
+
+    return 0 unless _provision_ccs_susbcriber_init_context($context,$subscriber_group);
+
+    eval {
+        lock $db_lock;
+        $context->{db}->db_begin();
+        #_warn($context,'AutoCommit is on') if $context->{db}->{drh}->{AutoCommit};
+
+        my $existing_billing_voip_subscribers = NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_domainid_username_states(
+            $context->{db},
+            $context->{domain}->{id},
+            $context->{prov_subscriber}->{username},
+            { 'NOT IN' => $NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::TERMINATED_STATE}
+        );
+
+        if ((scalar @$existing_billing_voip_subscribers) == 0) {
+
+            _update_ccs_contact($context);
+            _update_contract($context);
+            #{
+            #    lock $db_lock; #concurrent writes to voip_numbers causes deadlocks
+                _update_subscriber($context);
+                _create_aliases($context);
+            #}
+            _update_ccs_preferences($context);
+            _set_registrations($context);
+            ##_set_callforwards($context);
+            ##todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
+            ##in this main provisioning loop, or align it in separate run-modes, according to the files given.
+
+        } else {
+            _warn($context,(scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
+        }
+
+        if ($dry) {
+            $context->{db}->db_rollback(0);
+        } else {
+            $context->{db}->db_commit();
+        }
+
+    };
+    my $err = $@;
+    if ($err) {
+        eval {
+            $context->{db}->db_rollback(1);
+        };
+        if ($skip_errors) {
+            _warn($context, $err);
+        } else {
+            _error($context, $err);
+        }
+    }
+
+    return 1;
+
+}
+
+sub _provision_ccs_subscribers_checks {
+    my ($context) = @_;
+
+    my $result = 1;
+
+    my $subscribercount = 0;
+    eval {
+        $subscribercount = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::countby_service_number();
+    };
+    if ($@ or $subscribercount == 0) {
+        rowprocessingerror(threadid(),'please import ccs subscribers first',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"$subscribercount ccs subscribers found",getlogger(__PACKAGE__));
+    }
+
+    eval {
+        $context->{reseller} = NGCP::BulkProcessor::Dao::Trunk::billing::resellers::findby_name($ccs_reseller_name);
+    };
+    if ($@ or not defined $context->{reseller}) {
+        rowprocessingerror(threadid(),"cannot find reseller '$ccs_reseller_name'",getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"reseller '$ccs_reseller_name' found",getlogger(__PACKAGE__));
+        eval {
+            $context->{domain} = NGCP::BulkProcessor::Dao::Trunk::billing::domains::findby_domain($ccs_domain);
+            if (defined $context->{domain}
+                and NGCP::BulkProcessor::Dao::Trunk::billing::domain_resellers::countby_domainid_resellerid($context->{domain}->{id},$context->{reseller}->{id}) == 0) {
+                undef $context->{domain};
+            }
+        };
+        if ($@ or not defined $context->{domain}) {
+            rowprocessingerror(threadid(),"cannot find billing domain '$ccs_domain' (of reseller '$ccs_reseller_name')",getlogger(__PACKAGE__));
+            $result = 0; #even in skip-error mode..
+        } else {
+
+            processing_info(threadid(),"billing domain '$ccs_domain' (of reseller '$ccs_reseller_name') found",getlogger(__PACKAGE__));
+            eval {
+                $context->{domain}->{prov_domain} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_domain($ccs_domain);
+            };
+            if ($@ or not defined $context->{domain}->{prov_domain}) {
+                rowprocessingerror(threadid(),"cannot find provisioning domain '$ccs_domain'",getlogger(__PACKAGE__));
+                $result = 0; #even in skip-error mode..
+            } else {
+                processing_info(threadid(),"provisioning domain '$ccs_domain' found",getlogger(__PACKAGE__));
+            }
+
+        }
+
+        eval {
+            my $billing_profiles = NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles::findby_resellerid_name_handle($context->{reseller}->{id},$ccs_billing_profile_name);
+            $context->{billing_profile} = $billing_profiles->[0] if (scalar @$billing_profiles) == 1;
+        };
+        if ($@ or not defined $context->{billing_profile}) {
+            rowprocessingerror(threadid(),"cannot find billing profile '$ccs_billing_profile_name' (of reseller '$ccs_reseller_name')",getlogger(__PACKAGE__));
+            $result = 0; #even in skip-error mode..
+        } else {
+            processing_info(threadid(),"billing profile '$ccs_billing_profile_name' (of reseller '$ccs_reseller_name') found",getlogger(__PACKAGE__));
+        }
+
+    }
+
+    eval {
+        $context->{pbx_account_product} = NGCP::BulkProcessor::Dao::Trunk::billing::products::findby_resellerid_handle(undef,
+            $NGCP::BulkProcessor::Dao::Trunk::billing::products::PBX_ACCOUNT_HANDLE)->[0];
+    };
+    if ($@ or not defined $context->{pbx_account_product}) {
+        rowprocessingerror(threadid(),"cannot find $NGCP::BulkProcessor::Dao::Trunk::billing::products::PBX_ACCOUNT_HANDLE product",getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"$NGCP::BulkProcessor::Dao::Trunk::billing::products::PBX_ACCOUNT_HANDLE product found",getlogger(__PACKAGE__));
+    }
+
+    $result = _provision_subscribers_base_prefs_checks($context,$result);
+
+    #extended_dialing_mode, e164_to_ruri and serial_forking_by_q_value
+
+    eval {
+        $context->{attributes}->{extended_dialing_mode} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::EXTENDED_DIALING_MODE_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{extended_dialing_mode}) {
+        rowprocessingerror(threadid(),'cannot find extended_dialing_mode attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"extended_dialing_mode attribute found",getlogger(__PACKAGE__));
+    }
+
+    eval {
+        $context->{attributes}->{e164_to_ruri} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::E164_TO_RURI_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{e164_to_ruri}) {
+        rowprocessingerror(threadid(),'cannot find e164_to_ruri attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"e164_to_ruri attribute found",getlogger(__PACKAGE__));
+    }
+
+    eval {
+        $context->{attributes}->{serial_forking_by_q_value} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::SERIAL_FORKING_BY_Q_VALUE_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{serial_forking_by_q_value}) {
+        rowprocessingerror(threadid(),'cannot find serial_forking_by_q_value attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"serial_forking_by_q_value attribute found",getlogger(__PACKAGE__));
+    }
+
+    return $result;
+}
+
+sub _provision_subscribers_base_prefs_checks {
+
+    my ($context,$result) = @_;
+
+    $context->{attributes} = {};
+
+    eval {
+        $context->{attributes}->{allowed_clis} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ALLOWED_CLIS_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{allowed_clis}) {
+        rowprocessingerror(threadid(),'cannot find allowed_clis attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"allowed_clis attribute found",getlogger(__PACKAGE__));
+    }
+
+    eval {
+        $context->{attributes}->{cli} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CLI_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{cli}) {
+        rowprocessingerror(threadid(),'cannot find cli attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"cli attribute found",getlogger(__PACKAGE__));
+    }
+
+    eval {
+        $context->{attributes}->{ac} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::AC_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{ac}) {
+        rowprocessingerror(threadid(),'cannot find ac attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"ac attribute found",getlogger(__PACKAGE__));
+    }
+
+    eval {
+        $context->{attributes}->{cc} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CC_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{cc}) {
+        rowprocessingerror(threadid(),'cannot find cc attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"cc attribute found",getlogger(__PACKAGE__));
+    }
+
+    eval {
+        $context->{attributes}->{account_id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ACCOUNT_ID_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{account_id}) {
+        rowprocessingerror(threadid(),'cannot find account_id attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"account_id attribute found",getlogger(__PACKAGE__));
+    }
+
+    return $result;
+
+}
+
+sub _provision_ccs_susbcriber_init_context {
+
+    my ($context,$subscriber_group) = @_;
+
+    my $result = 1;
+
+    $context->{log_info} = [];
+    $context->{log_warning} = [];
+    $context->{log_error} = [];
+
+    my $first = $subscriber_group->[0];
+
+    unless (defined $first->{switch_number} and length($first->{switch_number}) > 0) {
+        _warn($context,'empty switch_number ignored');
+        $result = 0;
+    }
+
+    $context->{numbers} = {};
+    my $primary_number = {};
+    ($primary_number->{cc},$primary_number->{ac},$primary_number->{sn}) = split_number($first->{switch_number});
+    $primary_number->{number} = $primary_number->{cc} . $primary_number->{ac} . $primary_number->{sn};
+    $context->{numbers}->{primary} = $primary_number;
+    my @service_numbers = ();
+    foreach my $subscriber (@$subscriber_group) {
+        $subscriber->{comment} = Encode::decode('utf8',$subscriber->{comment}) if defined $subscriber->{comment}; #mark as utf-8
+        #if ($subscriber->{comment} =~ /gek/i) {
+        #    print "blah";
+        #}
+        if (defined $subscriber->{comment} and $subscriber->{comment} =~ /k(\x{00dc}|\x{00fc})ndig/i) {
+        #if (defined $subscriber->{comment} and $subscriber->{comment} =~ /k..ndig/i) {
+            _warn($context,"$subscriber->{customer} $subscriber->{service_number} $subscriber->{comment}, skipping");
+            next;
+        }
+        my $alias = {};
+        ($alias->{cc},$alias->{ac},$alias->{sn}) = split_number($subscriber->{service_number});
+        $alias->{number} = $alias->{cc} . $alias->{ac} . $alias->{sn};
+        push(@service_numbers,$alias);
+    }
+    $context->{numbers}->{other} = \@service_numbers;
+    #should we skip if there are no service numbers?
+    if ((scalar @service_numbers) == 0) {
+        $result = 0;
+    }
+
+    #$context->{domain} = ;
+    #$context->{reseller} = ;
+    #$context->{billing_profile} = ;
+
+    $first->{sip_username} = $primary_number->{number};
+    $first->{sip_password} = _generate_sippassword($ccs_sippassword_length);
+    $first->{web_username} = undef;
+    $first->{web_password} = undef;
+
+    $context->{prov_subscriber} = {};
+    $context->{prov_subscriber}->{username} = $first->{sip_username};
+    $context->{prov_subscriber}->{password} = $first->{sip_password};
+    $context->{prov_subscriber}->{webusername} = $first->{web_username};
+    $context->{prov_subscriber}->{webpassword} = $first->{web_password};
+    #my $webusername = $first->{web_username};
+    $context->{prov_subscriber}->{is_pbx_pilot} = '1';
+
+    $context->{prov_subscriber}->{uuid} = create_uuid();
+    $context->{prov_subscriber}->{domain_id} = $context->{domain}->{prov_domain}->{id};
+
+    $context->{bill_subscriber} = {};
+    $context->{bill_subscriber}->{username} = $first->{sip_username};
+    $context->{bill_subscriber}->{domain_id} = $context->{domain}->{id};
+    $context->{bill_subscriber}->{uuid} = $context->{prov_subscriber}->{uuid};
+
+    $context->{contract} = {
+        #external_id => $first->{customer},
+        create_timestamp => $context->{now},
+        product_id => $context->{pbx_account_product}->{id},
+        contact => {
+            reseller_id => $context->{reseller}->{id},
+
+            #firstname => $subscriber->{first_name},
+            #lastname => $subscriber->{last_name},
+            #compregnum => $subscriber->{company_registration_number},
+            company => $first->{customer},
+            #street => $subscriber->{street},
+            #postcode => $subscriber->{postal_code},
+            #city => $subscriber->{city_name},
+            ##country => $context->{contract}->{contact}->{country},
+            #phonenumber => $subscriber->{phone_number},
+            #email => $subscriber->{email},
+            #vatnum => $subscriber->{vat_number},
+            ##$contact_hash_field => $subscriber->{contact_hash},
+
+            gpp0 => $first->{comment},
+
+            $ccs_contact_identifier_field => ($first->{customer} eq '???' ? $first->{customer} . '_' . $first->{switch_number} : $first->{customer}),
+        },
+    };
+
+    $context->{voip_numbers} = {};
+    $context->{voip_numbers}->{primary} = undef;
+    $context->{voip_numbers}->{other} = [];
+    $context->{aliases} = {};
+    $context->{aliases}->{primary} = undef;
+    $context->{aliases}->{other} = [];
+
+    $context->{voicemail_user} = {};
+    $context->{voicemail_user}->{customer_id} = $context->{prov_subscriber}->{uuid};
+    $context->{voicemail_user}->{mailbox} = $context->{numbers}->{primary}->{number};
+    $context->{voicemail_user}->{password} = sprintf("%04d", int(rand 10000));
+
+    my @registrations = ();
+    my @trusted_sources = ();
+    my $q = 1.0;
+    foreach my $ip (@css_trusted_source_ips) {
+        push(@registrations,{
+            q => $q,
+            username => $first->{sip_username},
+            domain => $context->{domain}->{domain},
+            contact => 'sip:' . $first->{sip_username} . '@' . $ip . ':5060',
+            ruid => NGCP::BulkProcessor::Dao::Trunk::kamailio::location::next_ruid(),
+        });
+        $q = $q / 2.0;
+        push(@trusted_sources,{
+            src_ip => $ip,
+            protocol => $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::PROTOCOL_ANY,
+            #from_pattern => 'sip:.+' . quotemeta($context->{domain}->{domain}),
+        });
+    }
+    $context->{registrations} = \@registrations;
+    $context->{trusted_sources} = \@trusted_sources;
+
+    #$context->{preferences} = {};
+
+    #$context->{preferences}->{gpp} = [
+    #    $first->{"_len"},
+    #    $first->{"_cpe_mta_mac_address"},
+    #    $first->{"_cpe_model"},
+    #    $first->{"_cpe_vendor"},
+    #];
+
+    return $result;
+
+}
+
+sub _update_ccs_contact {
+
+    my ($context) = @_;
+
+    my $existing_contacts = NGCP::BulkProcessor::Dao::Trunk::billing::contacts::findby_reselleridfields(
+        $context->{reseller}->{id},
+        { $ccs_contact_identifier_field => $context->{contract}->{contact}->{$ccs_contact_identifier_field} },
+    );
+    if ((scalar @$existing_contacts) == 0) {
+        $context->{contract}->{contact}->{id} = NGCP::BulkProcessor::Dao::Trunk::billing::contacts::insert_row($context->{db},
+            $context->{contract}->{contact},
+        );
+        $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
+        _info($context,"contact id $context->{contract}->{contact}->{id} created",1);
+    } else {
+        my $existing_contact = $existing_contacts->[0];
+        if ((scalar @$existing_contacts) > 1) {
+            _warn($context,(scalar @$existing_contacts) . " existing contacts found, using first contact id $existing_contact->{id}");
+        } else {
+            _info($context,"existing contact id $existing_contact->{id} found",1);
+        }
+        $context->{contract}->{contact}->{id} = $existing_contact->{id};
+        $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
+
+        #my $existing_contracts = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::findby_contactid($existing_contact->{id});
+        #if ((scalar @$existing_contracts) > 0) {
+        #    my $existing_contract = $existing_contracts->[0];
+        #    if ((scalar @$existing_contracts) > 1) {
+        #        _warn($context,(scalar @$existing_contracts) . " existing contracts found, using first contact id $existing_contract->{id}");
+        #    } else {
+        #        _info($context,"existing contract id $existing_contact->{id} found",1);
+        #    }
+        #    $context->{contract}->{id} = $existing_contract->{id};
+        #    $context->{bill_subscriber}->{contract_id} = $context->{contract}->{id};
+        #    $context->{prov_subscriber}->{account_id} = $context->{contract}->{id};
+        #} else {
+        #    _warn($context,"no existing contract of contact id $existing_contact->{id} found, will be created");
+        #}
+    }
+    $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
+
+    return 1;
+
+}
+
+sub _update_ccs_preferences {
+
+    my ($context) = @_;
+
+    my $result = 1;
+
+    $context->{preferences}->{extended_dialing_mode} = { id => set_subscriber_preference($context,
+        $context->{prov_subscriber}->{id},
+        $context->{attributes}->{extended_dialing_mode},
+        'extended_send_dialed'), value => 'extended_send_dialed' };
+
+    $context->{preferences}->{e164_to_ruri} = { id => set_subscriber_preference($context,
+        $context->{prov_subscriber}->{id},
+        $context->{attributes}->{e164_to_ruri},
+        '1'), value => '1' };
+
+    $context->{preferences}->{serial_forking_by_q_value} = { id => set_subscriber_preference($context,
+        $context->{prov_subscriber}->{id},
+        $context->{attributes}->{serial_forking_by_q_value},
+        '1'), value => '1' };
+
+    #if (defined $context->{preferences}->{gpp}) {
+    #    my $gpp_idx = 0;
+    #    foreach my $gpp_val (@{$context->{preferences}->{gpp}}) {
+    #        my $gpp_attr = 'gpp' . $gpp_idx;
+    #        $context->{preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
+    #            $context->{prov_subscriber}->{id},
+    #            $context->{attributes}->{$gpp_attr},
+    #            $gpp_attr), value => $gpp_attr };
+    #        _info($context,"$gpp_attr preference set to $gpp_val",1);
+    #        $gpp_idx++;
+    #    }
+    #}
+
+    return $result;
+
+}
+
+sub _set_registrations {
+
+    my ($context) = @_;
+    my $result = 1;
+    foreach my $registration (@{$context->{registrations}}) {
+        #print "blah";
+        $registration->{id} = NGCP::BulkProcessor::Dao::Trunk::kamailio::location::insert_row($context->{db},
+            %$registration);
+        _info($context,"permanent registration $registration->{contact} added",1);
+    }
+    foreach my $trusted_source (@{$context->{trusted_sources}}) {
+        #print "blah";
+        $trusted_source->{id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::insert_row($context->{db},{
+            %$trusted_source,
+            subscriber_id => $context->{prov_subscriber}->{id},
+            uuid => $context->{prov_subscriber}->{uuid},
+        });
+        _info($context,"trusted source $trusted_source->{protocol} $trusted_source->{src_ip} from $trusted_source->{from_pattern} added",1);
+    }
+    return $result;
+
 }
 
 sub _error {
