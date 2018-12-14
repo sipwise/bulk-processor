@@ -84,11 +84,11 @@ use NGCP::BulkProcessor::Projects::Migration::UPCAT::Check qw(
 );
 
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::Import qw(
-    import_subscriber
+    import_mta_subscriber
 );
 
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::Provisioning qw(
-    provision_subscribers
+    provision_mta_subscribers
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -105,13 +105,13 @@ push(@TASK_OPTS,$cleanup_task_opt);
 my $cleanup_all_task_opt = 'cleanup_all';
 push(@TASK_OPTS,$cleanup_all_task_opt);
 
-my $import_subscriber_task_opt = 'import_subscriber';
-push(@TASK_OPTS,$import_subscriber_task_opt);
-my $import_truncate_subscriber_task_opt = 'truncate_subscriber';
-push(@TASK_OPTS,$import_truncate_subscriber_task_opt);
+my $import_mta_subscriber_task_opt = 'import_mta_subscriber';
+push(@TASK_OPTS,$import_mta_subscriber_task_opt);
+my $import_truncate_mta_subscriber_task_opt = 'truncate_mta_subscriber';
+push(@TASK_OPTS,$import_truncate_mta_subscriber_task_opt);
 
-my $create_subscriber_task_opt = 'create_subscriber';
-push(@TASK_OPTS,$create_subscriber_task_opt);
+my $create_mta_subscriber_task_opt = 'create_mta_subscriber';
+push(@TASK_OPTS,$create_mta_subscriber_task_opt);
 
 if (init()) {
     main();
@@ -165,15 +165,15 @@ sub main() {
             } elsif (lc($cleanup_all_task_opt) eq lc($task)) {
                 $result &= cleanup_task(\@messages,1) if taskinfo($cleanup_all_task_opt,$result);
 
-            } elsif (lc($import_subscriber_task_opt) eq lc($task)) {
-                $result &= import_subscriber_task(\@messages) if taskinfo($import_subscriber_task_opt,$result);
-            } elsif (lc($import_truncate_subscriber_task_opt) eq lc($task)) {
-                $result &= import_truncate_subscriber_task(\@messages) if taskinfo($import_truncate_subscriber_task_opt,$result);
+            } elsif (lc($import_mta_subscriber_task_opt) eq lc($task)) {
+                $result &= import_mta_subscriber_task(\@messages) if taskinfo($import_mta_subscriber_task_opt,$result);
+            } elsif (lc($import_truncate_mta_subscriber_task_opt) eq lc($task)) {
+                $result &= import_truncate_mta_subscriber_task(\@messages) if taskinfo($import_truncate_mta_subscriber_task_opt,$result);
 
-            } elsif (lc($create_subscriber_task_opt) eq lc($task)) {
-                if (taskinfo($create_subscriber_task_opt,$result,1)) {
+            } elsif (lc($create_mta_subscriber_task_opt) eq lc($task)) {
+                if (taskinfo($create_mta_subscriber_task_opt,$result,1)) {
                     next unless check_dry();
-                    $result &= create_subscriber_task(\@messages);
+                    $result &= create_mta_subscriber_task(\@messages);
                     $completion |= 1;
                 }
 
@@ -260,12 +260,12 @@ sub cleanup_task {
     }
 }
 
-sub import_subscriber_task {
+sub import_mta_subscriber_task {
 
     my ($messages) = @_;
     my ($result,$warning_count) = (0,0);
     eval {
-        ($result,$warning_count) = import_subscriber(@subscriber_filenames);
+        ($result,$warning_count) = import_mta_subscriber(@subscriber_filenames);
     };
     my $err = $@;
     my $stats = ": $warning_count warnings";
@@ -295,7 +295,7 @@ sub import_subscriber_task {
 
 }
 
-sub import_truncate_subscriber_task {
+sub import_mta_truncate_subscriber_task {
 
     my ($messages) = @_;
     my $result = 0;
@@ -320,12 +320,12 @@ sub import_truncate_subscriber_task {
 
 
 
-sub create_subscriber_task {
+sub create_mta_subscriber_task {
 
     my ($messages) = @_;
     my ($result,$warning_count,$nonunique_contacts) = (0,0,{});
     eval {
-        ($result,$warning_count,$nonunique_contacts) = provision_subscribers();
+        ($result,$warning_count,$nonunique_contacts) = provision_mta_subscribers();
     };
     my $err = $@;
     my $stats = ": $warning_count warnings";
