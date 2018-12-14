@@ -34,7 +34,8 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
 #use NGCP::BulkProcessor::Dao::Trunk::kamailio::location qw();
 
-use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber qw();
 
 use NGCP::BulkProcessor::RestRequests::Trunk::Resellers qw();
 use NGCP::BulkProcessor::RestRequests::Trunk::Domains qw();
@@ -116,9 +117,12 @@ sub check_import_db_tables {
 
     my $message_prefix = 'import db tables - ';
 
-    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber');
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber');
     $result &= $check_result; push(@$messages,$message);
 
+    ($check_result,$message) = _check_table($message_prefix,'NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber');
+    $result &= $check_result; push(@$messages,$message);
+    
     return $result;
 
 }
