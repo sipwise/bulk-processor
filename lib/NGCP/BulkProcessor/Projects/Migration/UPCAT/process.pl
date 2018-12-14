@@ -24,10 +24,12 @@ use NGCP::BulkProcessor::Projects::Migration::UPCAT::Settings qw(
     $force
     $run_id
 
-    @subscriber_filenames
+    @mta_subscriber_filenames
     $cc_ac_map_yml
 
     $barring_profiles_yml
+
+    @ccs_subscriber_filenames
 
 );
 #$allowed_ips
@@ -65,7 +67,7 @@ use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw(cleanupcertfiles);
 
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::ProjectConnectorPool qw(destroy_all_dbs);
 
-use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
@@ -84,11 +86,11 @@ use NGCP::BulkProcessor::Projects::Migration::UPCAT::Check qw(
 );
 
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::Import qw(
-    import_subscriber
+    import_mta_subscriber
 );
 
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::Provisioning qw(
-    provision_subscribers
+    provision_mta_subscribers
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -105,13 +107,19 @@ push(@TASK_OPTS,$cleanup_task_opt);
 my $cleanup_all_task_opt = 'cleanup_all';
 push(@TASK_OPTS,$cleanup_all_task_opt);
 
-my $import_subscriber_task_opt = 'import_subscriber';
-push(@TASK_OPTS,$import_subscriber_task_opt);
-my $import_truncate_subscriber_task_opt = 'truncate_subscriber';
-push(@TASK_OPTS,$import_truncate_subscriber_task_opt);
+my $import_mta_subscriber_task_opt = 'import_mta_subscriber';
+push(@TASK_OPTS,$import_mta_subscriber_task_opt);
+my $truncate_mta_subscriber_task_opt = 'truncate_mta_subscriber';
+push(@TASK_OPTS,$truncate_mta_subscriber_task_opt);
 
-my $create_subscriber_task_opt = 'create_subscriber';
-push(@TASK_OPTS,$create_subscriber_task_opt);
+my $create_mta_subscriber_task_opt = 'create_mta_subscriber';
+push(@TASK_OPTS,$create_mta_subscriber_task_opt);
+
+my $import_ccs_subscriber_task_opt = 'import_ccs_subscriber';
+push(@TASK_OPTS,$import_ccs_subscriber_task_opt);
+my $truncate_ccs_subscriber_task_opt = 'truncate_ccs_subscriber';
+push(@TASK_OPTS,$truncate_ccs_subscriber_task_opt);
+
 
 if (init()) {
     main();
@@ -165,18 +173,29 @@ sub main() {
             } elsif (lc($cleanup_all_task_opt) eq lc($task)) {
                 $result &= cleanup_task(\@messages,1) if taskinfo($cleanup_all_task_opt,$result);
 
-            } elsif (lc($import_subscriber_task_opt) eq lc($task)) {
-                $result &= import_subscriber_task(\@messages) if taskinfo($import_subscriber_task_opt,$result);
-            } elsif (lc($import_truncate_subscriber_task_opt) eq lc($task)) {
-                $result &= import_truncate_subscriber_task(\@messages) if taskinfo($import_truncate_subscriber_task_opt,$result);
+            } elsif (lc($import_mta_subscriber_task_opt) eq lc($task)) {
+                $result &= import_mta_subscriber_task(\@messages) if taskinfo($import_mta_subscriber_task_opt,$result);
+            } elsif (lc($truncate_mta_subscriber_task_opt) eq lc($task)) {
+                $result &= truncate_mta_subscriber_task(\@messages) if taskinfo($truncate_mta_subscriber_task_opt,$result);
 
-            } elsif (lc($create_subscriber_task_opt) eq lc($task)) {
-                if (taskinfo($create_subscriber_task_opt,$result,1)) {
+            } elsif (lc($create_mta_subscriber_task_opt) eq lc($task)) {
+                if (taskinfo($create_mta_subscriber_task_opt,$result,1)) {
                     next unless check_dry();
-                    $result &= create_subscriber_task(\@messages);
+                    $result &= create_mta_subscriber_task(\@messages);
                     $completion |= 1;
                 }
 
+            } elsif (lc($import_ccs_subscriber_task_opt) eq lc($task)) {
+                $result &= import_ccs_subscriber_task(\@messages) if taskinfo($import_ccs_subscriber_task_opt,$result);
+            } elsif (lc($truncate_ccs_subscriber_task_opt) eq lc($task)) {
+                $result &= truncate_ccs_subscriber_task(\@messages) if taskinfo($truncate_ccs_subscriber_task_opt,$result);
+
+            #} elsif (lc($create_ccs_subscriber_task_opt) eq lc($task)) {
+            #    if (taskinfo($create_ccs_subscriber_task_opt,$result,1)) {
+            #        next unless check_dry();
+            #        $result &= create_ccs_subscriber_task(\@messages);
+            #        $completion |= 1;
+            #    }
 
             } else {
                 $result = 0;
@@ -260,58 +279,58 @@ sub cleanup_task {
     }
 }
 
-sub import_subscriber_task {
+sub import_mta_subscriber_task {
 
     my ($messages) = @_;
     my ($result,$warning_count) = (0,0);
     eval {
-        ($result,$warning_count) = import_subscriber(@subscriber_filenames);
+        ($result,$warning_count) = import_mta_subscriber(@mta_subscriber_filenames);
     };
     my $err = $@;
     my $stats = ": $warning_count warnings";
     eval {
-        $stats .= "\n  total subscriber records: " .
-            NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::countby_ccacsn() . ' rows';
-        my $added_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::countby_delta(
-            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::added_delta
+        $stats .= "\n  total mta subscriber records: " .
+            NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_ccacsn() . ' rows';
+        my $added_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::added_delta
         );
         $stats .= "\n    new: $added_count rows";
-        my $existing_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::countby_delta(
-            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::updated_delta
+        my $existing_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::updated_delta
         );
         $stats .= "\n    existing: $existing_count rows";
-        my $deleted_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::countby_delta(
-            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::deleted_delta
+        my $deleted_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::deleted_delta
         );
         $stats .= "\n    removed: $deleted_count rows";
     };
     if ($err or !$result) {
-        push(@$messages,"importing subscribers INCOMPLETE$stats");
+        push(@$messages,"importing mta subscribers INCOMPLETE$stats");
     } else {
-        push(@$messages,"importing subscribers completed$stats");
+        push(@$messages,"importing mta subscribers completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
 
 }
 
-sub import_truncate_subscriber_task {
+sub truncate_mta_subscriber_task {
 
     my ($messages) = @_;
     my $result = 0;
     eval {
-        $result = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::create_table(1);
+        $result = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::create_table(1);
     };
     my $err = $@;
     my $stats = '';
     eval {
-        $stats .= "\n  total subscriber records: " .
-            NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber::countby_dn() . ' rows';
+        $stats .= "\n  total mta subscriber records: " .
+            NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_ccacsn() . ' rows';
     };
     if ($err or !$result) {
-        push(@$messages,"truncating imported subscribers INCOMPLETE$stats");
+        push(@$messages,"truncating imported mta subscribers INCOMPLETE$stats");
     } else {
-        push(@$messages,"truncating imported subscribers completed$stats");
+        push(@$messages,"truncating imported mta subscribers completed$stats");
     }
     destroy_all_dbs(); #every task should leave with closed connections.
     return $result;
@@ -320,12 +339,12 @@ sub import_truncate_subscriber_task {
 
 
 
-sub create_subscriber_task {
+sub create_mta_subscriber_task {
 
     my ($messages) = @_;
     my ($result,$warning_count,$nonunique_contacts) = (0,0,{});
     eval {
-        ($result,$warning_count,$nonunique_contacts) = provision_subscribers();
+        ($result,$warning_count,$nonunique_contacts) = provision_mta_subscribers();
     };
     my $err = $@;
     my $stats = ": $warning_count warnings";
@@ -353,9 +372,9 @@ sub create_subscriber_task {
                 if (scalar keys %$nonunique_contacts) > 0;
     };
     if ($err or !$result) {
-        push(@$messages,"create subscribers INCOMPLETE$stats");
+        push(@$messages,"create mta subscribers INCOMPLETE$stats");
     } else {
-        push(@$messages,"create subscribers completed$stats");
+        push(@$messages,"create mta subscribers completed$stats");
         #if (not $dry) {
         #    push(@$messages,"YOU MIGHT WANT TO RESTART KAMAILIO FOR PERMANENT REGISTRATIONS TO COME INTO EFFECT");
         #}
@@ -365,6 +384,63 @@ sub create_subscriber_task {
 
 }
 
+sub import_ccs_subscriber_task {
+
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        ($result,$warning_count) = import_ccs_subscriber(@ccs_subscriber_filenames);
+    };
+    my $err = $@;
+    my $stats = ": $warning_count warnings";
+    eval {
+        $stats .= "\n  total ccs subscriber records: " .
+            NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::countby_service_number() . ' rows';
+        my $added_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::added_delta
+        );
+        $stats .= "\n    new: $added_count rows";
+        my $existing_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::updated_delta
+        );
+        $stats .= "\n    existing: $existing_count rows";
+        my $deleted_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::countby_delta(
+            $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::deleted_delta
+        );
+        $stats .= "\n    removed: $deleted_count rows";
+    };
+    if ($err or !$result) {
+        push(@$messages,"importing ccs subscribers INCOMPLETE$stats");
+    } else {
+        push(@$messages,"importing ccs subscribers completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
+
+sub truncate_ccs_subscriber_task {
+
+    my ($messages) = @_;
+    my $result = 0;
+    eval {
+        $result = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::create_table(1);
+    };
+    my $err = $@;
+    my $stats = '';
+    eval {
+        $stats .= "\n  total ccs subscriber records: " .
+            NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::countby_service_number() . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"truncating imported ccs subscribers INCOMPLETE$stats");
+    } else {
+        push(@$messages,"truncating imported ccs subscribers completed$stats");
+    }
+    destroy_all_dbs(); #every task should leave with closed connections.
+    return $result;
+
+}
 
 #END {
 #    # this should not be required explicitly, but prevents Log4Perl's
