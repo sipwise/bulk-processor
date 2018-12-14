@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::Subscriber;
+package NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber;
 use strict;
 
 ## no critic
@@ -32,14 +32,10 @@ our @EXPORT_OK = qw(
     getinsertstatement
     getupsertstatement
 
-    findby_ccacsn
-    countby_ccacsn
+    findby_service_number
+    countby_service_number
 
-    findby_domain_sipusername
-    findby_domain_webusername
-    list_domain_billingprofilename_resellernames
-    findby_sipusername
-    list_barring_resellernames
+    findby_switch_number
 
     update_delta
     findby_delta
@@ -53,54 +49,29 @@ our @EXPORT_OK = qw(
 
     @fieldnames
 );
-#    findby_ccacsn
-#    countby_ccacsn
 
-#    findby_domain_sipusername
-#    findby_domain_webusername
-#    list_domain_billingprofilename_resellernames
-#    findby_sipusername
-#    list_barring_resellernames
+#findby_ccacsn
+#countby_ccacsn
 
-my $tablename = 'subscriber';
+#findby_domain_sipusername
+#findby_domain_webusername
+#list_domain_billingprofilename_resellernames
+#findby_sipusername
+#list_barring_resellernames
+
+my $tablename = 'ccs_subscriber';
 my $get_db = \&get_import_db;
-#my $get_tablename = \&import_db_tableidentifier;
-
-my @csv_cols = (
-    # fields in order of cols from .csv
-    "_rownum",
-    "_dn",
-    "_txt_sw_username",
-    "sip_password", #"Subscriber sip password",
-    "_len",
-    "_cpe_mta_mac_address",
-    "_cpe_model",
-    "_cpe_vendor",
-    "customer_id", #"Customer ID",
-);
 
 our @fieldnames = (
-    @csv_cols,
-    "reseller_name", #"Reseller name",
-    "domain", #"Sip domain name",
-    "billing_profile_name", #"Billing profile name",
-    "sip_username", #"Subscriber sip username",
-    "cc", #"Subscriber primary number - country code (cc)",
-    "ac", #"Subscriber primary number - country code (ac)",
-    "sn", #"Subscriber primary number - country code (sn)",
-    "web_username", #"Subscriber web username",
-    "web_password", #"Subscriber web password",
-    "barring",
-    #"allowed_ips",
-    #"channels",
-    #"voicemail",
+    "service_number",
+    "switch_number",
+    "icm",
+    "routing_type",
+    "customer",
+    "target_number",
+    "comment",
 
-    #calculated fields at the end!
     'rownum',
-    #'range',
-    #'contact_hash',
-    'filenum',
-    'filename',
 );
 my $expected_fieldnames = [
     @fieldnames,
@@ -108,11 +79,10 @@ my $expected_fieldnames = [
 ];
 
 # table creation:
-my $primarykey_fieldnames = [ 'cc','ac','sn' ];
+my $primarykey_fieldnames = [ 'service_number' ];
 my $indexes = {
 
-    $tablename . '_domain_web_username' => [ 'domain(32)','web_username(32)' ],
-    $tablename . '_domain_sip_username' => [ 'domain(32)','sip_username(32)' ],
+    $tablename . '_switch_number' => [ 'switch_number(12)' ],
 
     $tablename . '_rownum' => [ 'rownum(11)' ],
     $tablename . '_delta' => [ 'delta(7)' ],};
@@ -166,86 +136,43 @@ sub findby_delta {
 
 }
 
-sub findby_ccacsn {
+sub findby_service_number {
 
-    my ($cc,$ac,$sn,$load_recursive) = @_;
+    my ($service_number,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    return [] unless (defined $cc or defined $ac or defined $sn);
+    return undef unless (defined $service_number);
 
     my $rows = $db->db_get_all_arrayref(
         'SELECT * FROM ' .
             $table .
         ' WHERE ' .
-            $db->columnidentifier('cc') . ' = ?' .
-            ' AND ' . $db->columnidentifier('ac') . ' = ?' .
-            ' AND ' . $db->columnidentifier('sn') . ' = ?'
-    ,$cc,$ac,$sn);
+            $db->columnidentifier('service_number') . ' = ?'
+    ,$service_number);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 
-sub findby_domain_sipusername {
+sub findby_switch_number {
 
-    my ($domain,$sip_username,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    #return [] unless (defined $cc or defined $ac or defined $sn);
-
-    my $rows = $db->db_get_all_arrayref(
-        $db->paginate_sort_query('SELECT * FROM ' .
-            $table .
-        ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?' .
-            ' AND ' . $db->columnidentifier('sip_username') . ' = ?',
-                undef,undef,[{
-                                            column => 'filenum',
-                                            numeric => 1,
-                                            dir => 1,
-                                        },{
-                                            column => 'rownum',
-                                            numeric => 1,
-                                            dir => 1,
-                                        }])
-    ,$domain,$sip_username);
-
-    return buildrecords_fromrows($rows,$load_recursive);
-
-}
-
-sub findby_domain_webusername {
-
-    my ($domain,$web_username,$load_recursive) = @_;
+    my ($switch_number,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    #return [] unless (defined $cc or defined $ac or defined $sn);
+    return [] unless (defined $switch_number);
 
     my $rows = $db->db_get_all_arrayref(
-        $db->paginate_sort_query('SELECT * FROM ' .
+        'SELECT * FROM ' .
             $table .
         ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?' .
-            ' AND ' . $db->columnidentifier('web_username') . ' = ?',
-                undef,undef,[{
-                                            column => 'filenum',
-                                            numeric => 1,
-                                            dir => 1,
-                                        },{
-                                            column => 'rownum',
-                                            numeric => 1,
-                                            dir => 1,
-                                        }])
-    ,$domain,$web_username);
+            $db->columnidentifier('switch_number') . ' = ?'
+    ,$switch_number);
 
     return buildrecords_fromrows($rows,$load_recursive);
 
@@ -253,7 +180,7 @@ sub findby_domain_webusername {
 
 sub update_delta {
 
-    my ($cc,$ac,$sn,$delta) = @_;
+    my ($service_number,$delta) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -262,21 +189,19 @@ sub update_delta {
     my $stmt = 'UPDATE ' . $table . ' SET delta = ?';
     my @params = ();
     push(@params,$delta);
-    if (defined $cc or defined $ac or defined $sn) {
+    if (defined $service_number) {
         $stmt .= ' WHERE ' .
-            $db->columnidentifier('cc') . ' = ?' .
-            ' AND ' . $db->columnidentifier('ac') . ' = ?' .
-            ' AND ' . $db->columnidentifier('sn') . ' = ?';
-        push(@params,$cc,$ac,$sn);
+            $db->columnidentifier('service_number') . ' = ?';
+        push(@params,$service_number);
     }
 
     return $db->db_do($stmt,@params);
 
 }
 
-sub countby_ccacsn {
+sub countby_service_number {
 
-    my ($cc,$ac,$sn) = @_;
+    my ($service_number) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -284,12 +209,10 @@ sub countby_ccacsn {
 
     my $stmt = 'SELECT COUNT(*) FROM ' . $table;
     my @params = ();
-    if (defined $cc or defined $ac or defined $sn) {
+    if (defined $service_number) {
         $stmt .= ' WHERE ' .
-            $db->columnidentifier('cc') . ' = ?' .
-            ' AND ' . $db->columnidentifier('ac') . ' = ?' .
-            ' AND ' . $db->columnidentifier('sn') . ' = ?';
-        push(@params,$cc,$ac,$sn);
+            $db->columnidentifier('service_number') . ' = ?';
+        push(@params,$service_number);
     }
 
     return $db->db_get_value($stmt,@params);
@@ -318,34 +241,6 @@ sub countby_delta {
     }
 
     return $db->db_get_value($stmt,@params);
-
-}
-
-sub list_domain_billingprofilename_resellernames {
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my @cols = map { $db->columnidentifier($_); } qw/domain billing_profile_name reseller_name/;
-    my $stmt = 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols);
-    my @params = ();
-
-    return $db->db_get_all_arrayref($stmt,@params);
-
-}
-
-sub list_barring_resellernames {
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my @cols = map { $db->columnidentifier($_); } qw/barring reseller_name/;
-    my $stmt = 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols);
-    my @params = ();
-
-    return $db->db_get_all_arrayref($stmt,@params);
 
 }
 
@@ -391,7 +286,7 @@ sub process_records {
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my @cols = map { $db->columnidentifier($_); } qw/domain sip_username/;
+    my @cols = map { $db->columnidentifier($_); } qw/switch_number/;
 
     return process_table(
         get_db                      => $get_db,
@@ -408,10 +303,6 @@ sub process_records {
         tableprocessing_threads     => $numofthreads,
         #'select'                    => 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),
         'select'          => $db->paginate_sort_query('SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),undef,undef,[{
-                                            column => 'filenum',
-                                            numeric => 1,
-                                            dir => 1,
-                                        },{
                                             column => 'rownum',
                                             numeric => 1,
                                             dir => 1,
@@ -439,9 +330,7 @@ sub getupsertstatement {
     foreach my $fieldname (@$expected_fieldnames) {
         if ('delta' eq $fieldname) {
             my $stmt = 'SELECT \'' . $updated_delta . '\' FROM ' . $table . ' WHERE ' .
-                $db->columnidentifier('cc') . ' = ?' .
-                ' AND ' . $db->columnidentifier('ac') . ' = ?' .
-                ' AND ' . $db->columnidentifier('sn') . ' = ?';
+                $db->columnidentifier('service_number') . ' = ?';
             push(@values,'COALESCE((' . $stmt . '), \'' . $added_delta . '\')');
         } else {
             push(@values,'?');

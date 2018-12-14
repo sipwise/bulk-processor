@@ -44,6 +44,11 @@ our @EXPORT_OK = qw(
 
     @CF_ATTRIBUTES
     $RINGTIMEOUT_ATTRIBUTE
+
+    $EXTENDED_DIALING_MODE_ATTRIBUTE
+    $E164_TO_RURI_ATTRIBUTE
+    $SERIAL_FORKING_BY_Q_VALUE_ATTRIBUTE
+
 );
 #$FORCE_OUTBOUND_CALLS_TO_PEER
 
@@ -99,6 +104,10 @@ our $CLIR_ATTRIBUTE = 'clir';
 our @CF_ATTRIBUTES = qw(cfu cft cfna cfb); #skip sms for now
 
 our $RINGTIMEOUT_ATTRIBUTE = 'ringtimeout';
+
+our $EXTENDED_DIALING_MODE_ATTRIBUTE = 'extended_dialing_mode';
+our $E164_TO_RURI_ATTRIBUTE = 'e164_to_ruri';
+our $SERIAL_FORKING_BY_Q_VALUE_ATTRIBUTE = 'serial_forking_by_q_value';
 
 sub new {
 
