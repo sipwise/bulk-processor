@@ -52,22 +52,22 @@ our @EXPORT_OK = qw(
     $force
     $import_db_file
 
-    @subscriber_filenames
-    $subscriber_import_numofthreads
-    $ignore_subscriber_unique
-    $subscriber_import_single_row_txn
+    @mta_subscriber_filenames
+    $mta_subscriber_import_numofthreads
+    $ignore_mta_subscriber_unique
+    $mta_subscriber_import_single_row_txn
 
-    $provision_subscriber_rownum_start
-    $provision_subscriber_multithreading
-    $provision_subscriber_numofthreads
-    $webpassword_length
-    $webusername_length
-    $sippassword_length
+    $provision_mta_subscriber_rownum_start
+    $provision_mta_subscriber_multithreading
+    $provision_mta_subscriber_numofthreads
+    $mta_webpassword_length
+    $mta_webusername_length
+    $mta_sippassword_length
 
-    $default_domain
-    $default_reseller_name
-    $default_billing_profile_name
-    $default_barring
+    $mta_default_domain
+    $mta_default_reseller_name
+    $mta_default_billing_profile_name
+    $mta_default_barring
 
     $cc_ac_map_yml
     $cc_ac_map
@@ -78,6 +78,11 @@ our @EXPORT_OK = qw(
 
     $barring_profiles_yml
     $barring_profiles
+
+    @ccs_subscriber_filenames
+    $ignore_ccs_subscriber_unique
+    $provision_ccs_subscriber_rownum_start
+    $ccs_subscriber_import_single_row_txn
 );
 #$default_channels_map
 
@@ -95,22 +100,22 @@ our $run_id = '';
 our $import_db_file = _get_import_db_file($run_id,'import');
 our $import_multithreading = 0; #$enablemultithreading;
 
-our @subscriber_filenames = ();
-our $subscriber_import_numofthreads = $cpucount;
-our $ignore_subscriber_unique = 0;
-our $subscriber_import_single_row_txn = 1;
+our @mta_subscriber_filenames = ();
+our $mta_subscriber_import_numofthreads = $cpucount;
+our $ignore_mta_subscriber_unique = 0;
+our $mta_subscriber_import_single_row_txn = 1;
 
-our $provision_subscriber_rownum_start = 0; #all lines
-our $provision_subscriber_multithreading = $enablemultithreading;
-our $provision_subscriber_numofthreads = $cpucount;
-our $webpassword_length = 8;
-our $webusername_length = 8;
-our $sippassword_length = 16;
+our $provision_mta_subscriber_rownum_start = 0; #all lines
+our $provision_mta_subscriber_multithreading = $enablemultithreading;
+our $provision_mta_subscriber_numofthreads = $cpucount;
+our $mta_webpassword_length = 8;
+our $mta_webusername_length = 8;
+our $mta_sippassword_length = 16;
 
-our $default_domain = undef;
-our $default_reseller_name = 'default';
-our $default_billing_profile_name = 'Default Billing Profile';
-our $default_barring = undef;
+our $mta_default_domain = undef;
+our $mta_default_reseller_name = 'default';
+our $mta_default_billing_profile_name = 'Default Billing Profile';
+our $mta_default_barring = undef;
 
 our $cc_ac_map_yml = 'cc_ac.yml';
 our $cc_ac_map = {};
@@ -121,6 +126,11 @@ our $ac_len = {};
 
 our $barring_profiles_yml = undef;
 our $barring_profiles = {};
+
+our @ccs_subscriber_filenames = ();
+our $ignore_ccs_subscriber_unique = 0;
+our $provision_ccs_subscriber_rownum_start = 0;
+our $ccs_subscriber_import_single_row_txn = 1;
 
 sub update_settings {
 
@@ -152,39 +162,45 @@ sub update_settings {
         #    configurationerror($configfile,"import_multithreading must be disabled to preserve record order",getlogger(__PACKAGE__));
         #}
 
-        @subscriber_filenames = _get_import_filenames(\@subscriber_filenames,$data,'subscriber_filenames');
-        $subscriber_import_numofthreads = _get_numofthreads($cpucount,$data,'subscriber_import_numofthreads');
-        $ignore_subscriber_unique = $data->{ignore_subscriber_unique} if exists $data->{ignore_subscriber_unique};
-        $subscriber_import_single_row_txn = $data->{subscriber_import_single_row_txn} if exists $data->{subscriber_import_single_row_txn};
+        @mta_subscriber_filenames = _get_import_filenames(\@mta_subscriber_filenames,$data,'mta_subscriber_filenames');
+        $mta_subscriber_import_numofthreads = _get_numofthreads($cpucount,$data,'mta_subscriber_import_numofthreads');
+        $ignore_mta_subscriber_unique = $data->{ignore_mta_subscriber_unique} if exists $data->{ignore_mta_subscriber_unique};
+        $mta_subscriber_import_single_row_txn = $data->{mta_subscriber_import_single_row_txn} if exists $data->{mta_subscriber_import_single_row_txn};
 
-        $provision_subscriber_rownum_start = $data->{provision_subscriber_rownum_start} if exists $data->{provision_subscriber_rownum_start};
-        $provision_subscriber_multithreading = $data->{provision_subscriber_multithreading} if exists $data->{provision_subscriber_multithreading};
-        $provision_subscriber_numofthreads = _get_numofthreads($cpucount,$data,'provision_subscriber_numofthreads');
-        $webpassword_length = $data->{webpassword_length} if exists $data->{webpassword_length};
-        if (not defined $webpassword_length or $webpassword_length <= 7) {
-            configurationerror($configfile,'webpassword_length greater than 7 required',getlogger(__PACKAGE__));
+        $provision_mta_subscriber_rownum_start = $data->{provision_mta_subscriber_rownum_start} if exists $data->{provision_mta_subscriber_rownum_start};
+        $provision_mta_subscriber_multithreading = $data->{provision_mta_subscriber_multithreading} if exists $data->{provision_mta_subscriber_multithreading};
+        $provision_mta_subscriber_numofthreads = _get_numofthreads($cpucount,$data,'provision_mta_subscriber_numofthreads');
+        $mta_webpassword_length = $data->{mta_webpassword_length} if exists $data->{mta_webpassword_length};
+        if (not defined $mta_webpassword_length or $mta_webpassword_length <= 7) {
+            configurationerror($configfile,'mta_webpassword_length greater than 7 required',getlogger(__PACKAGE__));
             $result = 0;
         }
-        $webusername_length = $data->{webusername_length} if exists $data->{webusername_length};
-        if (not defined $webusername_length or $webusername_length <= 7) {
-            configurationerror($configfile,'webusername_length greater than 7 required',getlogger(__PACKAGE__));
+        $mta_webusername_length = $data->{mta_webusername_length} if exists $data->{mta_webusername_length};
+        if (not defined $mta_webusername_length or $mta_webusername_length <= 7) {
+            configurationerror($configfile,'mta_webusername_length greater than 7 required',getlogger(__PACKAGE__));
             $result = 0;
         }
-        $sippassword_length = $data->{sippassword_length} if exists $data->{sippassword_length};
-        if (not defined $sippassword_length or $sippassword_length <= 7) {
-            configurationerror($configfile,'sippassword_length greater than 7 required',getlogger(__PACKAGE__));
+        $mta_sippassword_length = $data->{mta_sippassword_length} if exists $data->{mta_sippassword_length};
+        if (not defined $mta_sippassword_length or $mta_sippassword_length <= 7) {
+            configurationerror($configfile,'mta_sippassword_length greater than 7 required',getlogger(__PACKAGE__));
             $result = 0;
         }
         #$default_channels = $data->{default_channels} if exists $data->{default_channels};
 
-        $default_domain = $data->{default_domain} if exists $data->{default_domain};
-        $default_reseller_name = $data->{default_reseller_name} if exists $data->{default_reseller_name};
-        $default_billing_profile_name = $data->{default_billing_profile_name} if exists $data->{default_billing_profile_name};
-        $default_barring = $data->{default_barring} if exists $data->{default_barring};
+        $mta_default_domain = $data->{mta_default_domain} if exists $data->{mta_default_domain};
+        $mta_default_reseller_name = $data->{mta_default_reseller_name} if exists $data->{mta_default_reseller_name};
+        $mta_default_billing_profile_name = $data->{mta_default_billing_profile_name} if exists $data->{mta_default_billing_profile_name};
+        $mta_default_barring = $data->{mta_default_barring} if exists $data->{mta_default_barring};
+
         $cc_ac_map_yml = $data->{cc_ac_map_yml} if exists $data->{cc_ac_map_yml};
         $default_cc = $data->{default_cc} if exists $data->{default_cc};
 
         $barring_profiles_yml = $data->{barring_profiles_yml} if exists $data->{barring_profiles_yml};
+
+        @ccs_subscriber_filenames = _get_import_filenames(\@ccs_subscriber_filenames,$data,'ccs_subscriber_filenames');
+        $ignore_ccs_subscriber_unique = $data->{ignore_ccs_subscriber_unique} if exists $data->{ignore_ccs_subscriber_unique};
+        $provision_ccs_subscriber_rownum_start = $data->{provision_ccs_subscriber_rownum_start} if exists $data->{provision_ccs_subscriber_rownum_start};
+        $ccs_subscriber_import_single_row_txn = $data->{ccs_subscriber_import_single_row_txn} if exists $data->{ccs_subscriber_import_single_row_txn};
 
         return $result;
 
