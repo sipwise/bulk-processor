@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "1adf8d57_04d9a8f3",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2018-12-20T11:40:03Z",
+      "side": 1,
+      "message": "Can we instead just query the passwd database for the user home directory so that we do not need to do something like this ever again? :)",
+      "revId": "90e259843e88d9126e1f375ab295cadd2543eb3c",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
