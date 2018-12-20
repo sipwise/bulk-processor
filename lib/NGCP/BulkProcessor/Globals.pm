@@ -204,7 +204,7 @@ our $ngcprestapi_username = 'administrator';
 our $ngcprestapi_password = 'administrator';
 our $ngcprestapi_realm = 'api_admin_http';
 
-our $working_path = tempdir(CLEANUP => 0) . '/'; #'/var/sipwise/';
+our $working_path = tempdir(CLEANUP => 0) . '/'; #'/ngcp-data/sipwise-user/';
 
 #our $input_path = $working_path . 'input/';
 
@@ -228,7 +228,7 @@ our $emailloglevel = 'OFF'; #'INFO';
 
 
 
-our @config_search_paths = ('/var/sipwise/');
+our @config_search_paths = ('/ngcp-data/sipwise-user/');
 
 # local db setup
 our $local_db_path = $working_path . 'db/';
