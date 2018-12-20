@@ -16,6 +16,24 @@
       "revId": "90e259843e88d9126e1f375ab295cadd2543eb3c",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "1adf8d57_a49534e5",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 1000042
+      },
+      "writtenOn": "2018-12-20T11:49:12Z",
+      "side": 1,
+      "message": "\u003e Can we instead just query the passwd database for the user home\n \u003e directory so that we do not need to do something like this ever\n \u003e again? :)\n\nI had that idea, but then it\u0027s a Perl project and these are config files, I don\u0027t know straight away how to achieve that and or if it will take some complications.\n\nIMO ideally the main author would change this, at least s/he\u0027ll have a better idea of possible complications.\n\nWho\u0027s the main author, Rene Krenn?",
+      "parentUuid": "1adf8d57_04d9a8f3",
+      "revId": "90e259843e88d9126e1f375ab295cadd2543eb3c",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
