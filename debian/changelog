@@ -1,3 +1,12 @@
+ngcp-bulk-processor (6.5.1.3+0~mr6.5.1.3) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [f9dc742] TT#49065 CCS subscriber provisioning
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 21 Dec 2018 05:49:49 +0100
+
 ngcp-bulk-processor (6.5.1.2+0~mr6.5.1.2) unstable; urgency=medium
 
   [ Rene Krenn ]
