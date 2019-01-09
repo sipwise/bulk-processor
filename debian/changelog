@@ -1,3 +1,15 @@
+ngcp-bulk-processor (7.2.0.0+0~mr7.2.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [7467422] TT#46754 ama "block" and "file" objects WIP
+  * [2bd51c6] TT#47531 process contracts/set profile package
+  * [a6619bf] TT#48101 upc AT importer
+  * [a50af1c] TT#49065 CCS subscriber provisioning
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 09 Jan 2019 21:54:15 +0100
+
 ngcp-bulk-processor (7.1.0.0+0~mr7.1.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
