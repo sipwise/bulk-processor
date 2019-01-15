@@ -41,6 +41,8 @@ our @EXPORT_OK = qw(
     findby_callidprefix
     process_unexported
 
+    get_callidprefix
+
 );
 #process_records
 #delete_ids
@@ -207,6 +209,15 @@ sub countby_ratingstatus {
 
 }
 
+sub get_callidprefix {
+
+    my ($call_id) = @_;
+    my $suffixre = '(' . join('|', map { quotemeta($_); } @callid_suffixes) . ')+$';
+    $call_id =~ s/$suffixre//g;
+    return $call_id
+
+}
+
 sub findby_callidprefix {
 
     my ($xa_db,$call_id,$joins,$conditions,$load_recursive) = @_;
@@ -216,8 +227,7 @@ sub findby_callidprefix {
     $xa_db //= $db;
     my $table = $db->tableidentifier($tablename);
 
-    my $suffixre = '(' . join('|', map { quotemeta($_); } @callid_suffixes) . ')+$';
-    $call_id =~ s/$suffixre//g;
+    $call_id = get_callidprefix($call_id);
     $call_id =~ s/%/\\%/g;
 
     my @conditions = @{$conditions // []};
