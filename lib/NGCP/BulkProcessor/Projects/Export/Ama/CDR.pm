@@ -20,6 +20,7 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
     $skip_errors
 
     $export_cdr_multithreading
+    $export_cdr_numofthreads
     $export_cdr_blocksize
     $export_cdr_joins
     $export_cdr_conditions
@@ -46,6 +47,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::mark qw();
 
 #use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 #use NGCP::BulkProcessor::Dao::Trunk::billing::domains qw();
@@ -88,6 +90,8 @@ our @EXPORT_OK = qw(
     export_cdrs
 
 );
+
+my $thread_num : shared = 0;
 
 sub export_cdrs {
 
@@ -142,6 +146,10 @@ sub export_cdrs {
             $context->{db} = &get_xa_db();
             $context->{error_count} = 0;
             $context->{warning_count} = 0;
+
+            lock $thread_num;
+            $context->{file_sequence_number} += $thread_num;
+            $thread_num++;
             # below is not mandatory..
             #_check_insert_tables();
         },
@@ -163,6 +171,10 @@ sub export_cdrs {
                 }
             }
 
+            NGCP::BulkProcessor::Dao::Trunk::accounting::mark::cleanup_system_mark($context->{db},
+                $export_cdr_stream,
+            );
+
             undef $context->{db};
             destroy_all_dbs();
             {
@@ -173,7 +185,7 @@ sub export_cdrs {
         load_recursive => 0,
         blocksize => $export_cdr_blocksize,
         multithreading => $export_cdr_multithreading,
-        numofthreads => 1,
+        numofthreads => $export_cdr_numofthreads,
         joins => $export_cdr_joins,
         conditions => $export_cdr_conditions,
         #sort => [{ column => 'id', numeric => 1, dir => 1 }],
@@ -226,7 +238,15 @@ sub _commit_export_status {
             _info($context,"export_status set for cdr id $id",1);
             #$dropped{$cdr_id} = delete $context->{file_cdrs}->{$cdr_id};
         }
-
+        NGCP::BulkProcessor::Dao::Trunk::accounting::mark::insert_system_mark($context->{db},
+            $export_cdr_stream,
+            $context->{file_sequence_number}
+        ); #set mark...
+        if ($export_cdr_multithreading) {
+            $context->{file_sequence_number} += $export_cdr_numofthreads;
+        } else {
+            $context->{file_sequence_number} += 1;
+        }
         $context->{db}->db_commit();
 
     };
@@ -268,7 +288,7 @@ sub _get_transfer_in {
 
             connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($context->{dt}),
 
-            file_sequence_number => 1,
+            file_sequence_number => $context->{file_sequence_number},
         )
     );
 
@@ -334,7 +354,7 @@ sub _get_transfer_out {
 
             connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($context->{dt}),
 
-            #file_sequence_number => 1,
+            file_sequence_number => $context->{file_sequence_number},
 
             #=> (scalar @records),
         )
@@ -364,6 +384,10 @@ sub _export_cdrs_create_context {
 
     $context->{file} = NGCP::BulkProcessor::Projects::Export::Ama::Format::File->new();
     $context->{file_cdr_id_map} = {};
+
+    $context->{file_sequence_number} = NGCP::BulkProcessor::Dao::Trunk::accounting::mark::get_system_mark(undef,
+        $export_cdr_stream
+    ); #load mark...
 
     return $result;
 }

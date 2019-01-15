@@ -73,9 +73,10 @@ sub new {
         tracer_type => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TracerType::TRANSFER_IN,
         @_,
     ));
-    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber->new(
+    $self->{file_sequence_number} = NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber->new(
         @_,
-    ));
+    );
+    $self->_add_field($self->{file_sequence_number});
     $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::RecordCount->new(
         @_,
     ));
@@ -90,6 +91,11 @@ sub new {
 sub get_structure_code_field {
     my $self = shift;
     return $self->{structure_code};
+}
+
+sub get_file_sequence_number_field {
+    my $self = shift;
+    return $self->{file_sequence_number};
 }
 
 #sub get_instance {

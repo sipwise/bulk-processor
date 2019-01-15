@@ -46,6 +46,7 @@ our @EXPORT_OK = qw(
     $force
 
     $export_cdr_multithreading
+    $export_cdr_numofthreads
     $export_cdr_blocksize
     $export_cdr_joins
     $export_cdr_conditions
@@ -54,6 +55,8 @@ our @EXPORT_OK = qw(
 
     $domestic_destination_pattern
     $international_destination_pattern
+
+    $ama_filename_format
 );
 #check_dry
 #$dry
@@ -72,6 +75,7 @@ our $force = 0;
 our $skip_errors = 0;
 
 our $export_cdr_multithreading = $enablemultithreading;
+our $export_cdr_numofthreads = $cpucount;
 our $export_cdr_blocksize = undef;
 our $export_cdr_joins = [];
 our $export_cdr_conditions = [];
@@ -80,6 +84,8 @@ our $export_cdr_stream = undef;
 
 our $domestic_destination_pattern = undef;
 our $international_destination_pattern = undef;
+
+our $ama_filename_format = '%1$s%2$s.ama';
 
 sub update_settings {
 
@@ -106,6 +112,7 @@ sub update_settings {
         $skip_errors = $data->{skip_errors} if exists $data->{skip_errors};
 
         $export_cdr_multithreading = $data->{export_cdr_multithreading} if exists $data->{export_cdr_multithreading};
+        $export_cdr_numofthreads = _get_numofthreads($cpucount,$data,'export_cdr_numofthreads');
         $export_cdr_blocksize = $data->{export_cdr_blocksize} if exists $data->{export_cdr_blocksize};
 
         my $parse_result;
@@ -127,6 +134,8 @@ sub update_settings {
         $international_destination_pattern = $data->{international_destination_pattern} if exists $data->{international_destination_pattern};
         ($regexp_result,$international_destination_pattern) = parse_regexp($international_destination_pattern,$configfile);
         $result &= $regexp_result;
+
+        $ama_filename_format = $data->{ama_filename_format} if exists $data->{ama_filename_format};
 
         return $result;
 
@@ -194,6 +203,14 @@ sub _parse_export_conditions {
         }
     }
     return (1,\@conditions);
+}
+
+sub _get_numofthreads {
+    my ($default_value,$data,$key) = @_;
+    my $_numofthreads = $default_value;
+    $_numofthreads = $data->{$key} if exists $data->{$key};
+    $_numofthreads = $cpucount if $_numofthreads > $cpucount;
+    return $_numofthreads;
 }
 
 1;
