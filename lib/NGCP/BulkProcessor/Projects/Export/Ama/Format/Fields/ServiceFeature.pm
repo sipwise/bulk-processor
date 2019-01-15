@@ -56,7 +56,7 @@ sub get_hex {
     my $self = shift;
     my ($service_feature) = $self->_get_params(@_);
     die("invalid service feature '$service_feature'") unless length($service_feature) == 3;
-    return $service_feature . $TERMINATOR;
+    return sprintf("%03d",$service_feature) . $TERMINATOR;
 
 }
 
