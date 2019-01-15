@@ -4,33 +4,19 @@ use strict;
 ## no critic
 
 use threads::shared qw();
-#use Time::HiRes qw(sleep);
-#use String::MkPasswd qw();
-#use List::Util qw();
-#use Data::Rmap qw();
-
-#use Tie::IxHash;
-
-#use NGCP::BulkProcessor::Globals qw(
-#    $enablemultithreading
-#);
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
 
     $skip_errors
 
     $export_cdr_multithreading
+    $export_cdr_numofthreads
     $export_cdr_blocksize
     $export_cdr_joins
     $export_cdr_conditions
     $export_cdr_limit
     $export_cdr_stream
 );
-#$dry
-#$deadlock_retries
-#@providers
-#$generate_cdr_numofthreads
-#$generate_cdr_count
 
 use NGCP::BulkProcessor::Logging qw (
     getlogger
@@ -46,14 +32,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data qw();
-
-#use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
-#use NGCP::BulkProcessor::Dao::Trunk::billing::domains qw();
-#use NGCP::BulkProcessor::Dao::Trunk::billing::resellers qw();
-#use NGCP::BulkProcessor::Dao::Trunk::billing::contacts qw();
-#use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
-
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::mark qw();
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::File qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Record qw();
@@ -68,17 +47,15 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigit
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ElapsedTime qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber qw();
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_xa_db
     destroy_dbs
+    ping_dbs
 );
-#ping_dbs
 
-#use NGCP::BulkProcessor::Utils qw(threadid timestamp); # stringtobool check_ipnet trim);
-##use NGCP::BulkProcessor::DSSorter qw(sort_by_configs);
-##use NGCP::BulkProcessor::RandomString qw(createtmpstring);
-#use NGCP::BulkProcessor::Array qw(array_to_map);
+use NGCP::BulkProcessor::Utils qw(threadid kbytes2gigs); # stringtobool check_ipnet trim);
 
 use NGCP::BulkProcessor::Calendar qw(current_local);
 
@@ -86,8 +63,70 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     export_cdrs
-
+    reset_fsn
+    reset_export_status
 );
+
+my $file_sequence_number : shared = 0;
+
+sub reset_export_status {
+
+    my ($from,$to) = @_;
+
+    my $result = 1;
+    my $context = { tid => threadid(), warning_count => 0, error_count => 0, };
+    $result &= _check_export_status_stream($context);
+    my $updated;
+    eval {
+        $updated = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::update_export_status($context->{export_status_id},
+            $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::UNEXPORTED,$from,$to);
+    };
+    if ($@) {
+        if ($skip_errors) {
+            _warn($context,"problem with export status reset: " . $@);
+        } else {
+            _error($context,"problem with export status reset: " . $@);
+        }
+        $result = 0;
+    } else {
+        _info($context,"$updated export states reset");
+    }
+
+    return $result;
+
+}
+
+sub reset_fsn {
+
+    my $result = 1;
+    my $context = { tid => threadid(), warning_count => 0, error_count => 0, };
+    $result &= _check_export_status_stream($context);
+    my $fsn;
+    eval {
+        NGCP::BulkProcessor::Dao::Trunk::accounting::mark::cleanup_system_marks(undef,
+            $export_cdr_stream,
+        );
+        NGCP::BulkProcessor::Dao::Trunk::accounting::mark::set_system_mark(undef,
+            $export_cdr_stream,
+            '0' #$NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::min_fsn
+        );
+        $fsn = NGCP::BulkProcessor::Dao::Trunk::accounting::mark::get_system_mark(undef,
+            $export_cdr_stream
+        ); #load mark...
+    };
+    if ($@) {
+        if ($skip_errors) {
+            _warn($context,"problem with file sequence number reset: " . $@);
+        } else {
+            _error($context,"problem with file sequence number reset: " . $@);
+        }
+        $result = 0;
+    } else {
+        _info($context,"file sequence number reset to $fsn")
+    }
+    return $result;
+
+}
 
 sub export_cdrs {
 
@@ -96,27 +135,26 @@ sub export_cdrs {
 
     destroy_dbs();
     my $warning_count :shared = 0;
-    return ($result && NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::process_unexported(
+    my @ama_files : shared = ();
+    $result &= NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::process_unexported(
         static_context => $static_context,
         process_code => sub {
             my ($context,$records,$row_offset) = @_;
-            $context->{rownum} = $row_offset;
-            $context->{block_cdr_id_map} = { map { $_->[0] => $_->[1]; } @$records };
+            $context->{block_call_id_map} = {};
+            foreach my $record (@$records) {
+                my ($id,$call_id) = @$record;
+                my $call_id_prefix = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::get_callidprefix($call_id);
+                if (exists $context->{block_call_id_map}->{$call_id_prefix}) {
+                    $context->{block_call_id_map}->{$call_id_prefix} += 1;
+                } else {
+                    $context->{block_call_id_map}->{$call_id_prefix} = 1;
+                }
+            }
             foreach my $record (@$records) {
                 return 0 if (defined $export_cdr_limit and $context->{rownum} >= $export_cdr_limit);
+                return 0 if $context->{file_sequence_number} > $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn;
                 my ($id,$call_id) = @$record;
-                # skip if the cdr belongs to a call already done in this block:
-                next unless exists $context->{block_cdr_id_map}->{$id};
-                # skip if the cdr is pending for flushing to file:
-                next if exists $context->{file_cdr_id_map}->{$id};
-                # skip if call legs/data is incomplete:
-                next unless _export_cdrs_init_context($context,$call_id);
-                # go ahead:
-                foreach my $cdr (@{$context->{cdrs}}) {
-                    $context->{file_cdr_id_map}->{$cdr->{id}} = $cdr->{start_time};
-                    delete $context->{cdr_id_map}->{$cdr->{id}};
-                    $context->{rownum} += 1;
-                }
+                next unless _export_cdrs_init_context($context,$id,$call_id);
                 eval {
                     $context->{file}->write_record(
                         get_transfer_in => \&_get_transfer_in,
@@ -134,7 +172,7 @@ sub export_cdrs {
                     }
                 }
             }
-
+            ping_dbs();
             return 1;
         },
         init_process_context_code => sub {
@@ -142,58 +180,96 @@ sub export_cdrs {
             $context->{db} = &get_xa_db();
             $context->{error_count} = 0;
             $context->{warning_count} = 0;
-            # below is not mandatory..
-            #_check_insert_tables();
+
+            $context->{ama_files} = [];
+            $context->{has_next} = 1;
+            $context->{rownum} = 0;
+
+            _increment_file_sequence_number($context);
         },
         uninit_process_context_code => sub {
             my ($context)= @_;
-
-            eval {
-                $context->{file}->close(
-                    get_transfer_out => \&_get_transfer_out,
-                    commit_cb => \&_commit_export_status,
-                    context => $context,
-                );
-            };
-            if ($@) {
-                if ($skip_errors) {
-                    _warn($context,"problem while closing " . $context->{file}->get_file_name() . ": " . $@);
-                } else {
-                    _error($context,"problem while exporting " . $context->{file}->get_file_name() . ": " . $@);
+            $context->{has_next} = 0; #do not reserve another file sequence number
+            if ($context->{file_sequence_number} <= $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn) {
+                eval {
+                    $context->{file}->close(
+                        get_transfer_out => \&_get_transfer_out,
+                        commit_cb => \&_commit_export_status,
+                        context => $context,
+                    );
+                };
+                if ($@) {
+                    if ($skip_errors) {
+                        _warn($context,"problem while closing " . $context->{file}->get_filename() . ": " . $@);
+                    } else {
+                        _error($context,"problem while closing " . $context->{file}->get_filename() . ": " . $@);
+                    }
                 }
             }
 
             undef $context->{db};
-            destroy_all_dbs();
+            destroy_dbs();
+
             {
                 lock $warning_count;
                 $warning_count += $context->{warning_count};
+                push(@ama_files,@{$context->{ama_files}});
             }
         },
         load_recursive => 0,
         blocksize => $export_cdr_blocksize,
         multithreading => $export_cdr_multithreading,
-        numofthreads => 1,
+        numofthreads => $export_cdr_numofthreads,
         joins => $export_cdr_joins,
         conditions => $export_cdr_conditions,
         #sort => [{ column => 'id', numeric => 1, dir => 1 }],
         limit => $export_cdr_limit,
-    ),$warning_count);
+    );
+
+    eval {
+        NGCP::BulkProcessor::Dao::Trunk::accounting::mark::cleanup_system_marks(undef,
+        $export_cdr_stream);
+    };
+    if ($@) {
+        if ($skip_errors) {
+            _warn($static_context,"problem with file sequence number cleanup: " . $@);
+        } else {
+            _error($static_context,"problem with file sequence number cleanup: " . $@);
+        }
+        $result = 0;
+    } else {
+        _info($static_context,"file sequence numbers cleaned up");
+    }
+
+    return ($result,$warning_count,\@ama_files);
 }
 
 
 sub _export_cdrs_init_context {
 
-    my ($context,$call_id) = @_;
+    my ($context,$cdr_id,$call_id) = @_;
 
-    my $result = 1;
-
+    my $result = 0;
+    $context->{cdrs} = undef;
     $context->{call_id} = $call_id;
-    $context->{cdrs} = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callidprefix($context->{db},
-            $call_id,$export_cdr_joins,$export_cdr_conditions);
-    $result &= ((scalar @{$context->{cdrs}}) > 0 ? 1 : 0);
 
-    #$result &= ((scalar @{$context->{cdrs}}) == 4 ? 1 : 0);
+    if (not exists $context->{file_cdr_id_map}->{$cdr_id}) {
+        my $call_id_prefix = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::get_callidprefix($call_id);
+        if (exists $context->{block_call_id_map}->{$call_id_prefix}) {
+            $context->{cdrs} = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callidprefix($context->{db},
+                $call_id,$export_cdr_joins,$export_cdr_conditions);
+            my $cdrs_in_block = delete $context->{block_call_id_map}->{$call_id_prefix};
+            if ((scalar @{$context->{cdrs}}) == $cdrs_in_block) {
+                foreach my $cdr (@{$context->{cdrs}}) {
+                    $context->{file_cdr_id_map}->{$cdr->{id}} = $cdr; #->{start_time};
+                    $context->{rownum} += 1;
+                }
+                $result = 1;
+            }
+        }
+    }
+
+    # todo: prepare the fields from the call's CDRs:
 
     $context->{dt} = current_local();
     $context->{source} = "43011001";
@@ -212,39 +288,51 @@ sub _commit_export_status {
     ) = @params{qw/
         context
     /};
-    #my %dropped = ();
+    _info($context,"file " . $context->{file}->get_filename() . " (" . kbytes2gigs(int((-s $context->{file}->get_filename()) / 1024)) . ") written (" . $context->{file}->get_record_count() . " records in " . $context->{file}->get_block_count() . " blocks)");
     eval {
+        ping_dbs();
         $context->{db}->db_begin();
-        foreach my $id (keys %{$context->{block_cdr_id_map}}) {
+        foreach my $id (keys %{$context->{file_cdr_id_map}}) {
             #mark exported
             NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::upsert_row($context->{db},
                 cdr_id => $id,
                 status_id => $context->{export_status_id},
                 export_status => $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::EXPORTED,
-                cdr_start_time => $context->{block_cdr_id_map}->{$id}->{start_time},
+                cdr_start_time => $context->{file_cdr_id_map}->{$id}->{start_time},
             );
             _info($context,"export_status set for cdr id $id",1);
-            #$dropped{$cdr_id} = delete $context->{file_cdrs}->{$cdr_id};
         }
-
+        NGCP::BulkProcessor::Dao::Trunk::accounting::mark::insert_system_mark($context->{db},
+            $export_cdr_stream,
+            $context->{file_sequence_number},
+        ); #set mark...
+        _info($context,"file sequence number $context->{file_sequence_number} saved");
         $context->{db}->db_commit();
 
     };
-    $context->{block_cdr_id_map} = {};
+    $context->{file_cdr_id_map} = {};
     my $err = $@;
     if ($err) {
         eval {
             $context->{db}->db_rollback(1);
-            #foreach (keys %dropped) {
-            #    $cdr_id_map{$_} = $dropped{$_};
-            #}
         };
         eval {
             unlink $context->{file}->get_filename();
         };
         die($err);
+    } else {
+        push(@{$context->{ama_files}},$context->{file}->get_filename());
+        _increment_file_sequence_number($context) if $context->{has_next};
     }
 
+}
+
+sub _increment_file_sequence_number {
+    my ($context) = @_;
+    lock $file_sequence_number;
+    $file_sequence_number = $file_sequence_number + 1;
+    _info($context,"file sequence number incremented: $file_sequence_number",1);
+    $context->{file_sequence_number} = $file_sequence_number;
 }
 
 sub _get_transfer_in {
@@ -255,20 +343,21 @@ sub _get_transfer_in {
     ) = @params{qw/
         context
     /};
+
     return NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
         NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9013->new(
 
             rewritten => 0,
-            sensor_id => '008708', #  Graz
+            sensor_id => '438716', #  Graz
 
             padding => 0,
-            recording_office_id => '008708',
+            recording_office_id => '438716',
 
             date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($context->{dt}),
 
-            connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($context->{dt}),
+            connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($context->{dt}), # adjacent
 
-            file_sequence_number => 1,
+            file_sequence_number => $context->{file_sequence_number},
         )
     );
 
@@ -287,21 +376,31 @@ sub _get_record {
             call_type => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType::STATION_PAID,
 
             rewritten => 0,
-            sensor_id => '008708', #  Graz
+            sensor_id => '438716', #  Graz
 
             padding => 0,
-            recording_office_id => '008708',
+            recording_office_id => '438716', #008708
+
+            #call code 970c
+            #timing ind 000
+            #seervice observed 0c
+
+            #called party off-hook            setzen
+            #unanswered =>
 
             date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($context->{dt}),
 
             service_feature => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature::OTHER,
-
+#mit 43
             originating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($context->{source}),
             originating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($context->{source}),
             originating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($context->{source}),
 
-            domestic_international => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::get_number_domestic_international($context->{destination}),
+            domestic_international => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::INTERNATIONAL, #get_number_domestic_international($context->{destination}),
 
+#2c
+#destination number mit 43
+#dialed_in , 0er wegstreichen
             terminating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($context->{destination}),
             terminating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($context->{destination}),
             terminating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($context->{destination}),
@@ -323,7 +422,7 @@ sub _get_transfer_out {
     /};
     return NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
         NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9014->new(
-
+            @_,
             rewritten => 0,
             sensor_id => '008708', #  Graz
 
@@ -334,15 +433,17 @@ sub _get_transfer_out {
 
             connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($context->{dt}),
 
-            #file_sequence_number => 1,
+            file_sequence_number => $context->{file_sequence_number},
 
             #=> (scalar @records),
+
+
         )
     );
 
 }
 
-sub _export_cdrs_create_context {
+sub _check_export_status_stream {
 
     my ($context) = @_;
 
@@ -359,11 +460,47 @@ sub _export_cdrs_create_context {
         _error($context,"cannot find export stream '$export_cdr_stream'");
         $result = 0;
     } elsif ($export_status) {
-        _info($context,"export stream '$export_cdr_stream' set");
+        _info($context,"using export stream '$export_cdr_stream'");
     }
+
+    return $result;
+
+}
+
+sub _export_cdrs_create_context {
+
+    my ($context) = @_;
+
+    my $result = 1;
+
+    $context->{tid} = threadid();
+
+    $result &= _check_export_status_stream($context);
 
     $context->{file} = NGCP::BulkProcessor::Projects::Export::Ama::Format::File->new();
     $context->{file_cdr_id_map} = {};
+    $context->{has_next} = 1;
+
+    my $fsn;
+    eval {
+        $fsn = NGCP::BulkProcessor::Dao::Trunk::accounting::mark::get_system_mark(undef,
+            $export_cdr_stream
+        ); #load mark...
+    };
+    if ($@) {
+        _error($context,"cannot get last file sequence number");
+        $result = 0;
+    } else {
+        if ($fsn < 0) {
+            $fsn = 0;
+        } elsif ($fsn >= $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn) {
+            _warn($context,"file sequence number $fsn exceeding limit (" . $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn . ")");
+            $result = 0;
+        }
+        _info($context,"last file sequence number is $fsn");
+        lock $file_sequence_number;
+        $file_sequence_number = $fsn;
+    }
 
     return $result;
 }

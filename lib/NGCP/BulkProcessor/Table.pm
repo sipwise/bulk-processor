@@ -21,7 +21,7 @@ sub new {
 sub _set_data {
 
   my $self = shift;
-  my ($data,$dupecheck) = shift;
+  my ($data,$dupecheck) = @_;
   $self->clear();
   if (defined $data and ref $data eq 'ARRAY') {
     if ($dupecheck) {
