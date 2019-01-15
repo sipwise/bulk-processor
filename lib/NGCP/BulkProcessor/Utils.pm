@@ -124,7 +124,7 @@ sub float_equal {
 
 sub round {
 
-    my ($number) = shift;
+    my ($number) = @_;
     return int($number + .5 * ($number <=> 0));
 
 }

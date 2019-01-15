@@ -55,6 +55,7 @@ our @EXPORT_OK = qw(
     rowupserted
     rowupdated
     rowsdeleted
+    rowsupdated
     totalrowsdeleted
     rowinsertskipped
     rowupdateskipped
@@ -494,6 +495,17 @@ sub rowupdated {
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
         $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row updated');
+    }
+
+}
+
+sub rowsupdated {
+
+    my ($db,$tablename,$rowcount,$logger) = @_;
+    if (defined $logger) {
+
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . $rowcount . ' row(s) updated');
+
     }
 
 }
