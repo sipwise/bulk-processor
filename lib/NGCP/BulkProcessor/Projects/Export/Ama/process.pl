@@ -67,6 +67,8 @@ use NGCP::BulkProcessor::ConnectorPool qw(destroy_dbs);
 
 use NGCP::BulkProcessor::Projects::Export::Ama::CDR qw(
     export_cdrs
+    reset_fsn
+    reset_export_status
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -74,6 +76,8 @@ scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unl
 my @TASK_OPTS = ();
 
 my $tasks = [];
+my $from = undef,
+my $to = undef;
 
 my $cleanup_task_opt = 'cleanup';
 push(@TASK_OPTS,$cleanup_task_opt);
@@ -82,6 +86,12 @@ push(@TASK_OPTS,$cleanup_all_task_opt);
 
 my $export_cdr_task_opt = 'export_cdr';
 push(@TASK_OPTS,$export_cdr_task_opt);
+
+my $reset_fsn_task_opt = 'reset_fsn';
+push(@TASK_OPTS,$reset_fsn_task_opt);
+
+my $reset_export_status_task_opt = 'reset_export_status';
+push(@TASK_OPTS,$reset_export_status_task_opt);
 
 if (init()) {
     main();
@@ -102,6 +112,8 @@ sub init {
         #"dry" => \$dry,
         "skip-errors" => \$skip_errors,
         "force" => \$force,
+        "from=s" => \$from,
+        "to=s" => \$to,
     ); # or scripterror('error in command line arguments',getlogger(getscriptpath()));
 
     $tasks = removeduplicates($tasks,1);
@@ -138,20 +150,17 @@ sub main() {
                     $completion |= 1;
                 }
 
+            } elsif (lc($reset_fsn_task_opt) eq lc($task)) {
+                if (taskinfo($reset_fsn_task_opt,$result,1)) {
+                    #next unless check_dry();
+                    $result &= reset_fsn_task(\@messages);
+                }
 
-            #} elsif (lc($provision_subscriber_task_opt) eq lc($task)) {
-            #    if (taskinfo($provision_subscriber_task_opt,$result,1)) {
-            #        next unless check_dry();
-            #        $result &= provision_subscriber_task(\@messages);
-            #        $completion |= 1;
-            #    }
-
-            #} elsif (lc($generate_cdr_task_opt) eq lc($task)) {
-            #    if (taskinfo($generate_cdr_task_opt,$result,1)) {
-            #        next unless check_dry();
-            #        $result &= generate_cdr_task(\@messages);
-            #        $completion |= 1;
-            #    }
+            } elsif (lc($reset_export_status_task_opt) eq lc($task)) {
+                if (taskinfo($reset_export_status_task_opt,$result,1)) {
+                    #next unless check_dry();
+                    $result &= reset_export_status_task(\@messages);
+                }
 
             } else {
                 $result = 0;
@@ -206,20 +215,60 @@ sub cleanup_task {
 sub export_cdr_task {
 
     my ($messages) = @_;
-    my ($result) = (0);
+    my ($result,$warning_count,$ama_files) = (0,0,[]);
     eval {
-        ($result) = export_cdrs();
+       ($result,$warning_count,$ama_files) = export_cdrs();
     };
     my $err = $@;
-    my $stats = ":";
-    eval {
-        #stats .= "\n  total CDRs: " .
-        #    NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::countby_ratingstatus(undef) . ' rows';
-    };
+    my $stats = ": " . (scalar @$ama_files) . ' files'; # . ((scalar @$ama_files) > 0 ? "\n  " : '') . join("\n  ",@$ama_files);
+    foreach my $ama_file (@$ama_files) {
+        $stats .= "\n  " . $ama_file;
+    }
+    #eval {
+    #    #stats .= "\n  total CDRs: " .
+    #    #    NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::countby_ratingstatus(undef) . ' rows';
+    #};
     if ($err or !$result) {
         push(@$messages,"export cdrs INCOMPLETE$stats");
     } else {
         push(@$messages,"export cdrs completed$stats");
+    }
+    destroy_dbs();
+    return $result;
+
+}
+
+sub reset_fsn_task {
+
+    my ($messages) = @_;
+    my ($result) = (0);
+    eval {
+        ($result) = reset_fsn();
+    };
+    my $err = $@;
+    if ($err or !$result) {
+        push(@$messages,"reset file sequence number INCOMPLETE");
+    } else {
+        push(@$messages,"reset file sequence number completed");
+    }
+    destroy_dbs();
+    return $result;
+
+}
+
+sub reset_export_status_task {
+
+    my ($messages) = @_;
+    my ($result) = (0);
+    eval {
+        ($result) = reset_export_status($from,$to);
+    };
+    my $err = $@;
+    my $fromto = 'from ' . ($from ? $from : '-') . ' to ' . ($to ? $to : '-');
+    if ($err or !$result) {
+        push(@$messages,"reset export status $fromto INCOMPLETE");
+    } else {
+        push(@$messages,"reset export status $fromto completed");
     }
     destroy_dbs();
     return $result;

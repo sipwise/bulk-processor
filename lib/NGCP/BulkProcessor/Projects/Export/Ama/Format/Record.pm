@@ -23,6 +23,11 @@ sub new {
 
 }
 
+sub get_structure {
+    my $self = shift;
+    return $self->{structure};
+}
+
 sub get_hex {
 
     my $self = shift;

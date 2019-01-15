@@ -32,7 +32,7 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ElapsedTime qw()
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::Projects::Export::Ama::Format::FieldSet NGCP::BulkProcessor::Projects::Export::Ama::Format::Structure);
 our @EXPORT_OK = qw(
-
+    $length
 );
 #get_instance
 
@@ -40,7 +40,7 @@ our @EXPORT_OK = qw(
 
 #my $INSTANCE = __PACKAGE__->new();
 
-my $length = 142;
+our $length = 142;
 
 sub new {
 
