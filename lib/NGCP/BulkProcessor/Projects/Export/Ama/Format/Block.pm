@@ -37,6 +37,26 @@ sub add_record {
 
 }
 
+sub records_fit {
+    my $self = shift;
+    my @records = @_;
+    if (not $self->{padded}) {
+        my $length = $self->get_length();
+        foreach my $record (@records) {
+            if (not ref $record) {
+                $length += $record;
+            } else {
+                $length += $record->get_length();
+            }
+        }
+        if ($length <= 2 * $max_block_length) {
+            return 1;
+        }
+    }
+    return 0;
+
+}
+
 sub get_hex {
 
     my $self = shift;
@@ -45,7 +65,7 @@ sub get_hex {
         $result .= $record->get_hex();
     }
     if ($self->{padded}) {
-        $result .= 'aa' x (2 * $max_block_length - length($result));
+        $result .= 'a' x (2 * $max_block_length - length($result));
     }
     return $result;
 }
