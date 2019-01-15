@@ -23,10 +23,10 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::BlockCount qw();
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::Projects::Export::Ama::Format::FieldSet NGCP::BulkProcessor::Projects::Export::Ama::Format::Structure);
 our @EXPORT_OK = qw(
-
+    $length
 );
 
-my $length = 78;
+our $length = 78;
 
 sub new {
 
@@ -73,15 +73,20 @@ sub new {
         tracer_type => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TracerType::TRANSFER_IN,
         @_,
     ));
-    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber->new(
+    $self->{file_sequence_number} = NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber->new(
         @_,
-    ));
-    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::RecordCount->new(
+    );
+    $self->_add_field($self->{file_sequence_number});
+
+    $self->{record_count} = NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::RecordCount->new(
         @_,
-    ));
-    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::BlockCount->new(
+    );
+    $self->_add_field($self->{record_count});
+
+    $self->{block_count} = NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::BlockCount->new(
         @_,
-    ));
+    );
+    $self->_add_field($self->{block_count});
 
     return $self;
 
@@ -90,6 +95,21 @@ sub new {
 sub get_structure_code_field {
     my $self = shift;
     return $self->{structure_code};
+}
+
+sub get_file_sequence_number_field {
+    my $self = shift;
+    return $self->{file_sequence_number};
+}
+
+sub get_record_count_field {
+    my $self = shift;
+    return $self->{record_count};
+}
+
+sub get_block_count_field {
+    my $self = shift;
+    return $self->{block_count};
 }
 
 #sub get_instance {
