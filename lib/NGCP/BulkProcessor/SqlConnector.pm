@@ -813,7 +813,9 @@ sub DESTROY {
     if ($self->{tid} == threadid()) {
         $self->_db_disconnect();
         delete $self->{drh};
-        dbdebug($self,(ref $self) . ' connector destroyed',getlogger(__PACKAGE__));
+        eval {
+            dbdebug($self,(ref $self) . ' connector destroyed',getlogger(__PACKAGE__));
+        };
     #} else {
     #    print "NOT destroyed\n";
     }

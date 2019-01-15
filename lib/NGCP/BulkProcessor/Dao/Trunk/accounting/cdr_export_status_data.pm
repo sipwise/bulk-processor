@@ -5,7 +5,7 @@ use strict;
 
 use NGCP::BulkProcessor::Logging qw(
     getlogger
-    rowsdeleted
+    rowsupdated
     rowinserted
     rowupserted
     rowupdated
@@ -34,6 +34,8 @@ our @EXPORT_OK = qw(
     update_row
     insert_row
     upsert_row
+
+    update_export_status
 
     $UNEXPORTED
     $EXPORTED
@@ -162,6 +164,37 @@ sub upsert_row {
     }
 
     return undef;
+
+}
+
+sub update_export_status {
+
+    my ($status_id,$export_status,$start_time_from,$start_time_to) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'UPDATE ' . $table . ' SET ' . $db->columnidentifier('export_status') . ' = ?' .
+        ' WHERE ' . $db->columnidentifier('status_id') . ' = ? AND ' . $db->columnidentifier('export_status') . ' != ?';
+    my @params = ($export_status,$status_id,$export_status);
+    if (defined $start_time_from) {
+        $stmt .= ' AND ' . $db->columnidentifier('start_time') . ' >= UNIX_TIMESTAMP(?)';
+        push(@params,$start_time_from);
+    }
+    if (defined $start_time_to) {
+        $stmt .= ' AND ' . $db->columnidentifier('start_time') . ' < UNIX_TIMESTAMP(?)';
+        push(@params,$start_time_to);
+    }
+
+    my $count;
+    if ($count = $db->db_do($stmt,@params)) {
+        rowsupdated($db,$tablename,$count,getlogger(__PACKAGE__));
+        return $count;
+    } else {
+        rowsupdated($db,$tablename,0,getlogger(__PACKAGE__));
+        return 0;
+    }
 
 }
 
