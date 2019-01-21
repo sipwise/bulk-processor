@@ -37,6 +37,7 @@ our @EXPORT_OK = qw(
 
     $input_path
     $output_path
+    $tempfile_path
 
     $defaultsettings
     $defaultconfig
@@ -53,6 +54,7 @@ our @EXPORT_OK = qw(
     $export_cdr_limit
     $export_cdr_stream
     $export_cdr_rollover_fsn
+    $export_cdr_use_temp_files
 
     $domestic_destination_pattern
     $international_destination_pattern
@@ -70,6 +72,7 @@ our $defaultsettings = 'settings.cfg';
 
 our $input_path = $working_path . 'input/';
 our $output_path = $working_path . 'output/';
+our $tempfile_path = $working_path . 'temp/';
 
 our $force = 0;
 #our $dry = 0;
@@ -83,11 +86,12 @@ our $export_cdr_conditions = [];
 our $export_cdr_limit = undef;
 our $export_cdr_stream = undef;
 our $export_cdr_rollover_fsn = 0;
+our $export_cdr_use_temp_files = 0;
 
 our $domestic_destination_pattern = undef;
 our $international_destination_pattern = undef;
 
-our $ama_filename_format = '%1$s%2$s.ama';
+our $ama_filename_format = '%1$s%2$s%3$s';
 
 sub update_settings {
 
@@ -126,6 +130,7 @@ sub update_settings {
         $export_cdr_limit = $data->{export_cdr_limit} if exists $data->{export_cdr_limit};
         $export_cdr_stream = $data->{export_cdr_stream} if exists $data->{export_cdr_stream};
         $export_cdr_rollover_fsn = stringtobool($data->{export_cdr_rollover_fsn}) if exists $data->{export_cdr_rollover_fsn};
+        $export_cdr_use_temp_files = stringtobool($data->{export_cdr_use_temp_files}) if exists $data->{export_cdr_use_temp_files};
 
         #if ((confval("MAINTENANCE") // 'no') eq 'yes') {
         #        exit(0);
@@ -156,6 +161,8 @@ sub _prepare_working_paths {
     ($path_result,$input_path) = create_path($working_path . 'input',$input_path,$create,\&fileerror,getlogger(__PACKAGE__));
     $result &= $path_result;
     ($path_result,$output_path) = create_path($working_path . 'output',$output_path,$create,\&fileerror,getlogger(__PACKAGE__));
+    $result &= $path_result;
+    ($path_result,$tempfile_path) = create_path($working_path . 'temp',$output_path,$create,\&fileerror,getlogger(__PACKAGE__));
     $result &= $path_result;
 
     return $result;
