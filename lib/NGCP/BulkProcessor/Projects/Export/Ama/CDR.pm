@@ -289,7 +289,8 @@ sub _commit_export_status {
     ) = @params{qw/
         context
     /};
-    _info($context,"file " . $context->{file}->get_filename() . " (" . kbytes2gigs(int((-s $context->{file}->get_filename()) / 1024)) . ") written (" . $context->{file}->get_record_count() . " records in " . $context->{file}->get_block_count() . " blocks)");
+    my $result = 1;
+    _info($context,"file " . $context->{file}->get_filename(1) . " (" . kbytes2gigs(int($context->{file}->get_filesize() / 1024)) . ") - " . $context->{file}->get_record_count() . " records in " . $context->{file}->get_block_count() . " blocks");
     eval {
         ping_dbs();
         $context->{db}->db_begin();
@@ -309,7 +310,6 @@ sub _commit_export_status {
         ); #set mark...
         _info($context,"file sequence number $context->{file_sequence_number} saved");
         $context->{db}->db_commit();
-
     };
     $context->{file_cdr_id_map} = {};
     my $err = $@;
@@ -317,14 +317,16 @@ sub _commit_export_status {
         eval {
             $context->{db}->db_rollback(1);
         };
-        eval {
-            unlink $context->{file}->get_filename();
-        };
+        #eval {
+        #    unlink $context->{file}->get_filename();
+        #};
         die($err);
+        $result = 0;
     } else {
         push(@{$context->{ama_files}},$context->{file}->get_filename());
         _increment_file_sequence_number($context) if $context->{has_next};
     }
+    return $result;
 
 }
 
@@ -382,6 +384,7 @@ sub _get_record {
             padding => 0,
             recording_office_id => '438716', #008708
 
+            call_type => '970',
             #call code 970c
             #timing ind 000
             #seervice observed 0c
