@@ -6,6 +6,8 @@ use strict;
 use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
     $output_path
     $ama_filename_format
+    $export_cdr_use_temp_files
+    $tempfile_path
 );
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Block qw();
@@ -19,6 +21,8 @@ use NGCP::BulkProcessor::LogError qw(
     fileerror
 );
 
+use NGCP::BulkProcessor::Utils qw(tempfilename);
+
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
@@ -26,6 +30,7 @@ our @EXPORT_OK = qw(
 );
 
 my $max_blocks = 99;
+my $ama_file_extension = '.ama';
 
 sub new {
 
@@ -44,6 +49,7 @@ sub reset {
     $self->{record_count} = 0;
     $self->_save_transfer_in(undef);
     $self->_save_transfer_out(undef);
+    $self->{tempfilename} = tempfilename('XXXX',$tempfile_path,$ama_file_extension) if $export_cdr_use_temp_files;
     return;
 }
 
@@ -87,10 +93,24 @@ sub add_record {
 
 sub get_filename {
     my $self = shift;
+    my ($show_tempfilename) = @_;
+    return $self->{tempfilename} if ($export_cdr_use_temp_files and $show_tempfilename);
     return sprintf($ama_filename_format,
         $output_path,
         $self->{transfer_in}->get_structure()->get_file_sequence_number_field()->{file_sequence_number},
+        $ama_file_extension,
     );
+}
+
+sub get_filesize {
+    my $self = shift;
+    return -s ($export_cdr_use_temp_files ? $self->{tempfilename} : $self->get_filename());
+}
+
+sub _rename {
+    my $self = shift;
+    my ($filename) = @_;
+    return rename($self->{tempfilename},$filename);
 }
 
 sub flush {
@@ -102,8 +122,8 @@ sub flush {
         commit_cb
     /};
     #unlink 'test.ama';
-    if ((scalar @{$self->{blocks}}) > 0 and (my $filename = $self->get_filename())) {
-        if (-e $filename) {
+    if ((scalar @{$self->{blocks}}) > 0 and (my $filename = ($export_cdr_use_temp_files ? $self->{tempfilename} : $self->get_filename()))) {
+        if (not $export_cdr_use_temp_files and -e $filename) {
             fileerror($filename . ' already exists',getlogger(__PACKAGE__));
             return 0;
         } else {
@@ -112,9 +132,20 @@ sub flush {
                     print $fh pack('H*',$block->get_hex());
                 }
                 close $fh;
-                &$commit_cb(@_) if defined $commit_cb;
+                if (defined $commit_cb) {
+                    if (&$commit_cb(@_) and (not $export_cdr_use_temp_files or $self->_rename($self->get_filename()))) {
+                        return 1;
+                    } else {
+                        eval {
+                            unlink $filename unless $export_cdr_use_temp_files;
+                            unlink $self->{tempfilename} if $export_cdr_use_temp_files;
+                        };
+                        return 0;
+                    }
+                } else {
+                    return 1;
+                }
                 #restdebug($self,"$self->{crt_path} saved",getlogger(__PACKAGE__));
-                return 1;
             } else {
                 fileerror('failed to open ' . $filename . ": $!",getlogger(__PACKAGE__));
                 return 0;
