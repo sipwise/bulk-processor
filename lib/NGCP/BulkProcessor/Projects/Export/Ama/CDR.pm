@@ -16,6 +16,7 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
     $export_cdr_conditions
     $export_cdr_limit
     $export_cdr_stream
+    $export_cdr_rollover_fsn
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -491,13 +492,45 @@ sub _export_cdrs_create_context {
         _error($context,"cannot get last file sequence number");
         $result = 0;
     } else {
+        my $reset = 0;
         if ($fsn < 0) {
             $fsn = 0;
+            $reset = 1;
         } elsif ($fsn >= $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn) {
-            _warn($context,"file sequence number $fsn exceeding limit (" . $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn . ")");
-            $result = 0;
+            if ($export_cdr_rollover_fsn) {
+                $fsn = 0;
+                $reset = 1;
+            } else {
+                _warn($context,"file sequence number $fsn exceeding limit (" . $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn . ")");
+                $result = 0;
+            }
+        } else {
+            _info($context,"last file sequence number is $fsn");
         }
-        _info($context,"last file sequence number is $fsn");
+        if ($reset) {
+            eval {
+                NGCP::BulkProcessor::Dao::Trunk::accounting::mark::cleanup_system_marks(undef,
+                    $export_cdr_stream,
+                );
+                NGCP::BulkProcessor::Dao::Trunk::accounting::mark::set_system_mark(undef,
+                    $export_cdr_stream,
+                    '0' #$NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::min_fsn
+                );
+                $fsn = NGCP::BulkProcessor::Dao::Trunk::accounting::mark::get_system_mark(undef,
+                    $export_cdr_stream
+                ); #load mark...
+            };
+            if ($@) {
+                if ($skip_errors) {
+                    _warn($context,"problem with file sequence number reset: " . $@);
+                } else {
+                    _error($context,"problem with file sequence number reset: " . $@);
+                }
+                $result = 0;
+            } else {
+                _info($context,"file sequence number reset to $fsn")
+            }
+        }
         lock $file_sequence_number;
         $file_sequence_number = $fsn;
     }

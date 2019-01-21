@@ -27,7 +27,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     split_tuple
     parse_regexp
 );
-use NGCP::BulkProcessor::Utils qw(prompt timestampdigits);
+use NGCP::BulkProcessor::Utils qw(prompt timestampdigits stringtobool);
 #format_number check_ipnet
 
 require Exporter;
@@ -52,6 +52,7 @@ our @EXPORT_OK = qw(
     $export_cdr_conditions
     $export_cdr_limit
     $export_cdr_stream
+    $export_cdr_rollover_fsn
 
     $domestic_destination_pattern
     $international_destination_pattern
@@ -81,6 +82,7 @@ our $export_cdr_joins = [];
 our $export_cdr_conditions = [];
 our $export_cdr_limit = undef;
 our $export_cdr_stream = undef;
+our $export_cdr_rollover_fsn = 0;
 
 our $domestic_destination_pattern = undef;
 our $international_destination_pattern = undef;
@@ -123,6 +125,7 @@ sub update_settings {
 
         $export_cdr_limit = $data->{export_cdr_limit} if exists $data->{export_cdr_limit};
         $export_cdr_stream = $data->{export_cdr_stream} if exists $data->{export_cdr_stream};
+        $export_cdr_rollover_fsn = stringtobool($data->{export_cdr_rollover_fsn}) if exists $data->{export_cdr_rollover_fsn};
 
         #if ((confval("MAINTENANCE") // 'no') eq 'yes') {
         #        exit(0);
