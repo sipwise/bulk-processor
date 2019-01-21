@@ -262,7 +262,7 @@ sub process {
             if ($@) {
                 $errorstate = $ERROR;
             } else {
-                $errorstate = (not $rowblock_result) ? $ERROR : $COMPLETED;
+                $errorstate = $COMPLETED; #(not $rowblock_result) ? $ERROR : $COMPLETED;
             }
 
             eval {
@@ -472,7 +472,7 @@ sub _process {
     if ($err) {
         $context->{errorstates}->{$tid} = $ERROR;
     } else {
-        $context->{errorstates}->{$tid} = (not $rowblock_result) ? $ERROR : $COMPLETED;
+        $context->{errorstates}->{$tid} = $COMPLETED; #(not $rowblock_result) ? $ERROR : $COMPLETED;
     }
     return $context->{errorstates}->{$tid};
 }

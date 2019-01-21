@@ -13,6 +13,7 @@ use NGCP::BulkProcessor::Globals qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
     update_settings
     $output_path
+    $tempfile_path
     $defaultsettings
     $defaultconfig
     $skip_errors
@@ -200,6 +201,7 @@ sub cleanup_task {
             cleanupmsgfiles(\&fileerror,\&filewarn);
             cleanupcertfiles();
             cleanupdir($output_path,1,\&filewarn,getlogger(getscriptpath())) if $clean_generated;
+            cleanupdir($tempfile_path,1,\&filewarn,getlogger(getscriptpath()));
             $result = 1;
         };
     }
