@@ -25,8 +25,10 @@ sub new {
     my %params = @_;
     (
         $self->{enabled},
+        $self->{module_instance},
     ) = @params{qw/
         enabled
+        module_instance
     /};
     $self->{enabled} //= 1;
 

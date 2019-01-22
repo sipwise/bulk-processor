@@ -122,19 +122,28 @@ sub flush {
         commit_cb
     /};
     #unlink 'test.ama';
-    if ((scalar @{$self->{blocks}}) > 0 and (my $filename = ($export_cdr_use_temp_files ? $self->{tempfilename} : $self->get_filename()))) {
-        if (not $export_cdr_use_temp_files and -e $filename) {
+    if ((scalar @{$self->{blocks}}) > 0 and (my $filename = $self->get_filename())) {
+        if (-e $filename) {
             fileerror($filename . ' already exists',getlogger(__PACKAGE__));
             return 0;
         } else {
-            if (open(my $fh,">:raw",$filename)) {
+            if (open(my $fh,">:raw",($export_cdr_use_temp_files ? $self->{tempfilename} : $filename))) {
                 foreach my $block (@{$self->{blocks}}) {
                     print $fh pack('H*',$block->get_hex());
                 }
                 close $fh;
                 if (defined $commit_cb) {
-                    if (&$commit_cb(@_) and (not $export_cdr_use_temp_files or $self->_rename($self->get_filename()))) {
-                        return 1;
+                    if (&$commit_cb(@_)) {
+                        if (not $export_cdr_use_temp_files or $self->_rename($filename)) {
+                            return 1;
+                        } else {
+                            my $err = $!;
+                            eval {
+                                unlink $self->{tempfilename};
+                            };
+                            fileerror("failed to rename $self->{tempfilename} to $filename: $err",getlogger(__PACKAGE__));
+                            return 0;
+                        }
                     } else {
                         eval {
                             unlink $filename unless $export_cdr_use_temp_files;
@@ -147,7 +156,7 @@ sub flush {
                 }
                 #restdebug($self,"$self->{crt_path} saved",getlogger(__PACKAGE__));
             } else {
-                fileerror('failed to open ' . $filename . ": $!",getlogger(__PACKAGE__));
+                fileerror('failed to open ' . ($export_cdr_use_temp_files ? $self->{tempfilename} : $filename) . ": $!",getlogger(__PACKAGE__));
                 return 0;
             }
         }

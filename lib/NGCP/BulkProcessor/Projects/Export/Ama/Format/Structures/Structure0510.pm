@@ -95,7 +95,7 @@ sub new {
         @_,
     ));
     $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField->new(
-        instance => 'originating',
+        field_instance => 'originating',
         @_,
     ));
     $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::OriginatingOpenDigits1->new(
@@ -111,7 +111,7 @@ sub new {
         @_,
     ));
     $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField->new(
-        instance => 'terminating',
+        field_instance => 'terminating',
         @_,
     ));
     $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TerminatingOpenDigits1->new(
