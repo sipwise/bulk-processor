@@ -24,11 +24,13 @@ sub new {
     (
         $self->{name},
         $self->{length},
-        $self->{instance},
+        $self->{field_instance},
+        $self->{module_instance},
     ) = @params{qw/
         name
         length
-        instance
+        field_instance
+        module_instance
     /};
     $self->_set_params(@_);
 
@@ -40,7 +42,7 @@ sub _get_params {
     my $self = shift;
     my %params = @_;
     my @vals = ();
-    foreach my $param_name ($self->_get_param_names()) {
+    foreach my $param_name (map { (length($self->{module_instance}) > 0 ? $self->{module_instance} . '_' : '') . $_; } $self->_get_param_names()) {
         push(@vals,$params{$param_name} // $self->{$param_name});
     }
     return @vals;
@@ -49,7 +51,7 @@ sub _get_params {
 sub _set_params {
     my $self = shift;
     my %params = @_;
-    foreach my $param_name ($self->_get_param_names()) {
+    foreach my $param_name (map { (length($self->{module_instance}) > 0 ? $self->{module_instance} . '_' : '') . $_; } $self->_get_param_names()) {
         $self->{$param_name} = $params{$param_name};
     }
 }

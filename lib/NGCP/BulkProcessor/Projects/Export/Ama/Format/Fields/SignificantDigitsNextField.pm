@@ -36,11 +36,7 @@ sub new {
 sub _get_param_names {
 
     my $self = shift;
-    if (defined $self->{instance}) {
-        return ($self->{instance} . '_significant_digits');
-    } else {
-        return ('significant_digits');
-    }
+    return ((length($self->{field_instance}) > 0 ? $self->{field_instance} . '_' : '') . 'significant_digits');
 
 }
 
@@ -48,7 +44,7 @@ sub get_hex {
 
     my $self = shift;
     my ($significant_digits) = $self->_get_params(@_);
-    die('invalid ' . (defined $self->{instance} ? $self->{instance} . ' ' : '') . "significant digits '$significant_digits'") if ($significant_digits <= 0 or $significant_digits > 20);
+    die('invalid ' . (length($self->{field_instance}) > 0 ? $self->{field_instance} . ' ' : '') . "significant digits '$significant_digits'") if ($significant_digits <= 0 or $significant_digits > 20);
     return sprintf('%03d',$significant_digits) . $TERMINATOR;
 
 }
