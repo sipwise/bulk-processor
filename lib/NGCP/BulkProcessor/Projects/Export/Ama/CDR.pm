@@ -41,6 +41,11 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure051
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9013 qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9014 qw();
 
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module000 qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module104 qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module199 qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module611 qw();
+
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature qw();
@@ -49,6 +54,9 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternat
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ElapsedTime qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::GenericContextIdentifier qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::NetworkOperatorData qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification qw();
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_xa_db
@@ -261,7 +269,7 @@ sub _export_cdrs_init_context {
     my ($context,$cdr_id,$call_id) = @_;
 
     my $result = 0;
-    $context->{cdrs} = undef;
+    $context->{cdrs} = [];
     $context->{call_id} = $call_id;
 
     if (not exists $context->{file_cdr_id_map}->{$cdr_id}) {
@@ -422,7 +430,27 @@ sub _get_record {
 
             connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($context->{dt}),
             elapsed_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ElapsedTime::get_elapsed_time($context->{duration}),
-        )
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module611->new(
+            generic_context_identifier => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::GenericContextIdentifier::IN_CORRELATION_ID,
+            parsing_rules => '7',
+            additional_digits_dialed => ((scalar @{$context->{cdrs}}) > 0 ? substr($context->{cdrs}->[0]->{id},-7) : undef),
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module199->new(
+            network_operator_data => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::NetworkOperatorData::get_network_operator_data($context->{source},'123456'),
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module104->new(
+            direction => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification::INCOMING,
+            trunk_group_number => '2999',
+            trunk_member_number => '0000',
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module104->new(
+            direction => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification::OUTGOING,
+            trunk_group_number => '2014',
+            trunk_member_number => '0000',
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module000->new(
+        ),
     );
 
 }
