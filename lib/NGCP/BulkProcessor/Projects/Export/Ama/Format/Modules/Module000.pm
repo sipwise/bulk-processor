@@ -1,12 +1,11 @@
-package NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module104;
+package NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module000;
 use strict;
 
 ## no critic
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Module qw();
 
-use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ModuleCode qw($MODULE_CODE_104);
-use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ModuleCode qw($MODULE_CODE_000);
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::Projects::Export::Ama::Format::FieldSet NGCP::BulkProcessor::Projects::Export::Ama::Format::Module);
@@ -14,7 +13,7 @@ our @EXPORT_OK = qw(
     $length
 );
 
-our $length = 14;
+our $length = 4;
 
 sub new {
 
@@ -25,13 +24,10 @@ sub new {
         #structure_name => $structure_name,
         @_);
     $self->{module_code} = NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ModuleCode->new(
-        module_code => $MODULE_CODE_104,
+        module_code => $MODULE_CODE_000,
         @_,
     );
     $self->_add_field($self->{module_code});
-    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification->new(
-        @_,
-    ));
 
     return $self;
 
