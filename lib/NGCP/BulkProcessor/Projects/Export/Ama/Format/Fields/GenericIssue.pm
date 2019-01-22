@@ -44,8 +44,8 @@ sub get_hex {
 
     my $self = shift;
     my ($generic_issue_number,$point_issue_level,$overwrite_level) = $self->_get_params(@_);
-    die("invalid generic issue number '$generic_issue_number'") if length($generic_issue_number) < 1 or length($generic_issue_number) > 2;
-    die("invalid point issue level '$point_issue_level'") if length($point_issue_level) < 1 or length($point_issue_level) > 2;
+    die("invalid generic issue number '$generic_issue_number'") if (length($generic_issue_number) < 1 or length($generic_issue_number) > 2);
+    die("invalid point issue level '$point_issue_level'") if (length($point_issue_level) < 1 or length($point_issue_level) > 2);
     die("invalid overwrite level '$overwrite_level'") if length($overwrite_level) != 1;
     return sprintf('%02d',$generic_issue_number) . sprintf('%02d',$point_issue_level) . $overwrite_level . $TERMINATOR;
 
