@@ -18,8 +18,8 @@ my $field_name = "file sequence number";
 my $length = 4;
 my @param_names = qw/file_sequence_number/;
 
-our $min_fsn = 1;
-our $max_fsn = 999;
+our $min_fsn = 0; #1;
+our $max_fsn = 99; #999;
 
 sub new {
 

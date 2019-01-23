@@ -58,12 +58,14 @@ sub new {
     $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::RecordingOfficeId->new(
         @_,
     ));
-    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date->new(
+    $self->{date} = NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date->new(
         @_,
-    ));
-    $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime->new(
+    );
+    $self->_add_field($self->{date});
+    $self->{connect_time} = NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime->new(
         @_,
-    ));
+    );
+    $self->_add_field($self->{connect_time});
     $self->_add_field(NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::GenericIssue->new(
         @_,
     ));
@@ -88,6 +90,16 @@ sub get_structure_code_field {
 sub get_file_sequence_number_field {
     my $self = shift;
     return $self->{file_sequence_number};
+}
+
+sub get_date_field {
+    my $self = shift;
+    return $self->{date};
+}
+
+sub get_connect_time_field {
+    my $self = shift;
+    return $self->{connect_time};
 }
 
 #sub get_instance {
