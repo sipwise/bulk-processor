@@ -97,6 +97,13 @@ sub get_filename {
     return $self->{tempfilename} if ($export_cdr_use_temp_files and $show_tempfilename);
     return sprintf($ama_filename_format,
         $output_path,
+        $self->{transfer_in}->get_structure()->get_date_field()->{dt}->year,
+        substr($self->{transfer_in}->get_structure()->get_date_field()->{dt}->year,-2),
+        $self->{transfer_in}->get_structure()->get_date_field()->{dt}->month,
+        $self->{transfer_in}->get_structure()->get_date_field()->{dt}->day,
+        $self->{transfer_in}->get_structure()->get_connect_time_field()->{dt}->hour,
+        $self->{transfer_in}->get_structure()->get_connect_time_field()->{dt}->minute,
+        $self->{transfer_in}->get_structure()->get_connect_time_field()->{dt}->second,
         $self->{transfer_in}->get_structure()->get_file_sequence_number_field()->{file_sequence_number},
         $ama_file_extension,
     );
