@@ -39,6 +39,9 @@ our @EXPORT_OK = qw(
 
     cleanup_system_marks
     cleanup_reseller_marks
+
+    delete_system_marks
+    delete_reseller_marks
 );
 
 my $tablename = 'mark';
@@ -99,8 +102,10 @@ sub _get_mark {
     my @params = ($collector);
 
     my $mark = $xa_db->db_get_value($stmt,@params);
+    
+    return $mark;
 
-    return (defined $mark ? $mark : '0');
+    #return (defined $mark ? $mark : '0');
 
 }
 
@@ -214,6 +219,45 @@ sub _cleanup_marks {
         }
     }
     return 0;
+
+}
+
+sub delete_system_marks {
+
+    my ($xa_db,$stream) = @_;
+
+    return _delete_marks($xa_db,sprintf($system_collector_format,$stream));
+
+}
+
+sub delete_reseller_marks {
+
+    my ($xa_db,$stream,$reseller_id) = @_;
+
+    return _delete_marks($xa_db,sprintf($reseller_collector_format,$stream,$reseller_id // ''));
+
+}
+
+sub _delete_marks {
+
+    my ($xa_db,$collector) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'DELETE FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('collector') . ' = ?';
+    my @params = ($collector);
+
+    if ($xa_db->db_do($stmt,@params)) {
+        rowsdeleted($db,$tablename,1,1,getlogger(__PACKAGE__));
+        return 1;
+    } else {
+        rowsdeleted($db,$tablename,0,0,getlogger(__PACKAGE__));
+        return 0;
+    }
 
 }
 

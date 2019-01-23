@@ -293,6 +293,7 @@ sub process_unexported {
     #sort
 
     check_table();
+    NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
