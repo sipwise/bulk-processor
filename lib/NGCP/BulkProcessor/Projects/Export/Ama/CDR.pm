@@ -111,18 +111,21 @@ sub reset_fsn {
     my $result = 1;
     my $context = { tid => threadid(), warning_count => 0, error_count => 0, };
     $result &= _check_export_status_stream($context);
-    my $fsn;
+    #my $fsn;
     eval {
-        NGCP::BulkProcessor::Dao::Trunk::accounting::mark::cleanup_system_marks(undef,
+        NGCP::BulkProcessor::Dao::Trunk::accounting::mark::delete_system_marks(undef,
             $export_cdr_stream,
         );
-        NGCP::BulkProcessor::Dao::Trunk::accounting::mark::set_system_mark(undef,
-            $export_cdr_stream,
-            '0' #$NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::min_fsn
-        );
-        $fsn = NGCP::BulkProcessor::Dao::Trunk::accounting::mark::get_system_mark(undef,
-            $export_cdr_stream
-        ); #load mark...
+        #NGCP::BulkProcessor::Dao::Trunk::accounting::mark::cleanup_system_marks(undef,
+        #    $export_cdr_stream,
+        #);
+        #NGCP::BulkProcessor::Dao::Trunk::accounting::mark::set_system_mark(undef,
+        #    $export_cdr_stream,
+        #    '0' #$NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::min_fsn
+        #);
+        #$fsn = NGCP::BulkProcessor::Dao::Trunk::accounting::mark::get_system_mark(undef,
+        #    $export_cdr_stream
+        #); #load mark...
     };
     if ($@) {
         if ($skip_errors) {
@@ -132,7 +135,7 @@ sub reset_fsn {
         }
         $result = 0;
     } else {
-        _info($context,"file sequence number reset to $fsn")
+        _info($context,"file sequence number deleted"); #reset to $fsn")
     }
     return $result;
 
@@ -379,6 +382,8 @@ sub _get_transfer_in {
 
             connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($context->{dt}), # adjacent
 
+            dt => $context->{dt},
+
             file_sequence_number => $context->{file_sequence_number},
         )
     );
@@ -478,6 +483,8 @@ sub _get_transfer_out {
 
             file_sequence_number => $context->{file_sequence_number},
 
+            dt => $context->{dt},
+
             #=> (scalar @records),
 
 
@@ -535,12 +542,12 @@ sub _export_cdrs_create_context {
         $result = 0;
     } else {
         my $reset = 0;
-        if ($fsn < 0) {
-            $fsn = 0;
+        if (not defined $fsn) {
+            $fsn = $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::min_fsn - 1;
+        } elsif ($fsn < 0) {
             $reset = 1;
         } elsif ($fsn >= $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn) {
             if ($export_cdr_rollover_fsn) {
-                $fsn = 0;
                 $reset = 1;
             } else {
                 _warn($context,"file sequence number $fsn exceeding limit (" . $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::max_fsn . ")");
@@ -550,17 +557,11 @@ sub _export_cdrs_create_context {
             _info($context,"last file sequence number is $fsn");
         }
         if ($reset) {
+            $fsn = $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::min_fsn - 1;
             eval {
-                NGCP::BulkProcessor::Dao::Trunk::accounting::mark::cleanup_system_marks(undef,
+                NGCP::BulkProcessor::Dao::Trunk::accounting::mark::delete_system_marks(undef,
                     $export_cdr_stream,
                 );
-                NGCP::BulkProcessor::Dao::Trunk::accounting::mark::set_system_mark(undef,
-                    $export_cdr_stream,
-                    '0' #$NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::FileSequenceNumber::min_fsn
-                );
-                $fsn = NGCP::BulkProcessor::Dao::Trunk::accounting::mark::get_system_mark(undef,
-                    $export_cdr_stream
-                ); #load mark...
             };
             if ($@) {
                 if ($skip_errors) {
@@ -570,7 +571,7 @@ sub _export_cdrs_create_context {
                 }
                 $result = 0;
             } else {
-                _info($context,"file sequence number reset to $fsn")
+                _info($context,"file sequence number deleted"); #reset to $fsn")
             }
         }
         lock $file_sequence_number;
