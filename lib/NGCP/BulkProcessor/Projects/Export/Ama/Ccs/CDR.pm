@@ -1,11 +1,11 @@
-package NGCP::BulkProcessor::Projects::Export::Ama::CDR;
+package NGCP::BulkProcessor::Projects::Export::Ama::Ccs::CDR;
 use strict;
 
 ## no critic
 
 use threads::shared qw();
 
-use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
+use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
 
     $skip_errors
 
