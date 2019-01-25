@@ -4,21 +4,21 @@ use strict;
 
 use File::Basename;
 use Cwd;
-use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../../../');
+use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../../../../');
 
 use Getopt::Long qw(GetOptions);
 use Fcntl qw(LOCK_EX LOCK_NB);
 
 use NGCP::BulkProcessor::Globals qw();
-use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
-    update_settings
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings qw(
     $output_path
     $tempfile_path
+);
+use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
     $defaultsettings
     $defaultconfig
     $skip_errors
     $force
-
 );
 #$dry
 #check_dry
@@ -66,7 +66,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(destroy_dbs);
 #use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 #use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
 
-use NGCP::BulkProcessor::Projects::Export::Ama::CDR qw(
+use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::CDR qw(
     export_cdrs
     reset_fsn
     reset_export_status
@@ -121,7 +121,8 @@ sub init {
 
     my $result = load_config($configfile);
     init_log();
-    $result &= load_config($settingsfile,\&update_settings,$SIMPLE_CONFIG_TYPE);
+    $result &= load_config($settingsfile,\&NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings::update_settings,$SIMPLE_CONFIG_TYPE);
+    $result &= load_config($settingsfile,\&NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings::update_settings,$SIMPLE_CONFIG_TYPE);
     #$result &= load_config($providers_yml,\&update_provider_config,$YAML_CONFIG_TYPE);
 
     return $result;
