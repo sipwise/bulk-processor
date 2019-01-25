@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Projects::Export::Ama::Settings;
+package NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings;
 use strict;
 
 ## no critic
@@ -27,7 +27,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
     split_tuple
     parse_regexp
 );
-use NGCP::BulkProcessor::Utils qw(prompt timestampdigits stringtobool);
+use NGCP::BulkProcessor::Utils qw(prompt timestampdigits); #stringtobool
 #format_number check_ipnet
 
 require Exporter;
@@ -36,8 +36,6 @@ our @EXPORT_OK = qw(
     update_settings
 
     $input_path
-    $output_path
-    $tempfile_path
 
     $defaultsettings
     $defaultconfig
@@ -54,25 +52,13 @@ our @EXPORT_OK = qw(
     $export_cdr_limit
     $export_cdr_stream
     $export_cdr_rollover_fsn
-    $export_cdr_use_temp_files
 
-    $domestic_destination_pattern
-    $international_destination_pattern
-
-    $ama_filename_format
 );
-#check_dry
-#$dry
-#update_provider_config
-#$deadlock_retries
-#$generate_cdr_count
 
 our $defaultconfig = 'config.cfg';
 our $defaultsettings = 'settings.cfg';
 
 our $input_path = $working_path . 'input/';
-our $output_path = $working_path . 'output/';
-our $tempfile_path = $working_path . 'temp/';
 
 our $force = 0;
 #our $dry = 0;
@@ -86,12 +72,6 @@ our $export_cdr_conditions = [];
 our $export_cdr_limit = undef;
 our $export_cdr_stream = undef;
 our $export_cdr_rollover_fsn = 0;
-our $export_cdr_use_temp_files = 0;
-
-our $domestic_destination_pattern = undef;
-our $international_destination_pattern = undef;
-
-our $ama_filename_format = '%1$s%2$s%3$s';
 
 sub update_settings {
 
@@ -101,20 +81,8 @@ sub update_settings {
 
         my $result = 1;
 
-        #&$configurationinfocode("testinfomessage",$configlogger);
-
         $result &= _prepare_working_paths(1);
-        #if ($data->{report_filename}) {
-        #    $report_filename = $output_path . sprintf('/' . $data->{report_filename},timestampdigits());
-        #    if (-e $report_filename and (unlink $report_filename) == 0) {
-        #        filewarn('cannot remove ' . $report_filename . ': ' . $!,getlogger(__PACKAGE__));
-        #        $report_filename = undef;
-        #    }
-        #} else {
-        #    $report_filename = undef;
-        #}
 
-        #$dry = $data->{dry} if exists $data->{dry};
         $skip_errors = $data->{skip_errors} if exists $data->{skip_errors};
 
         $export_cdr_multithreading = $data->{export_cdr_multithreading} if exists $data->{export_cdr_multithreading};
@@ -129,21 +97,7 @@ sub update_settings {
 
         $export_cdr_limit = $data->{export_cdr_limit} if exists $data->{export_cdr_limit};
         $export_cdr_stream = $data->{export_cdr_stream} if exists $data->{export_cdr_stream};
-        $export_cdr_rollover_fsn = stringtobool($data->{export_cdr_rollover_fsn}) if exists $data->{export_cdr_rollover_fsn};
-        $export_cdr_use_temp_files = stringtobool($data->{export_cdr_use_temp_files}) if exists $data->{export_cdr_use_temp_files};
-
-        #if ((confval("MAINTENANCE") // 'no') eq 'yes') {
-        #        exit(0);
-        #}
-        my $regexp_result;
-        $domestic_destination_pattern = $data->{domestic_destination_pattern} if exists $data->{domestic_destination_pattern};
-        ($regexp_result,$domestic_destination_pattern) = parse_regexp($domestic_destination_pattern,$configfile);
-        $result &= $regexp_result;
-        $international_destination_pattern = $data->{international_destination_pattern} if exists $data->{international_destination_pattern};
-        ($regexp_result,$international_destination_pattern) = parse_regexp($international_destination_pattern,$configfile);
-        $result &= $regexp_result;
-
-        $ama_filename_format = $data->{ama_filename_format} if exists $data->{ama_filename_format};
+        $export_cdr_rollover_fsn = $data->{export_cdr_rollover_fsn} if exists $data->{export_cdr_rollover_fsn};
 
         return $result;
 
@@ -159,10 +113,6 @@ sub _prepare_working_paths {
     my $path_result;
 
     ($path_result,$input_path) = create_path($working_path . 'input',$input_path,$create,\&fileerror,getlogger(__PACKAGE__));
-    $result &= $path_result;
-    ($path_result,$output_path) = create_path($working_path . 'output',$output_path,$create,\&fileerror,getlogger(__PACKAGE__));
-    $result &= $path_result;
-    ($path_result,$tempfile_path) = create_path($working_path . 'temp',$output_path,$create,\&fileerror,getlogger(__PACKAGE__));
     $result &= $path_result;
 
     return $result;

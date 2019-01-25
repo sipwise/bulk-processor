@@ -4,9 +4,9 @@ use strict;
 
 use File::Basename;
 use Cwd;
-use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../../../');
+use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../../../../');
 
-use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
+use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
     update_settings
 );
 
