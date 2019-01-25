@@ -3,7 +3,7 @@ use strict;
 
 ## no critic
 
-use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings qw(
     $domestic_destination_pattern
     $international_destination_pattern
 );
