@@ -3,10 +3,10 @@ use strict;
 
 ## no critic
 
-use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings qw(
     $output_path
     $ama_filename_format
-    $export_cdr_use_temp_files
+    $use_tempfiles
     $tempfile_path
 );
 
@@ -49,7 +49,7 @@ sub reset {
     $self->{record_count} = 0;
     $self->_save_transfer_in(undef);
     $self->_save_transfer_out(undef);
-    $self->{tempfilename} = tempfilename('XXXX',$tempfile_path,$ama_file_extension) if $export_cdr_use_temp_files;
+    $self->{tempfilename} = tempfilename('XXXX',$tempfile_path,$ama_file_extension) if $use_tempfiles;
     return;
 }
 
@@ -94,7 +94,7 @@ sub add_record {
 sub get_filename {
     my $self = shift;
     my ($show_tempfilename) = @_;
-    return $self->{tempfilename} if ($export_cdr_use_temp_files and $show_tempfilename);
+    return $self->{tempfilename} if ($use_tempfiles and $show_tempfilename);
     return sprintf($ama_filename_format,
         $output_path,
         $self->{transfer_in}->get_structure()->get_date_field()->{dt}->year,
@@ -111,7 +111,7 @@ sub get_filename {
 
 sub get_filesize {
     my $self = shift;
-    return -s ($export_cdr_use_temp_files ? $self->{tempfilename} : $self->get_filename());
+    return -s ($use_tempfiles ? $self->{tempfilename} : $self->get_filename());
 }
 
 sub _rename {
@@ -134,14 +134,14 @@ sub flush {
             fileerror($filename . ' already exists',getlogger(__PACKAGE__));
             return 0;
         } else {
-            if (open(my $fh,">:raw",($export_cdr_use_temp_files ? $self->{tempfilename} : $filename))) {
+            if (open(my $fh,">:raw",($use_tempfiles ? $self->{tempfilename} : $filename))) {
                 foreach my $block (@{$self->{blocks}}) {
                     print $fh pack('H*',$block->get_hex());
                 }
                 close $fh;
                 if (defined $commit_cb) {
                     if (&$commit_cb(@_)) {
-                        if (not $export_cdr_use_temp_files or $self->_rename($filename)) {
+                        if (not $use_tempfiles or $self->_rename($filename)) {
                             return 1;
                         } else {
                             my $err = $!;
@@ -153,8 +153,8 @@ sub flush {
                         }
                     } else {
                         eval {
-                            unlink $filename unless $export_cdr_use_temp_files;
-                            unlink $self->{tempfilename} if $export_cdr_use_temp_files;
+                            unlink $filename unless $use_tempfiles;
+                            unlink $self->{tempfilename} if $use_tempfiles;
                         };
                         return 0;
                     }
@@ -163,7 +163,7 @@ sub flush {
                 }
                 #restdebug($self,"$self->{crt_path} saved",getlogger(__PACKAGE__));
             } else {
-                fileerror('failed to open ' . ($export_cdr_use_temp_files ? $self->{tempfilename} : $filename) . ": $!",getlogger(__PACKAGE__));
+                fileerror('failed to open ' . ($use_tempfiles ? $self->{tempfilename} : $filename) . ": $!",getlogger(__PACKAGE__));
                 return 0;
             }
         }

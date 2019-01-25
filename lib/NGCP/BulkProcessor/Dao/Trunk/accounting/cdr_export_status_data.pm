@@ -39,10 +39,12 @@ our @EXPORT_OK = qw(
 
     $UNEXPORTED
     $EXPORTED
+    $SKIPPED
 );
 
 our $UNEXPORTED = 'unexported';
 our $EXPORTED = 'exported';
+our $SKIPPED = 'skipped';
 
 my $tablename = 'cdr_export_status_data';
 my $get_db = \&get_accounting_db;

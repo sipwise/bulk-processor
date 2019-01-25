@@ -1,11 +1,11 @@
-package NGCP::BulkProcessor::Projects::Export::Ama::CDR;
+package NGCP::BulkProcessor::Projects::Export::Ama::Ccs::CDR;
 use strict;
 
 ## no critic
 
 use threads::shared qw();
 
-use NGCP::BulkProcessor::Projects::Export::Ama::Settings qw(
+use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
 
     $skip_errors
 
@@ -279,15 +279,27 @@ sub _export_cdrs_init_context {
         my $call_id_prefix = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::get_callidprefix($call_id);
         if (exists $context->{block_call_id_map}->{$call_id_prefix}) {
             $context->{cdrs} = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callidprefix($context->{db},
-                $call_id,$export_cdr_joins,$export_cdr_conditions);
+                $call_id,$export_cdr_joins,$export_cdr_conditions); #already sorted
             my $cdrs_in_block = delete $context->{block_call_id_map}->{$call_id_prefix};
             if ((scalar @{$context->{cdrs}}) == $cdrs_in_block) {
+                if ((scalar @{$context->{cdrs}}) == 2
+                    and not $context->{cdrs}->[0]->is_xfer()
+                    and $context->{cdrs}->[1]->is_xfer()
+                    ) {
+                    $result = 1;
+                } else {
+                    print "blah";
+                }
                 foreach my $cdr (@{$context->{cdrs}}) {
+                    if ($result) {
+                        $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::EXPORTED;
+                    } else {
+                        $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::SKIPPED;
+                    }
                     $context->{file_cdr_id_map}->{$cdr->{id}} = $cdr; #->{start_time};
                     lock $rowcount;
                     $rowcount += 1;
                 }
-                $result = 1;
             }
         }
     }
@@ -321,10 +333,10 @@ sub _commit_export_status {
             NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::upsert_row($context->{db},
                 cdr_id => $id,
                 status_id => $context->{export_status_id},
-                export_status => $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::EXPORTED,
+                export_status => $context->{file_cdr_id_map}->{$id}->{_extended_export_status},
                 cdr_start_time => $context->{file_cdr_id_map}->{$id}->{start_time},
             );
-            _info($context,"export_status set for cdr id $id",1);
+            _info($context,"export_status '$context->{file_cdr_id_map}->{$id}->{_extended_export_status}' set for cdr id $id",1);
         }
         NGCP::BulkProcessor::Dao::Trunk::accounting::mark::insert_system_mark($context->{db},
             $export_cdr_stream,
