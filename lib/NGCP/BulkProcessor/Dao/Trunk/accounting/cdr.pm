@@ -382,6 +382,24 @@ sub buildrecords_fromrows {
 
 }
 
+sub is_xfer {
+    my $self = shift;
+    if (length($self->{call_id}) > length($XFERSUFFIX)
+        and substr($self->{call_id},-1 * length($XFERSUFFIX)) eq $XFERSUFFIX) {
+        return 1;
+    }
+    return 0;
+}
+
+sub is_pbx {
+    my $self = shift;
+    if (length($self->{call_id}) > length($PBXSUFFIX)
+        and substr($self->{call_id},-1 * length($PBXSUFFIX)) eq $PBXSUFFIX) {
+        return 1;
+    }
+    return 0;
+}
+
 sub gettablename {
 
     return $tablename;
