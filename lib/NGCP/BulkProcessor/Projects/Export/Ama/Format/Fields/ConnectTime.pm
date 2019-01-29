@@ -16,7 +16,7 @@ our @EXPORT_OK = qw(
 
 my $field_name = "connect time";
 my $length = 8;
-my @param_names = qw/connect_time dt/;
+my @param_names = qw/connect_time/;
 
 sub new {
 
@@ -43,7 +43,7 @@ sub _get_param_names {
 sub get_hex {
 
     my $self = shift;
-    my ($connect_time,$dt) = $self->_get_params(@_);
+    my ($connect_time) = $self->_get_params(@_);
     die("invalid connect time '$connect_time'") unless length($connect_time) == 7;
     return $connect_time . $TERMINATOR;
 

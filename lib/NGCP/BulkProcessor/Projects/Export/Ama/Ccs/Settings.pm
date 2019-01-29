@@ -29,6 +29,7 @@ use NGCP::BulkProcessor::LoadConfig qw(
 );
 use NGCP::BulkProcessor::Utils qw(prompt timestampdigits); #stringtobool
 #format_number check_ipnet
+use NGCP::BulkProcessor::Array qw(contains);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -53,6 +54,13 @@ our @EXPORT_OK = qw(
     $export_cdr_stream
     $export_cdr_rollover_fsn
 
+    $ama_sensor_id
+    $ama_recording_office_id
+    $ama_incoming_trunk_group_number
+    $ama_outgoing_trunk_group_number
+    $ama_originating_digits_cdr_field
+    $ama_terminating_digits_cdr_field
+
 );
 
 our $defaultconfig = 'config.cfg';
@@ -72,6 +80,13 @@ our $export_cdr_conditions = [];
 our $export_cdr_limit = undef;
 our $export_cdr_stream = undef;
 our $export_cdr_rollover_fsn = 0;
+
+our $ama_sensor_id;
+our $ama_recording_office_id;
+our $ama_incoming_trunk_group_number;
+our $ama_outgoing_trunk_group_number;
+our $ama_originating_digits_cdr_field;
+our $ama_terminating_digits_cdr_field;
 
 sub update_settings {
 
@@ -99,6 +114,20 @@ sub update_settings {
         $export_cdr_stream = $data->{export_cdr_stream} if exists $data->{export_cdr_stream};
         $export_cdr_rollover_fsn = $data->{export_cdr_rollover_fsn} if exists $data->{export_cdr_rollover_fsn};
 
+        $ama_sensor_id = $data->{ama_sensor_id} if exists $data->{ama_sensor_id};
+        $ama_recording_office_id = $data->{ama_recording_office_id} if exists $data->{ama_recording_office_id};
+        $ama_incoming_trunk_group_number = $data->{ama_incoming_trunk_group_number} if exists $data->{ama_incoming_trunk_group_number};
+        $ama_outgoing_trunk_group_number = $data->{ama_outgoing_trunk_group_number} if exists $data->{ama_outgoing_trunk_group_number};
+
+        $ama_originating_digits_cdr_field = $data->{ama_originating_digits_cdr_field} if exists $data->{ama_originating_digits_cdr_field};
+        unless (contains($ama_originating_digits_cdr_field,[qw(source_user source_user_out source_cli)])) {
+            configurationerror($configfile,'unknown ama_originating_digits_cdr_field',getlogger(__PACKAGE__));
+        }
+        $ama_terminating_digits_cdr_field = $data->{ama_terminating_digits_cdr_field} if exists $data->{ama_terminating_digits_cdr_field};
+        unless (contains($ama_terminating_digits_cdr_field,[qw(destination_user destination_user_out destination_user_dialed destination_user_in)])) {
+            configurationerror($configfile,'unknown ama_terminating_digits_cdr_field',getlogger(__PACKAGE__));
+        }
+
         return $result;
 
     }
@@ -123,7 +152,7 @@ sub _parse_export_joins {
     my ($token,$file) = @_;
     my @joins = ();
     if (defined $token and length($token) > 0) {
-        foreach my $f (split_tuple($token)) {
+        foreach my $f (_split(\$token)) {
             next unless($f);
             $f =~ s/^\s*\{?\s*//;
             $f =~ s/\}\s*\}\s*$/}/;
@@ -146,7 +175,7 @@ sub _parse_export_conditions {
     my ($token,$file) = @_;
     my @conditions = ();
     if (defined $token and length($token) > 0) {
-        foreach my $f (split_tuple($token)) {
+        foreach my $f (_split(\$token)) {
             next unless($f);
             $f =~ s/^\s*\{?\s*//;
             $f =~ s/\}\s*\}\s*$/}/;
@@ -171,6 +200,35 @@ sub _get_numofthreads {
     $_numofthreads = $data->{$key} if exists $data->{$key};
     $_numofthreads = $cpucount if $_numofthreads > $cpucount;
     return $_numofthreads;
+}
+
+sub _split {
+
+    my $buffer_ref = shift;
+    my $pos = 0;
+    my @tokens = ();
+    my $is_literal = 0;
+    my $token = '';
+    while ($pos < length($$buffer_ref)) {
+        if ("'" eq substr($$buffer_ref,$pos,length("'"))) {
+            $is_literal = not $is_literal;
+            $token .= "'";
+            $pos += length("'");
+        } elsif ("," eq substr($$buffer_ref,$pos,length(","))) {
+            if ($is_literal) {
+                $token .= ",";
+            } else {
+                push(@tokens,$token);
+                $token = '';
+            }
+            $pos += length(",");
+        } else {
+            $token .= substr($$buffer_ref,$pos,1);
+            $pos += 1;
+        }
+    }
+    push(@tokens,$token);
+    return @tokens;
 }
 
 1;
