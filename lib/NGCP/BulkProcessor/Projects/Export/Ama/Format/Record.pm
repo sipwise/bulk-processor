@@ -3,6 +3,8 @@ use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::FieldSet qw($line_terminator);
+
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
@@ -38,6 +40,20 @@ sub get_hex {
         $result .= $module->get_hex(@_);
     }
     return $result;
+}
+
+sub to_string {
+
+    my $self = shift;
+
+    my $result = $line_terminator . $line_terminator . "record data:$line_terminator" . $self->{structure}->to_string(@_);
+    foreach my $module (@{$self->{modules}}) {
+        next unless $module->get_enabled(@_);
+        $result .= $line_terminator . $line_terminator . "module data:$line_terminator" . $module->to_string(@_);
+    }
+    $result .= $line_terminator;
+    return $result;
+
 }
 
 sub get_length {

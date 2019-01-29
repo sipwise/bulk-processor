@@ -10,11 +10,12 @@ use NGCP::BulkProcessor::LogError qw(
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-
+    $line_terminator
 );
 
 my $field_separator = ": ";
-my $line_terminator = "\n";
+our $line_terminator = "\n";
+my $indentation = "  ";
 my $padding = ' ';
 
 sub new {
@@ -78,7 +79,7 @@ sub to_string {
         }
     }
     foreach my $field (@{$self->{fields}}) {
-        push(@lines,uc($field->get_name()) . $field_separator . ($maxlen > 0 ? ($padding x ($maxlen - length($field->get_name()))) : '') . uc($field->get_hex(@_)));
+        push(@lines,$indentation . uc($field->get_name()) . $field_separator . ($maxlen > 0 ? ($padding x ($maxlen - length($field->get_name()))) : '') . uc($field->get_hex(@_)));
     }
     return join($line_terminator,@lines);
 
