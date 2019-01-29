@@ -34,6 +34,7 @@ our @EXPORT_OK = qw(
     datetime_from_string
     set_timezone
     current_local
+	from_epoch
 );
 
 my $is_fake_time = 0;
@@ -77,6 +78,12 @@ sub _current_local {
 	} else {
 		return DateTime->now(time_zone => $LOCAL);
 	}
+}
+
+sub from_epoch {
+	my ($time,$tz) = @_;
+	$tz //= $LOCAL;
+	return DateTime->from_epoch(epoch => $time, time_zone => $tz);
 }
 
 sub current_local {

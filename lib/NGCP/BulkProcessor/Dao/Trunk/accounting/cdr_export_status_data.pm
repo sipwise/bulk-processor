@@ -181,11 +181,11 @@ sub update_export_status {
         ' WHERE ' . $db->columnidentifier('status_id') . ' = ? AND ' . $db->columnidentifier('export_status') . ' != ?';
     my @params = ($export_status,$status_id,$export_status);
     if (defined $start_time_from) {
-        $stmt .= ' AND ' . $db->columnidentifier('start_time') . ' >= UNIX_TIMESTAMP(?)';
+        $stmt .= ' AND ' . $db->columnidentifier('cdr_start_time') . ' >= UNIX_TIMESTAMP(?)';
         push(@params,$start_time_from);
     }
     if (defined $start_time_to) {
-        $stmt .= ' AND ' . $db->columnidentifier('start_time') . ' < UNIX_TIMESTAMP(?)';
+        $stmt .= ' AND ' . $db->columnidentifier('cdr_start_time') . ' < UNIX_TIMESTAMP(?)';
         push(@params,$start_time_to);
     }
 
