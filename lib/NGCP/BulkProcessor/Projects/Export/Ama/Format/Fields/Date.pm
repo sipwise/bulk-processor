@@ -16,7 +16,7 @@ our @EXPORT_OK = qw(
 
 my $field_name = "date";
 my $length = 6;
-my @param_names = qw/date dt/;
+my @param_names = qw/date/;
 
 sub new {
 
@@ -43,7 +43,7 @@ sub _get_param_names {
 sub get_hex {
 
     my $self = shift;
-    my ($date,$dt) = $self->_get_params(@_);
+    my ($date) = $self->_get_params(@_);
     die("invalid date '$date'") unless length($date) == 5;
     return $date . $TERMINATOR;
 
