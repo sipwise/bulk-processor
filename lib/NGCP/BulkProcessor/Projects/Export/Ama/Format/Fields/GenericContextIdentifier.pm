@@ -23,6 +23,8 @@ our @EXPORT_OK = qw(
     $NUMBER_PORTABILITY
     $NPI
     $CPS
+    
+    $IN_CORRELATION_ID_PARSING_RULES
 );
 
 my $field_name = "generic context identifier";
@@ -56,6 +58,8 @@ our $NPI = '80050';
 push(@generic_context_ids,$NPI);
 our $CPS = '80080';
 push(@generic_context_ids,$CPS);
+
+our $IN_CORRELATION_ID_PARSING_RULES = 7;
 
 sub new {
 

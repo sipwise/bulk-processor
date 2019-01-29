@@ -43,6 +43,8 @@ our @EXPORT_OK = qw(
 
     get_callidprefix
 
+    $OK_CALL_STATUS
+
 );
 #process_records
 #delete_ids
@@ -140,10 +142,12 @@ my $expected_fieldnames = [
 ];
 
 my @callid_suffixes = ();
-our $PBXSUFFIX = '_pbx-1';
+my $PBXSUFFIX = '_pbx-1';
 push(@callid_suffixes,$PBXSUFFIX);
-our $XFERSUFFIX = '_xfer-1';
+my $XFERSUFFIX = '_xfer-1';
 push(@callid_suffixes,$XFERSUFFIX);
+
+our $OK_CALL_STATUS = 'ok';
 
 my $indexes = {};
 

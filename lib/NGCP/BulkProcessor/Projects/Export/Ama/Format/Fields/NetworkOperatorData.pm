@@ -14,7 +14,7 @@ our @EXPORT_OK = qw(
 );
 
 my $field_name = "network operator data";
-my $length = 49;
+my $length = 40;
 my @param_names = qw/network_operator_data/;
 
 sub new {
@@ -41,20 +41,28 @@ sub get_hex {
 
     my $self = shift;
     my ($network_operator_data) = $self->_get_params(@_);
-    die("invalid network operator data '$network_operator_data'") if length($network_operator_data) != 39;
-    return $network_operator_data . '1'; #$TERMINATOR;
+    die("invalid network operator data '$network_operator_data'") if length($network_operator_data) != 40;
+    return $network_operator_data; # . '1'; #$TERMINATOR;
 
 }
 
 sub get_network_operator_data {
-    my ($originating_digits,$switch_number_digits) = @_;
+    my ($originating_digits,$switch_number_digits,$mode) = @_;
     my $result = $originating_digits;
     my $padlength = 16 - length($originating_digits);
-    $result .= 'f' x $padlength;
+    if ($padlength >= 0) {
+        $result .= 'f' x $padlength;
+    } else {
+        die("invalid network operator data/originating_digits '$originating_digits'");
+    }
     $result .= $switch_number_digits;
     $padlength = 20 - length($switch_number_digits);
-    $result .= 'f' x $padlength;
-    $result .= '800';
+    if ($padlength >= 0) {
+        $result .= 'f' x $padlength;
+    } else {
+        die("invalid network operator data/switch_number_digits '$switch_number_digits'");
+    }
+    $result .= $mode;
     return $result;
 }
 
