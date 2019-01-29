@@ -41,8 +41,11 @@ our @EXPORT_OK = qw(
     $domestic_destination_pattern
     $international_destination_pattern
 
+    $make_dir
     $ama_filename_format
     $use_tempfiles
+
+    $ama_max_blocks
 );
 
 our $output_path = $working_path . 'output/';
@@ -53,6 +56,9 @@ our $use_tempfiles = 0;
 our $domestic_destination_pattern = undef;
 our $international_destination_pattern = undef;
 
+our $ama_max_blocks = 1000;
+
+our $make_dir = 0;
 our $ama_filename_format = '%1$sP%3$02d%4$02d%5$02d%6$02d%7$02d%9$02dAMA%10$s';
 
 sub update_settings {
@@ -68,6 +74,7 @@ sub update_settings {
         $result &= _prepare_working_paths(1);
 
         $use_tempfiles = $data->{use_tempfiles} if exists $data->{use_tempfiles};
+        $make_dir = $data->{make_dir} if exists $data->{make_dir};
 
         my $regexp_result;
         $domestic_destination_pattern = $data->{domestic_destination_pattern} if exists $data->{domestic_destination_pattern};
@@ -78,6 +85,8 @@ sub update_settings {
         $result &= $regexp_result;
 
         $ama_filename_format = $data->{ama_filename_format} if exists $data->{ama_filename_format};
+
+        $ama_max_blocks = $data->{ama_max_blocks} if exists $data->{ama_max_blocks};
 
         return $result;
 
