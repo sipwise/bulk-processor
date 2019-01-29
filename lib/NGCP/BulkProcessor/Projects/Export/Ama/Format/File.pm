@@ -3,15 +3,22 @@ use strict;
 
 ## no critic
 
+use File::Basename qw(fileparse);
+
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings qw(
     $output_path
     $ama_filename_format
     $use_tempfiles
     $tempfile_path
+    $make_dir
+    $ama_max_blocks
 );
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Block qw();
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9014 qw();
+
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date qw();
+use NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime qw();
 
 use NGCP::BulkProcessor::Logging qw(
     getlogger
@@ -21,7 +28,8 @@ use NGCP::BulkProcessor::LogError qw(
     fileerror
 );
 
-use NGCP::BulkProcessor::Utils qw(tempfilename);
+use NGCP::BulkProcessor::Utils qw(tempfilename makepath);
+use NGCP::BulkProcessor::Calendar qw(current_local from_epoch);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -29,7 +37,6 @@ our @EXPORT_OK = qw(
 
 );
 
-my $max_blocks = 99;
 my $ama_file_extension = '.ama';
 
 sub new {
@@ -50,7 +57,18 @@ sub reset {
     $self->_save_transfer_in(undef);
     $self->_save_transfer_out(undef);
     $self->{tempfilename} = tempfilename('XXXX',$tempfile_path,$ama_file_extension) if $use_tempfiles;
+    $self->{now} = current_local();
+    $self->{min_start_time} = undef;
+    $self->{max_end_time} = undef;
     return;
+}
+
+sub update_start_end_time {
+    my $self = shift;
+    my ($start_time,$end_time) = @_;
+    #my $end_time = $start_time + $duration;
+    $self->{min_start_time} = $start_time if (not defined $self->{min_start_time} or $self->{min_start_time} > $start_time);
+    $self->{max_end_time} = $end_time if (not defined $self->{max_end_time} or $self->{max_end_time} < $end_time);
 }
 
 sub get_record_count {
@@ -67,12 +85,12 @@ sub add_record {
     my $self = shift;
     my ($record,$pad) = @_;
     my $result;
-    if (not $pad and (scalar @{$self->{blocks}}) >= $max_blocks and not $self->{current_block}->records_fit($record,
+    if (not $pad and (scalar @{$self->{blocks}}) >= $ama_max_blocks and not $self->{current_block}->records_fit($record,
             $NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure9014::length)) {
         $result = 0;
     } else {
         if (not $self->{current_block}->add_record($record)) {
-            if ((scalar @{$self->{blocks}}) >= $max_blocks) {
+            if ((scalar @{$self->{blocks}}) >= $ama_max_blocks) {
                 $result = 0;
             } else {
                 $self->{current_block}->set_padded(1);
@@ -97,13 +115,13 @@ sub get_filename {
     return $self->{tempfilename} if ($use_tempfiles and $show_tempfilename);
     return sprintf($ama_filename_format,
         $output_path,
-        $self->{transfer_in}->get_structure()->get_date_field()->{dt}->year,
-        substr($self->{transfer_in}->get_structure()->get_date_field()->{dt}->year,-2),
-        $self->{transfer_in}->get_structure()->get_date_field()->{dt}->month,
-        $self->{transfer_in}->get_structure()->get_date_field()->{dt}->day,
-        $self->{transfer_in}->get_structure()->get_connect_time_field()->{dt}->hour,
-        $self->{transfer_in}->get_structure()->get_connect_time_field()->{dt}->minute,
-        $self->{transfer_in}->get_structure()->get_connect_time_field()->{dt}->second,
+        $self->{now}->year,
+        substr($self->{now}->year,-2),
+        $self->{now}->month,
+        $self->{now}->day,
+        $self->{now}->hour,
+        $self->{now}->minute,
+        $self->{now}->second,
         $self->{transfer_in}->get_structure()->get_file_sequence_number_field()->{file_sequence_number},
         $ama_file_extension,
     );
@@ -120,6 +138,15 @@ sub _rename {
     return rename($self->{tempfilename},$filename);
 }
 
+sub _makedir {
+
+    my ($filename) = @_;
+    my ($name,$path,$suffix) = fileparse($filename,$ama_file_extension);
+    makepath($path,\&fileerror,getlogger(__PACKAGE__)) if ($make_dir and length($path) > 0 and not -d $path);
+    return $filename;
+
+}
+
 sub flush {
     my $self = shift;
     my %params = @_;
@@ -134,14 +161,14 @@ sub flush {
             fileerror($filename . ' already exists',getlogger(__PACKAGE__));
             return 0;
         } else {
-            if (open(my $fh,">:raw",($use_tempfiles ? $self->{tempfilename} : $filename))) {
+            if (open(my $fh,">:raw",($use_tempfiles ? $self->{tempfilename} : _makedir($filename)))) {
                 foreach my $block (@{$self->{blocks}}) {
                     print $fh pack('H*',$block->get_hex());
                 }
                 close $fh;
                 if (defined $commit_cb) {
                     if (&$commit_cb(@_)) {
-                        if (not $use_tempfiles or $self->_rename($filename)) {
+                        if (not $use_tempfiles or $self->_rename(_makedir($filename))) {
                             return 1;
                         } else {
                             my $err = $!;
@@ -193,9 +220,29 @@ sub close {
         )),
         1,
     );
-    # update count fields:
+
+    # update transfer_in date/time:
+    my $min_start_dt;
+    $min_start_dt = from_epoch($self->{min_start_time}) if defined $self->{min_start_time};
+    $self->{transfer_in}->get_structure()->get_date_field()->_set_params(
+        date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($min_start_dt // $self->{now}),
+    );
+    $self->{transfer_in}->get_structure()->get_connect_time_field()->_set_params(
+        connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($min_start_dt // $self->{now}),
+    );
+    # update transfer_out date/time:
+    my $max_end_dt;
+    $max_end_dt = from_epoch($self->{max_end_time}) if defined $self->{max_end_time};
+    $self->{transfer_out}->get_structure()->get_date_field()->_set_params(
+        date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date($max_end_dt // $self->{now}),
+    );
+    $self->{transfer_out}->get_structure()->get_connect_time_field()->_set_params(
+        connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time($max_end_dt // $self->{now}),
+    );
+    # update transfer_out count fields:
     $self->{transfer_out}->get_structure()->get_block_count_field()->_set_params(block_count => $self->get_block_count());
     $self->{transfer_out}->get_structure()->get_record_count_field()->_set_params(record_count => $self->get_record_count());
+
     $result |= $self->flush(
         commit_cb => $commit_cb,
         @_
@@ -232,7 +279,6 @@ sub write_record {
     my $result = 0;
     my $record = &$get_record(@_);
     if (not $self->add_record($record)) {
-        #my $blah="y";
         $result |= $self->close(
             get_transfer_out => $get_transfer_out,
             commit_cb => $commit_cb,
