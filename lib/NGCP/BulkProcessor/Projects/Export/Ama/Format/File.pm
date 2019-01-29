@@ -3,6 +3,8 @@ use strict;
 
 ## no critic
 
+use File::Basename qw(fileparse);
+
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings qw(
     $output_path
     $ama_filename_format
@@ -21,7 +23,7 @@ use NGCP::BulkProcessor::LogError qw(
     fileerror
 );
 
-use NGCP::BulkProcessor::Utils qw(tempfilename);
+use NGCP::BulkProcessor::Utils qw(tempfilename makepath);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -120,6 +122,15 @@ sub _rename {
     return rename($self->{tempfilename},$filename);
 }
 
+sub _makedir {
+
+    my ($filename) = @_;
+    my ($name,$path,$suffix) = fileparse($filename,$ama_file_extension);
+    makepath($path,\&fileerror,getlogger(__PACKAGE__)) if (length($path) > 0 and not -d $path);
+    return $filename;
+
+}
+
 sub flush {
     my $self = shift;
     my %params = @_;
@@ -134,14 +145,14 @@ sub flush {
             fileerror($filename . ' already exists',getlogger(__PACKAGE__));
             return 0;
         } else {
-            if (open(my $fh,">:raw",($use_tempfiles ? $self->{tempfilename} : $filename))) {
+            if (open(my $fh,">:raw",($use_tempfiles ? $self->{tempfilename} : _makedir($filename)))) {
                 foreach my $block (@{$self->{blocks}}) {
                     print $fh pack('H*',$block->get_hex());
                 }
                 close $fh;
                 if (defined $commit_cb) {
                     if (&$commit_cb(@_)) {
-                        if (not $use_tempfiles or $self->_rename($filename)) {
+                        if (not $use_tempfiles or $self->_rename(_makedir($filename))) {
                             return 1;
                         } else {
                             my $err = $!;
