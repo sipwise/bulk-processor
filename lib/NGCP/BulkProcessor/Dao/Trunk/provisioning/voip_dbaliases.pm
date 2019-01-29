@@ -118,7 +118,7 @@ sub findby_subscriberidisprimary {
     my @params = ($subscriber_id,$is_primary);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
