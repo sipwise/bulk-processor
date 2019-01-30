@@ -326,7 +326,7 @@ sub _export_cdrs_init_context {
         $scenario->{duration} = $context->{cdrs}->[0]->{duration};
         $scenario->{originating} = $context->{cdrs}->[0]->{$ama_originating_digits_cdr_field};
         $scenario->{terminating} = $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field};
-        $scenario->{unanswered} = ($context->{cdrs}->[1]->{call_status} != $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0);
+        $scenario->{unanswered} = ($context->{cdrs}->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0);
         $scenario->{correlation_id} = substr($context->{cdrs}->[0]->{id},-7);
         $scenario->{nod} = {
             originating_digits => $scenario->{originating},
