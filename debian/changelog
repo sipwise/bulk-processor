@@ -1,3 +1,12 @@
+ngcp-bulk-processor (6.5.2.5+0~mr6.5.2.5) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [bae1b06] TT#50974 ama: fix off-hook and disable destination_domain filter
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 30 Jan 2019 02:35:31 +0100
+
 ngcp-bulk-processor (6.5.2.4+0~mr6.5.2.4) unstable; urgency=medium
 
   [ Rene Krenn ]
