@@ -1,3 +1,22 @@
+ngcp-bulk-processor (7.0.3.0+0~mr7.0.3.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [ad81846] TT#46754 ama "block" and "file" objects WIP
+  * [3cf3bd2] TT#48101 upc AT importer
+  * [9cbe743] TT#49065 CCS subscriber provisioning
+  * [af2ac4b] TT#47532 ama: persisting file sequence number
+  * [932bb76] TT#50606 ama: option for automatic fsn rollover
+  * [52c1259] TT#50609 ama: write to tmpfiles+rename
+  * [1b48550] TT#46753 ama: 611, 199, 104 and 000 modules
+  * [8e0d25d] TT#50816 ama: min_fsn=0, max_fsn=99
+  * [1fba08b] TT#51110 ama: "skipped" extended cdr export status
+  * [eaf32f6] TT#50974 ama: ccs "direct forwarder" scenario
+  * [9ca5152] TT#50974 ama: fix off-hook and disable destination_domain filter
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 11 Feb 2019 12:25:27 +0100
+
 ngcp-bulk-processor (7.0.2.0+0~mr7.0.2.0) unstable; urgency=medium
 
   [ Rene Krenn ]
