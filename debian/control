@@ -1,5 +1,5 @@
 Source: ngcp-bulk-processor
-Section: admin
+Section: perl
 Priority: optional
 Maintainer: Sipwise Development Team <support@sipwise.com>
 Build-Depends:
@@ -8,14 +8,28 @@ Build-Depends:
 Standards-Version: 3.9.8
 Homepage: https://www.sipwise.com/
 
-Package: ngcp-bulk-processor
+Package: libexcel-reader-xlsx-perl
 Architecture: all
 Replaces:
- ngcp-bulk-processor-pro,
-Breaks:
- ngcp-bulk-processor-pro,
+ ngcp-bulk-processor,
 Depends:
+ ${misc:Depends},
+ ${perl:Depends},
  libarchive-zip-perl,
+ libole-storage-lite-perl,
+ libxml-libxml-perl,
+Description: module to parse Excel spreadsheets in xlsx format
+ The Excel::Reader::XLSX module is used to parse an Excel file in
+ the 2007+ XLSX format. The XLSX format is the Office Open XML (OOXML)
+ format used by Excel 2007 and later.
+
+Package: libngcp-bulkprocessor-perl
+Architecture: all
+Replaces:
+ ngcp-bulk-processor,
+Depends:
+ ${misc:Depends},
+ ${perl:Depends},
  libconfig-any-perl,
  libdata-dump-perl,
  libdata-dumper-concise-perl,
@@ -34,6 +48,7 @@ Depends:
  libdigest-md5-perl,
  libemail-mime-attachment-stripper-perl,
  libemail-mime-perl,
+ libexcel-reader-xlsx-perl,
  libgearman-client-perl,
  libhtml-parser-perl,
  libintl-perl,
@@ -45,7 +60,6 @@ Depends:
  libmime-lite-perl,
  libmime-tools-perl,
  libnet-address-ip-local-perl,
- libole-storage-lite-perl,
  libphp-serialization-perl,
  libspreadsheet-parseexcel-perl,
  libstring-mkpasswd-perl,
@@ -57,10 +71,18 @@ Depends:
  libuuid-perl,
  libwww-perl,
  libxml-dumper-perl,
- libxml-libxml-perl,
  libyaml-libyaml-perl,
- perl,
- ${misc:Depends},
- ${perl:Depends},
-Description: NGCP bulk processor framework
- Framework for parallel/distributed processing of record blocks.
+Description: NGCP bulk processor framework perl modules
+ This package provides the NGCP::BulkProcessor perl modules that implement
+ a framework for parallel/distributed processing of record blocks.
+
+Package: ngcp-bulk-processor
+Architecture: all
+Section: oldlibs
+Depends:
+ libexcel-reader-xlsx-perl,
+ libngcp-bulkprocessor-perl,
+Description: transitional dummy package
+ This package has been split into libexcel-reader-xlsx-perl and
+ libngcp-bulkprocessor-perl. It can be safely removed once it is not
+ depended on by other packages.

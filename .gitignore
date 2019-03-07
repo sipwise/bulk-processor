@@ -16,6 +16,11 @@
 *.mac
 .gitattributes
 
+/Build
+/MYMETA.*
+/_build/
+/blib/
+
 #/uml
 #/html
 #/mails

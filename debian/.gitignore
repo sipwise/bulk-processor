@@ -4,4 +4,7 @@
 /.debhelper/
 /debhelper-build-stamp
 /files
-/ngcp-bulk-processor
+/libexcel-reader-xlsx-perl/
+/libngcp-bulkprocessor-perl/
+/ngcp-bulk-processor/
+/tmp/
