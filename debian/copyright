@@ -2,7 +2,8 @@ Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Source: https://www.sipwise.com/
 Upstream-Contact: Sipwise Development Team <support@sipwise.com>
 
-Files: *
+Files:
+ *
 Copyright:
  Copyright © 2006 Sipwise GmbH, Austria
 License: GPL-3+
@@ -21,3 +22,25 @@ License: GPL-3+
 Comment:
  On Debian systems, the full text of the GNU General Public License
  version 3 can be found in the file '/usr/share/common-licenses/GPL-3'.
+
+Files:
+ lib/Excel/*
+Copyright:
+ Copyright © 2012 John McNamara <jmcnamara@cpan.org>
+License: Artistic or GPL-1+
+
+License: Artistic
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the Artistic License, which comes with Perl.
+Comment:
+ On Debian systems, the complete text of the Artistic License can be
+ found in '/usr/share/common-licenses/Artistic'.
+
+License: GPL-1+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 1, or (at your option)
+ any later version.
+Comment:
+ On Debian systems, the complete text of version 1 of the GNU General
+ Public License can be found in '/usr/share/common-licenses/GPL-1'.
