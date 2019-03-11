@@ -303,12 +303,13 @@ sub _export_cdrs_init_context {
                     and ($scenario->{ccs_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(undef,$context->{cdrs}->[0]->{destination_user_id}))
                     and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                     ) {
-                    if (not $context->{cdrs}->[0]->{$ama_originating_digits_cdr_field}
-                        or not $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field}) {
-                        $malformed = 1;
-                    } else {
+                    if ($context->{cdrs}->[0]->{$ama_originating_digits_cdr_field} =~ /^[0-9]$/
+                        and $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field} =~ /^[0-9]$/
+                        ) {
                         $scenario->{code} = $DIRECT_FORWARDER_SCENARIO;
                         $result = 1;
+                    } else {
+                        $malformed = 1;
                     }
                 #} else {
                 #    print "blah";
