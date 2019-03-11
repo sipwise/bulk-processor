@@ -138,9 +138,9 @@ sub get_filesize {
 sub _rename {
     my $self = shift;
     my ($filename) = @_;
-    $filename = rename($self->{tempfilename},$filename);
-    _chownmod($filename,$files_owner,$files_group,oct(666),$files_mask);
-    return $filename;
+    my $result = rename($self->{tempfilename},$filename);
+    _chownmod($filename,$files_owner,$files_group,oct(666),$files_mask) if $result;
+    return $result;
 }
 
 sub _makedir {
