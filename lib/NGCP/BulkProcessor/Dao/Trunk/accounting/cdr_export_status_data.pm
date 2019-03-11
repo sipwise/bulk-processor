@@ -38,12 +38,14 @@ our @EXPORT_OK = qw(
     update_export_status
 
     $UNEXPORTED
-    $EXPORTED
+    $OK
+    $FAILED
     $SKIPPED
 );
 
 our $UNEXPORTED = 'unexported';
-our $EXPORTED = 'exported';
+our $OK = 'ok';
+our $FAILED = 'failed';
 our $SKIPPED = 'skipped';
 
 my $tablename = 'cdr_export_status_data';
