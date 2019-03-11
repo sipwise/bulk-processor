@@ -40,6 +40,7 @@ our @EXPORT_OK = qw(
 
     findby_callidprefix
     process_unexported
+    process_fromto
 
     get_callidprefix
 
@@ -331,6 +332,69 @@ sub process_unexported {
         selectcount                 => 'SELECT COUNT(1) FROM (' . $db->paginate_sort_query('SELECT 1 ' . $stmt,0,$limit,undef) . ') AS __cnt',
     );
 }
+
+
+sub process_fromto {
+
+    my %params = @_;
+    my ($process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads,
+        $blocksize,
+        $from,
+        $to) = @params{qw/
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+            blocksize
+            from
+            to
+        /};
+    #sort
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = '';
+    if ($from or $to) {
+        $stmt .= ' WHERE ';
+        my @terms = ();
+        if ($from) {
+            push(@terms,$db->columnidentifier('start_time') . ' >= UNIX_TIMESTAMP("' . $from . '")');
+        }
+        if ($to) {
+            push(@terms,$db->columnidentifier('start_time') . ' < UNIX_TIMESTAMP("' . $to . '")');
+        }
+        $stmt .= join(' AND ',@terms);
+    }
+
+
+    return process_table(
+        get_db                      => $get_db,
+        class                       => __PACKAGE__,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,$rowblock,$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_dbs,
+        multithreading              => $multithreading,
+        tableprocessing_threads     => $numofthreads,
+        blocksize                   => $blocksize,
+        select                      => 'SELECT * FROM ' . $table . $stmt . ' ORDER BY ' . $db->columnidentifier('id'),
+        selectcount                 => 'SELECT COUNT(1) FROM ' . $table . $stmt,
+    );
+}
+
 
 sub _get_export_stmt {
 
