@@ -46,6 +46,10 @@ our @EXPORT_OK = qw(
     $use_tempfiles
 
     $ama_max_blocks
+
+    $files_owner
+    $files_group
+    $files_mask
 );
 
 our $output_path = $working_path . 'output/';
@@ -60,6 +64,10 @@ our $ama_max_blocks = 1000;
 
 our $make_dir = 0;
 our $ama_filename_format = '%1$sP%3$02d%4$02d%5$02d%6$02d%7$02d%9$02dAMA%10$s';
+
+our $files_owner = '';
+our $files_group = '';
+our $files_mask = '';
 
 sub update_settings {
 
@@ -87,6 +95,10 @@ sub update_settings {
         $ama_filename_format = $data->{ama_filename_format} if exists $data->{ama_filename_format};
 
         $ama_max_blocks = $data->{ama_max_blocks} if exists $data->{ama_max_blocks};
+
+        $files_owner = $data->{files_owner} if exists $data->{files_owner};
+        $files_group = $data->{files_group} if exists $data->{files_group};
+        $files_mask = $data->{files_mask} if exists $data->{files_mask};
 
         return $result;
 
