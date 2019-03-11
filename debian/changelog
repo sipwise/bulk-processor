@@ -1,3 +1,12 @@
+ngcp-bulk-processor (6.5.2.8+0~mr6.5.2.8) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [84a97cb] TT#54807 .ama exporter: fix filtering number-only destinations
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 11 Mar 2019 17:45:37 +0100
+
 ngcp-bulk-processor (6.5.2.7+0~mr6.5.2.7) unstable; urgency=medium
 
   [ Rene Krenn ]
