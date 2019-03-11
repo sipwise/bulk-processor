@@ -1,3 +1,12 @@
+ngcp-bulk-processor (6.5.2.7+0~mr6.5.2.7) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [f48e780] TT#54807 .ama exporter: skip "null" destinations
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 11 Mar 2019 15:10:49 +0100
+
 ngcp-bulk-processor (6.5.2.6+0~mr6.5.2.6) unstable; urgency=medium
 
   [ Rene Krenn ]
