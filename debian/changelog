@@ -1,3 +1,14 @@
+ngcp-bulk-processor (7.2.2.0+0~mr7.2.2.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [f833fc2] TT#54661 .ama exporter: skip malformed CDRs
+  * [85542e3] TT#54760 .ama exporter: chown/chmod settings
+  * [efc0547] TT#54807 .ama exporter: skip "null" destinations
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 11 Mar 2019 15:43:39 +0100
+
 ngcp-bulk-processor (7.2.1.0+0~mr7.2.1.0) unstable; urgency=medium
 
   [ Rene Krenn ]
