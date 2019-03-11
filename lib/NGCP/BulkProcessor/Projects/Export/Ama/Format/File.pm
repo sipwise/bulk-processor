@@ -12,6 +12,9 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings qw(
     $tempfile_path
     $make_dir
     $ama_max_blocks
+    $files_owner
+    $files_group
+    $files_mask
 );
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Block qw();
@@ -135,7 +138,9 @@ sub get_filesize {
 sub _rename {
     my $self = shift;
     my ($filename) = @_;
-    return rename($self->{tempfilename},$filename);
+    $filename = rename($self->{tempfilename},$filename);
+    _chownmod($filename,$files_owner,$files_group,oct(666),$files_mask);
+    return $filename;
 }
 
 sub _makedir {
@@ -145,6 +150,18 @@ sub _makedir {
     makepath($path,\&fileerror,getlogger(__PACKAGE__)) if ($make_dir and length($path) > 0 and not -d $path);
     return $filename;
 
+}
+
+sub _chownmod {
+    my ($file, $user, $group, $defmode, $mask) = @_;
+
+    if ($user || $group) {
+        my @arg = (-1, -1, $file);
+        $user and ($arg[0] = (getpwnam($user) || -1));
+        $group and ($arg[1] = (getgrnam($group) || -1));
+        chown(@arg);
+    }
+    $mask and chmod($defmode & ~oct($mask), $file);
 }
 
 sub flush {
