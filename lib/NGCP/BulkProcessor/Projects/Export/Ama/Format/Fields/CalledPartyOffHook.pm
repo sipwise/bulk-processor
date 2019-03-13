@@ -43,7 +43,7 @@ sub get_hex {
     my $self = shift;
     my ($unanswered) = $self->_get_params(@_);
     #die("invalid recording office type '$recording_office_type'") unless contains($recording_office_type,[$NOT_USED, $DMS_100_FAMILY]);
-    return ($unanswered ? '1' : '0') . $TERMINATOR;
+    return ($unanswered ? '0' : '1') . $TERMINATOR;
 
 }
 
