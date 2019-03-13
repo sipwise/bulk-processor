@@ -24,6 +24,9 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
     $ama_outgoing_trunk_group_number
     $ama_originating_digits_cdr_field
     $ama_terminating_digits_cdr_field
+
+    $ivr_duration_limit
+    $primary_alias_pattern
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -40,6 +43,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::mark qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
@@ -86,7 +90,12 @@ our @EXPORT_OK = qw(
     reset_export_status
 );
 
-my $DIRECT_FORWARDER_SCENARIO = 1;
+my $BLIND_TRANSFER_NO_IVR = 1;
+my $BLIND_TRANSFER = 2;
+my $NO_TRANSFER_NO_IVR = 3;
+my $NO_TRANSFER = 4;
+my $ATTN_TRANSFER_NO_IVR = 5;
+my $ATTN_TRANSFER = 6;
 
 my $file_sequence_number : shared = 0;
 my $rowcount : shared = 0;
@@ -165,7 +174,9 @@ sub export_cdrs {
         static_context => $static_context,
         process_code => sub {
             my ($context,$records,$row_offset) = @_;
+            # we only want to export a call scenario of eg. 4 cdrs, if the block (eg. 1000 cdrs) contains all 4.
             $context->{block_call_id_map} = {};
+            my $cdr_id_map = {};
             foreach my $record (@$records) {
                 my ($id,$call_id) = @$record;
                 my $call_id_prefix = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::get_callidprefix($call_id);
@@ -174,6 +185,14 @@ sub export_cdrs {
                 } else {
                     $context->{block_call_id_map}->{$call_id_prefix} = 1;
                 }
+                $cdr_id_map->{$id} = 1;
+            }
+            $context->{correlated_cdrs_map} = {};
+            foreach my $record (@$records) {
+                my ($id,$call_id) = @$record;
+                $context->{correlated_cdrs_map}->{$id} = _find_child_cdrs($context,$id);
+                my $call_id_prefix = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::get_callidprefix($call_id);
+                map { $context->{block_call_id_map}->{$call_id_prefix} += 1 if exists $cdr_id_map->{$_->{id}}; } @{$context->{correlated_cdrs_map}->{$id}};
             }
             foreach my $record (@$records) {
                 if (defined $export_cdr_limit) {
@@ -278,70 +297,241 @@ sub export_cdrs {
     return ($result,$warning_count,\@ama_files);
 }
 
+sub _find_child_cdrs {
+    my ($context,$id) = @_;
+    my @correlated_cdrs = ();
+    foreach my $correlated_group_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group::findby_cdrid($context->{db},$id)}) {
+        foreach my $correlated_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callid($context->{db},$correlated_group_cdr->{call_id})}) {
+            push(@correlated_cdrs,$correlated_cdr);
+        }
+    }
+    return \@correlated_cdrs;
+}
 
 sub _export_cdrs_init_context {
 
     my ($context,$cdr_id,$call_id) = @_;
 
     my $result = 0;
-    $context->{cdrs} = [];
+    my $parent_cdrs;
     $context->{call_id} = $call_id;
-    my $scenario = { code => 0, };
+    my $scenario = { code => 0, ama => [], };
     $context->{scenario} = $scenario;
 
-    if (not exists $context->{file_cdr_id_map}->{$cdr_id}) {
+    if (not exists $context->{file_cdr_id_map}->{$cdr_id}) { #skip if processed for a file already
         my $call_id_prefix = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::get_callidprefix($call_id);
-        if (exists $context->{block_call_id_map}->{$call_id_prefix}) {
-            $context->{cdrs} = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callidprefix($context->{db},
-                $call_id,$export_cdr_joins,$export_cdr_conditions); #already sorted
-            my $cdrs_in_block = delete $context->{block_call_id_map}->{$call_id_prefix};
-            if ((scalar @{$context->{cdrs}}) == $cdrs_in_block) {
-                my $malformed = 0;
-                if ((scalar @{$context->{cdrs}}) == 2
-                    and not $context->{cdrs}->[0]->is_xfer()
-                    and $context->{cdrs}->[1]->is_xfer()
-                    and ($scenario->{ccs_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(undef,$context->{cdrs}->[0]->{destination_user_id}))
-                    and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
-                    ) {
-                    if ($context->{cdrs}->[0]->{$ama_originating_digits_cdr_field} =~ /^[0-9]+$/
-                        and $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field} =~ /^[0-9]+$/
-                        ) {
-                        $scenario->{code} = $DIRECT_FORWARDER_SCENARIO;
-                        $result = 1;
+        if (exists $context->{block_call_id_map}->{$call_id_prefix}) { #skip if this callid form parent calls that have already been processed
+            if ((scalar @{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group::findby_callid($context->{db},$call_id)}) == 0) { #skip if this is a correlated (child) cdr
+                $parent_cdrs = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callidprefix($context->{db},
+                    $call_id,$export_cdr_joins,$export_cdr_conditions); #already sorted
+                my @scenario_cdrs = @$parent_cdrs;
+                foreach my $cdr (@$parent_cdrs) {
+                    my @correlated_cdrs;
+                    if (exists $context->{correlated_cdrs_map}->{$cdr->{id}}) {
+                        @correlated_cdrs = @{$context->{correlated_cdrs_map}->{$cdr->{id}}};
                     } else {
-                        $malformed = 1;
+                        @correlated_cdrs = @{_find_child_cdrs($context,$cdr->{id})};
                     }
-                #} else {
-                #    print "blah";
+                    $cdr->{_correlated_cdrs} = \@correlated_cdrs;
+                    push(@scenario_cdrs,@correlated_cdrs);
                 }
-                foreach my $cdr (@{$context->{cdrs}}) {
-                    if ($result) {
-                        $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::OK;
-                    } elsif ($malformed) {
-                        $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::FAILED;
-                    } else {
-                        $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::SKIPPED;
+                $scenario->{parent_cdrs} = $parent_cdrs;
+                $scenario->{all_cdrs} = \@scenario_cdrs;
+                my $cdrs_in_block = delete $context->{block_call_id_map}->{$call_id_prefix};
+                if ((scalar @scenario_cdrs) == $cdrs_in_block) {
+                    my $malformed = 0;
+
+                    #blind xfer:
+                    if ((scalar @$parent_cdrs) == 2
+                        and not $parent_cdrs->[0]->is_xfer()
+                        and $parent_cdrs->[1]->is_xfer()
+                        and (scalar @{$parent_cdrs->[0]->{_correlated_cdrs}}) == 0
+                        and (scalar @{$parent_cdrs->[1]->{_correlated_cdrs}}) == 0
+                        and ($scenario->{ccs_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(undef,$parent_cdrs->[0]->{destination_user_id}))
+                        and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
+                        and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
+                        ) {
+                        my $ivr_duration = abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time});
+                        if ($ivr_duration < $ivr_duration_limit) {
+                            $scenario->{code} = $BLIND_TRANSFER_NO_IVR;
+                        } else {
+                            $scenario->{code} = $BLIND_TRANSFER;
+                        }
+                    #no transfer:
+                    } elsif ((scalar @$parent_cdrs) == 1
+                        and not $parent_cdrs->[0]->is_xfer()
+                        and not $parent_cdrs->[0]->is_pbx()
+                        and (scalar @{$parent_cdrs->[0]->{_correlated_cdrs}}) == 0
+                        and ($scenario->{ccs_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(undef,$parent_cdrs->[0]->{destination_user_id}))
+                        and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
+                        and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
+                        ) {
+                        my $ivr_duration = $parent_cdrs->[0]->{duration};
+                        if ($ivr_duration < $ivr_duration_limit) {
+                            $scenario->{code} = $NO_TRANSFER_NO_IVR;
+                        } else {
+                            $scenario->{code} = $NO_TRANSFER;
+                        }
+                    #attn transfer:
+                    } elsif ((scalar @$parent_cdrs) == 2
+                        and not $parent_cdrs->[0]->is_pbx()
+                        and $parent_cdrs->[1]->is_pbx()
+                        and (scalar @{$parent_cdrs->[0]->{_correlated_cdrs}}) == 0
+                        and (scalar @{$parent_cdrs->[1]->{_correlated_cdrs}}) == 1
+                        and ($scenario->{ccs_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(undef,$parent_cdrs->[0]->{destination_user_id}))
+                        and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
+                        and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
+                        ) {
+                        my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
+                        my $ivr_duration = abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time});
+                        if ($ivr_duration < $ivr_duration_limit) {
+                            $scenario->{code} = $ATTN_TRANSFER_NO_IVR;
+                        } else {
+                            $scenario->{code} = $ATTN_TRANSFER;
+                        }
+                    } #elsif (...
+                    #
+                    #}
+
+                    foreach my $cdr (@scenario_cdrs) {
+                        if ($result) {
+                            $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::OK;
+                        } elsif ($malformed) {
+                            $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::FAILED;
+                        } else {
+                            $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::SKIPPED;
+                        }
+                        $context->{file_cdr_id_map}->{$cdr->{id}} = $cdr; #->{start_time};
+                        lock $rowcount;
+                        $rowcount += 1;
                     }
-                    $context->{file_cdr_id_map}->{$cdr->{id}} = $cdr; #->{start_time};
-                    lock $rowcount;
-                    $rowcount += 1;
                 }
             }
         }
     }
 
-    if ($scenario->{code} == $DIRECT_FORWARDER_SCENARIO) {
-        $scenario->{start_time} = $context->{cdrs}->[0]->{start_time};
-        $scenario->{duration} = $context->{cdrs}->[0]->{duration};
-        $scenario->{originating} = $context->{cdrs}->[0]->{$ama_originating_digits_cdr_field};
-        $scenario->{terminating} = $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field};
-        $scenario->{unanswered} = ($context->{cdrs}->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0);
-        $scenario->{correlation_id} = substr($context->{cdrs}->[0]->{id},-7);
-        $scenario->{nod} = {
-            originating_digits => $scenario->{originating},
-            switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
-            mode => '0001',
-        };
+    if ($scenario->{code} == $BLIND_TRANSFER_NO_IVR) {
+        push(@{$scenario->{ama}},{
+            start_time => $parent_cdrs->[1]->{start_time}, #?
+            duration => $parent_cdrs->[1]->{duration},
+            originating => $parent_cdrs->[0]->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field},
+            unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '0001',
+            },
+        });
+    } elsif ($scenario->{code} == $BLIND_TRANSFER) {
+        push(@{$scenario->{ama}},{
+            start_time => $parent_cdrs->[0]->{start_time}, #?
+            duration => abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time}),
+            originating => $parent_cdrs->[0]->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field},
+            unanswered => 0,
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '6001',
+            },
+        },{
+            start_time => $parent_cdrs->[1]->{start_time},
+            duration => $parent_cdrs->[1]->{duration},
+            originating => $parent_cdrs->[0]->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field},
+            unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '2002',
+            },
+        });
+    } elsif ($scenario->{code} == $NO_TRANSFER_NO_IVR) {
+        push(@{$scenario->{ama}},{
+            start_time => $parent_cdrs->[0]->{start_time}, #?
+            duration => 0,
+            originating => $parent_cdrs->[0]->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field},
+            unanswered => 1,
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '0001',
+            },
+        });
+    } elsif ($scenario->{code} == $NO_TRANSFER) {
+        push(@{$scenario->{ama}},{
+            start_time => $parent_cdrs->[0]->{start_time}, #?
+            duration => $parent_cdrs->[0]->{duration},
+            originating => $parent_cdrs->[0]->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field},
+            unanswered => 0,
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '6001',
+            },
+        },{
+            start_time => $parent_cdrs->[0]->{start_time}, #?
+            duration => $parent_cdrs->[0]->{duration},
+            originating => $parent_cdrs->[0]->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field},
+            unanswered => 1,
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '2002',
+            },
+        });
+    } elsif ($scenario->{code} == $ATTN_TRANSFER_NO_IVR) {
+        my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
+        push(@{$scenario->{ama}},{
+            start_time => $parent_cdrs->[1]->{start_time}, #?
+            duration => $correlated_cdr->{duration} - abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{start_time}),
+            originating => $correlated_cdr->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field},
+            unanswered => ($correlated_cdr->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '0001',
+            },
+        });
+    } elsif ($scenario->{code} == $ATTN_TRANSFER) {
+        my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
+        push(@{$scenario->{ama}},{
+            start_time => $parent_cdrs->[1]->{start_time}, #?
+            duration => abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time}),
+            originating => $correlated_cdr->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field},
+            unanswered => 0,
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '6001',
+            },
+        },{
+            start_time => $parent_cdrs->[1]->{start_time}, #?
+            duration => $correlated_cdr->{duration} - abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{start_time}),
+            originating => $correlated_cdr->{$ama_originating_digits_cdr_field},
+            terminating => $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field},
+            unanswered => ($correlated_cdr->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $scenario->{originating},
+                switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '2002',
+            },
+        });
     }
 
     return $result;
@@ -432,6 +622,68 @@ sub _get_transfer_in {
 
 }
 
+sub _create_ama {
+    my ($ama) = @_;
+    return NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure0510->new(
+            call_type => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType::STATION_PAID,
+
+            rewritten => 0,
+            sensor_id => $ama_sensor_id,
+
+            padding => 0,
+            recording_office_id => $ama_recording_office_id,
+
+            call_type => '970',
+            #timing ind 000
+            #seervice observed 0c
+
+            unanswered => $ama->{unanswered}, #called party off-hook setzen
+
+            date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date(from_epoch($ama->{start_time})),
+
+            service_feature => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature::OTHER,
+
+            originating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($ama->{originating}),
+            originating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($ama->{originating}),
+            originating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($ama->{originating}),
+
+            domestic_international => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::INTERNATIONAL, #get_number_domestic_international($context->{destination}),
+
+            terminating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($ama->{terminating}),
+            terminating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($ama->{terminating}),
+            terminating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($ama->{terminating}),
+
+            connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time(from_epoch($ama->{start_time})),
+            elapsed_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ElapsedTime::get_elapsed_time($ama->{duration}),
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module611->new(
+            generic_context_identifier => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::GenericContextIdentifier::IN_CORRELATION_ID,
+            parsing_rules => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::GenericContextIdentifier::IN_CORRELATION_ID_PARSING_RULES,
+            additional_digits_dialed => $ama->{correlation_id},
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module199->new(
+            network_operator_data => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::NetworkOperatorData::get_network_operator_data(
+                $ama->{nod}->{originating_digits},
+                $ama->{nod}->{switch_number_digits},
+                $ama->{nod}->{mode},
+                ),
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module104->new(
+            direction => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification::INCOMING,
+            trunk_group_number => $ama_incoming_trunk_group_number,
+            trunk_member_number => '0000',
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module104->new(
+            direction => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification::OUTGOING,
+            trunk_group_number => $ama_outgoing_trunk_group_number,
+            trunk_member_number => '0000',
+        ),
+        NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module000->new(
+        ),
+    );
+}
+
 sub _get_record {
 
     my %params = @_;
@@ -441,70 +693,28 @@ sub _get_record {
         context
     /};
 
-    if ($context->{scenario}->{code} == $DIRECT_FORWARDER_SCENARIO) {
-        $context->{file}->update_start_end_time($context->{scenario}->{start_time},$context->{scenario}->{start_time} + $context->{scenario}->{duration});
-        my $record = NGCP::BulkProcessor::Projects::Export::Ama::Format::Record->new(
-            NGCP::BulkProcessor::Projects::Export::Ama::Format::Structures::Structure0510->new(
-                call_type => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::CallType::STATION_PAID,
+    if ($context->{scenario}->{code} == $BLIND_TRANSFER_NO_IVR) {
+        #$context->{file}->update_start_end_time($context->{scenario}->{start_time},$context->{scenario}->{start_time} + $context->{scenario}->{duration});
+        my $records = [ map { _create_ama($_); } @{$context->{scenario}->{ama}} ];
+        _info($context,"ama record from cdr ids " . join(', ', map { $_->{id}; } @{$context->{scenario}->{all_cdrs}}) . ':' . join("\n", map { $_->to_string(); } @$records),1);
+        return $records;
+    } elsif ($context->{scenario}->{code} == $BLIND_TRANSFER) {
+        #todo
 
-                rewritten => 0,
-                sensor_id => $ama_sensor_id,
+    } elsif ($context->{scenario}->{code} == $NO_TRANSFER_NO_IVR) {
+        #todo
 
-                padding => 0,
-                recording_office_id => $ama_recording_office_id,
+    } elsif ($context->{scenario}->{code} == $NO_TRANSFER) {
+        #todo
 
-                call_type => '970',
-                #timing ind 000
-                #seervice observed 0c
+    } elsif ($context->{scenario}->{code} == $ATTN_TRANSFER_NO_IVR) {
+        #todo
 
-                unanswered => $context->{scenario}->{unanswered}, #called party off-hook setzen
+    } elsif ($context->{scenario}->{code} == $ATTN_TRANSFER) {
+        #todo
 
-                date => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::Date::get_ama_date(from_epoch($context->{scenario}->{start_time})),
-
-                service_feature => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ServiceFeature::OTHER,
-
-                originating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($context->{scenario}->{originating}),
-                originating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($context->{scenario}->{originating}),
-                originating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($context->{scenario}->{originating}),
-
-                domestic_international => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::INTERNATIONAL, #get_number_domestic_international($context->{destination}),
-
-                terminating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($context->{scenario}->{terminating}),
-                terminating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($context->{scenario}->{terminating}),
-                terminating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($context->{scenario}->{terminating}),
-
-                connect_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ConnectTime::get_connect_time(from_epoch($context->{scenario}->{start_time})),
-                elapsed_time => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::ElapsedTime::get_elapsed_time($context->{scenario}->{duration}),
-            ),
-            NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module611->new(
-                generic_context_identifier => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::GenericContextIdentifier::IN_CORRELATION_ID,
-                parsing_rules => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::GenericContextIdentifier::IN_CORRELATION_ID_PARSING_RULES,
-                additional_digits_dialed => $context->{scenario}->{correlation_id},
-            ),
-            NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module199->new(
-                network_operator_data => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::NetworkOperatorData::get_network_operator_data(
-                    $context->{scenario}->{nod}->{originating_digits},
-                    $context->{scenario}->{nod}->{switch_number_digits},
-                    $context->{scenario}->{nod}->{mode},
-                    ),
-            ),
-            NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module104->new(
-                direction => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification::INCOMING,
-                trunk_group_number => $ama_incoming_trunk_group_number,
-                trunk_member_number => '0000',
-            ),
-            NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module104->new(
-                direction => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::TrunkIdentification::OUTGOING,
-                trunk_group_number => $ama_outgoing_trunk_group_number,
-                trunk_member_number => '0000',
-            ),
-            NGCP::BulkProcessor::Projects::Export::Ama::Format::Modules::Module000->new(
-            ),
-        );
-        _info($context,"ama record from cdr ids " . join(', ',map { $_->{id}; } @{$context->{cdrs}}) . ':' . $record->to_string(),1);
-        return $record;
     } else {
-        _error($context,"unknown scenario $context->{scenario}->{code} for cdr ids " . join(', ',map { $_->{id}; } @{$context->{cdrs}}) );
+        _error($context,"unknown scenario $context->{scenario}->{code} for cdr ids " . join(', ',map { $_->{id}; } @{$context->{scenario}->{all_cdrs}}) );
     }
 
 }
