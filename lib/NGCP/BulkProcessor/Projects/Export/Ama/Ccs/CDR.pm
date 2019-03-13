@@ -40,6 +40,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::mark qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
@@ -87,6 +88,7 @@ our @EXPORT_OK = qw(
 );
 
 my $DIRECT_FORWARDER_SCENARIO = 1;
+my $DIRECT_FORWARDER_W_CORRELATED_CALL_SCENARIO = 2;
 
 my $file_sequence_number : shared = 0;
 my $rowcount : shared = 0;
@@ -307,6 +309,13 @@ sub _export_cdrs_init_context {
                         and $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field} =~ /^[0-9]+$/
                         ) {
                         $scenario->{code} = $DIRECT_FORWARDER_SCENARIO;
+                        foreach my $correlated_group_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group($context->{db},$context->{cdrs}->[1]->{id})}) {
+                            foreach my $correlated_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callid($context->{db},$correlated_group_cdr->{call_id})}) {
+                                push(@{$context->{cdrs}},$correlated_cdr);
+                                $scenario->{code} = $DIRECT_FORWARDER_W_CORRELATED_CALL_SCENARIO;
+                                last;
+                            }
+                        }
                         $result = 1;
                     } else {
                         $malformed = 1;
@@ -342,6 +351,9 @@ sub _export_cdrs_init_context {
             switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
             mode => '0001',
         };
+    } elsif ($scenario->{code} == $DIRECT_FORWARDER_W_CORRELATED_CALL_SCENARIO) {
+
+
     }
 
     return $result;
