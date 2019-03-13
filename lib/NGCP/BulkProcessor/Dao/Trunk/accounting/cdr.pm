@@ -43,6 +43,7 @@ our @EXPORT_OK = qw(
     process_fromto
 
     get_callidprefix
+    findby_callid
 
     $OK_CALL_STATUS
 
@@ -241,6 +242,27 @@ sub findby_callidprefix {
         _get_export_stmt($db,undef,$joins,\@conditions) .
         ' ORDER BY LENGTH(' . $table . '.call_id' . ') ASC, ' . $table . '.start_time ASC';
     my @params = ($call_id . '%');
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_callid {
+
+    my ($xa_db,$call_id,$joins,$conditions,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my @conditions = @{$conditions // []};
+    push(@conditions,{ $table . '.call_id' => { '=' => '?' } });
+    my $stmt = 'SELECT ' . join(',', map { $table . '.' . $db->columnidentifier($_); } @$expected_fieldnames) . ' ' .
+        _get_export_stmt($db,undef,$joins,\@conditions) .
+        ' ORDER BY ' . $table . '.start_time ASC';
+    my @params = ($call_id);
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);
