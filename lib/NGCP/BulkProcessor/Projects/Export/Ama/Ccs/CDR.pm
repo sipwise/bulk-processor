@@ -40,6 +40,7 @@ use NGCP::BulkProcessor::LogError qw(
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::mark qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
@@ -87,6 +88,7 @@ our @EXPORT_OK = qw(
 );
 
 my $DIRECT_FORWARDER_SCENARIO = 1;
+my $DIRECT_FORWARDER_W_CORRELATED_CALL_SCENARIO = 2;
 
 my $file_sequence_number : shared = 0;
 my $rowcount : shared = 0;
@@ -298,22 +300,52 @@ sub _export_cdrs_init_context {
             if ((scalar @{$context->{cdrs}}) == $cdrs_in_block) {
                 my $malformed = 0;
                 if ((scalar @{$context->{cdrs}}) == 2
-                    and not $context->{cdrs}->[0]->is_xfer()
-                    and $context->{cdrs}->[1]->is_xfer()
                     and ($scenario->{ccs_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(undef,$context->{cdrs}->[0]->{destination_user_id}))
                     and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                     ) {
-                    if ($context->{cdrs}->[0]->{$ama_originating_digits_cdr_field} =~ /^[0-9]+$/
-                        and $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field} =~ /^[0-9]+$/
-                        ) {
-                        $scenario->{code} = $DIRECT_FORWARDER_SCENARIO;
-                        $result = 1;
-                    } else {
-                        $malformed = 1;
+                    if (
+                        not $context->{cdrs}->[0]->is_xfer()
+                        and $context->{cdrs}->[1]->is_xfer()
+                    ) {
+                        if ($context->{cdrs}->[0]->{$ama_originating_digits_cdr_field} =~ /^[0-9]+$/
+                            and $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field} =~ /^[0-9]+$/
+                            ) {
+                            $scenario->{code} = $DIRECT_FORWARDER_SCENARIO;
+                            foreach my $correlated_group_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group::findby_cdrid($context->{db},$context->{cdrs}->[1]->{id})}) {
+                                foreach my $correlated_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callid($context->{db},$correlated_group_cdr->{call_id})}) {
+                                    push(@{$context->{cdrs}},$correlated_cdr);
+                                    $scenario->{code} = $DIRECT_FORWARDER_W_CORRELATED_CALL_SCENARIO;
+                                    last;
+                                }
+                            }
+                            $result = 1;
+                        } else {
+                            $malformed = 1;
+                        }
+                    } elsif (
+                        not $context->{cdrs}->[0]->is_pbx()
+                        and $context->{cdrs}->[1]->is_pbx()
+                    ) {
+                        if ($context->{cdrs}->[0]->{$ama_originating_digits_cdr_field} =~ /^[0-9]+$/
+                            and $context->{cdrs}->[1]->{$ama_terminating_digits_cdr_field} =~ /^[0-9]+$/
+                            ) {
+                            $scenario->{code} = $DIRECT_FORWARDER_SCENARIO;
+                            foreach my $correlated_group_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group::findby_cdrid($context->{db},$context->{cdrs}->[1]->{id})}) {
+                                foreach my $correlated_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callid($context->{db},$correlated_group_cdr->{call_id})}) {
+                                    push(@{$context->{cdrs}},$correlated_cdr);
+                                    $scenario->{code} = $DIRECT_FORWARDER_W_CORRELATED_CALL_SCENARIO;
+                                    last;
+                                }
+                            }
+                            $result = 1;
+                        } else {
+                            $malformed = 1;
+                        }
+
                     }
-                #} else {
-                #    print "blah";
-                }
+                } #elsif (...
+                #
+                #}
                 foreach my $cdr (@{$context->{cdrs}}) {
                     if ($result) {
                         $cdr->{_extended_export_status} = $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::OK;
@@ -342,6 +374,9 @@ sub _export_cdrs_init_context {
             switch_number_digits => $scenario->{ccs_subscriber}->{primary_alias}->{username},
             mode => '0001',
         };
+    } elsif ($scenario->{code} == $DIRECT_FORWARDER_W_CORRELATED_CALL_SCENARIO) {
+        #todo
+        return 0;
     }
 
     return $result;
@@ -503,6 +538,8 @@ sub _get_record {
         );
         _info($context,"ama record from cdr ids " . join(', ',map { $_->{id}; } @{$context->{cdrs}}) . ':' . $record->to_string(),1);
         return $record;
+    } elsif ($context->{scenario}->{code} == $DIRECT_FORWARDER_W_CORRELATED_CALL_SCENARIO) {
+        #todo
     } else {
         _error($context,"unknown scenario $context->{scenario}->{code} for cdr ids " . join(', ',map { $_->{id}; } @{$context->{cdrs}}) );
     }
