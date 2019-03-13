@@ -61,6 +61,8 @@ our @EXPORT_OK = qw(
     $ama_originating_digits_cdr_field
     $ama_terminating_digits_cdr_field
 
+    $ivr_duration_limit
+    $primary_alias_pattern
 );
 
 our $defaultconfig = 'config.cfg';
@@ -87,6 +89,9 @@ our $ama_incoming_trunk_group_number;
 our $ama_outgoing_trunk_group_number;
 our $ama_originating_digits_cdr_field;
 our $ama_terminating_digits_cdr_field;
+
+our $ivr_duration_limit = 5;
+our $primary_alias_pattern = undef;
 
 sub update_settings {
 
@@ -127,6 +132,13 @@ sub update_settings {
         unless (contains($ama_terminating_digits_cdr_field,[qw(destination_user destination_user_out destination_user_dialed destination_user_in)])) {
             configurationerror($configfile,'unknown ama_terminating_digits_cdr_field',getlogger(__PACKAGE__));
         }
+
+        $ivr_duration_limit = $data->{ivr_duration_limit} if exists $data->{ivr_duration_limit};
+
+        my $regexp_result;
+        $primary_alias_pattern = $data->{primary_alias_pattern} if exists $data->{primary_alias_pattern};
+        ($regexp_result,$primary_alias_pattern) = parse_regexp($primary_alias_pattern,$configfile);
+        $result &= $regexp_result;
 
         return $result;
 
