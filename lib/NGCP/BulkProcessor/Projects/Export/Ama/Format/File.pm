@@ -294,23 +294,26 @@ sub write_record {
     ) unless $self->{record_count} > 0;
 
     my $result = 0;
-    my $record = &$get_record(@_);
-    if (not $self->add_record($record)) {
-        $result |= $self->close(
-            get_transfer_out => $get_transfer_out,
-            commit_cb => $commit_cb,
-            @_
-        );
-        $self->add_record(
-            $self->_save_transfer_in(&$get_transfer_in(
-
-                #file_sequence_number => 1,
+    my $records = &$get_record(@_);
+    $records = [ $records ] unless 'ARRAY' eq ref $records;
+    foreach my $record (@$records) {
+        if (not $self->add_record($record)) {
+            $result |= $self->close(
+                get_transfer_out => $get_transfer_out,
+                commit_cb => $commit_cb,
                 @_
-            )),
-            1
-        );
+            );
+            $self->add_record(
+                $self->_save_transfer_in(&$get_transfer_in(
 
-        $self->add_record($record);
+                    #file_sequence_number => 1,
+                    @_
+                )),
+                1
+            );
+
+            $self->add_record($record);
+        }
     }
 
     return $result;
