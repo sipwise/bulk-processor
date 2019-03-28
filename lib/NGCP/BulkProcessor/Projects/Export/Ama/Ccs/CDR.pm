@@ -419,6 +419,7 @@ sub _export_cdrs_init_context {
     if ($scenario->{code} == $BLIND_TRANSFER_NO_IVR) {
         my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
         my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
+        my $switch_number = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $parent_cdrs->[1]->{duration},
@@ -428,13 +429,14 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '0001',
             },
         });
     } elsif ($scenario->{code} == $BLIND_TRANSFER) {
         my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
         my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
+        my $switch_number = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time}),
@@ -444,7 +446,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '6001',
             },
         },{
@@ -456,13 +458,14 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '2002',
             },
         });
     } elsif ($scenario->{code} == $NO_TRANSFER_NO_IVR) {
         my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
         my $terminating = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
+        my $switch_number = $terminating;
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => 0,
@@ -472,13 +475,14 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '0001',
             },
         });
     } elsif ($scenario->{code} == $NO_TRANSFER) {
         my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
         my $terminating = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
+        my $switch_number = $terminating;
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => $parent_cdrs->[0]->{duration},
@@ -488,7 +492,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '6001',
             },
         },{
@@ -500,7 +504,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '2002',
             },
         });
@@ -508,6 +512,7 @@ sub _export_cdrs_init_context {
         my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
         my $originating = $correlated_cdr->{$ama_originating_digits_cdr_field};
         my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
+        my $switch_number = $correlated_cdr->{$ama_terminating_digits_cdr_field};
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $correlated_cdr->{duration} - abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{start_time}),
@@ -517,7 +522,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '0001',
             },
         });
@@ -525,6 +530,7 @@ sub _export_cdrs_init_context {
         my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
         my $originating = $correlated_cdr->{$ama_originating_digits_cdr_field};
         my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
+        my $switch_number = $correlated_cdr->{$ama_terminating_digits_cdr_field};
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time}),
@@ -534,7 +540,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '6001',
             },
         },{
@@ -546,7 +552,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '2002',
             },
         });
