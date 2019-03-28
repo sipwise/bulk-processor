@@ -27,6 +27,9 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
 
     $ivr_duration_limit
     $primary_alias_pattern
+
+    $switch_number_pattern
+    $switch_number_replacement
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -425,7 +428,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '0001',
             },
         });
@@ -441,7 +444,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '6001',
             },
         },{
@@ -453,7 +456,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '2002',
             },
         });
@@ -469,7 +472,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '0001',
             },
         });
@@ -485,7 +488,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '6001',
             },
         },{
@@ -497,7 +500,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '2002',
             },
         });
@@ -514,7 +517,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '0001',
             },
         });
@@ -531,7 +534,7 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '6001',
             },
         },{
@@ -543,13 +546,23 @@ sub _export_cdrs_init_context {
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
                 originating_digits => $originating,
-                switch_number_digits => $terminating, #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                switch_number_digits => _rewrite_switch_number($terminating), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '2002',
             },
         });
     }
 
     return $result;
+
+}
+
+sub _rewrite_switch_number {
+
+    my ($switch_number) = @_;
+    if (defined $switch_number_pattern and defined $switch_number_replacement) {
+        $switch_number =~ s/$switch_number_pattern/$switch_number_replacement/;
+    }
+    return $switch_number;
 
 }
 

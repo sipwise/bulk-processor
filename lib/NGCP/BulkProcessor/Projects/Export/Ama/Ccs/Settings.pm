@@ -63,6 +63,9 @@ our @EXPORT_OK = qw(
 
     $ivr_duration_limit
     $primary_alias_pattern
+
+    $switch_number_pattern
+    $switch_number_replacement
 );
 
 our $defaultconfig = 'config.cfg';
@@ -92,6 +95,8 @@ our $ama_terminating_digits_cdr_field;
 
 our $ivr_duration_limit = 5;
 our $primary_alias_pattern = undef;
+our $switch_number_pattern = undef;
+our $switch_number_replacement = undef;
 
 sub update_settings {
 
@@ -139,6 +144,12 @@ sub update_settings {
         $primary_alias_pattern = $data->{primary_alias_pattern} if exists $data->{primary_alias_pattern};
         ($regexp_result,$primary_alias_pattern) = parse_regexp($primary_alias_pattern,$configfile);
         $result &= $regexp_result;
+
+        $switch_number_pattern = $data->{switch_number_pattern} if exists $data->{switch_number_pattern};
+        ($regexp_result,$switch_number_pattern) = parse_regexp($switch_number_pattern,$configfile);
+        $result &= $regexp_result;
+
+        $switch_number_replacement = $data->{switch_number_replacement} if exists $data->{switch_number_replacement};
 
         return $result;
 
