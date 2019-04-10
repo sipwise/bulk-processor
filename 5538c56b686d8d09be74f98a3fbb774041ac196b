@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7a016987_69f28b9c",
+        "filename": "lib/NGCP/BulkProcessor/Projects/Export/Ama/Ccs/CDR.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 446,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2019-04-10T13:56:20Z",
+      "side": 1,
+      "message": "cosmetic: can be also written in a shortened form as $terminating_open_digits_6001 // $terminating",
+      "range": {
+        "startLine": 446,
+        "startChar": 27,
+        "endLine": 446,
+        "endChar": 106
+      },
+      "revId": "5538c56b686d8d09be74f98a3fbb774041ac196b",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
