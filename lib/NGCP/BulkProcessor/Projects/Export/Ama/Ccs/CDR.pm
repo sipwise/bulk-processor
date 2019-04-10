@@ -30,6 +30,8 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
 
     $switch_number_pattern
     $switch_number_replacement
+    
+    $terminating_open_digits_6001
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -441,7 +443,7 @@ sub _export_cdrs_init_context {
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time}),
             originating => $originating,
-            terminating => $terminating,
+            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -487,7 +489,7 @@ sub _export_cdrs_init_context {
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => $parent_cdrs->[0]->{duration},
             originating => $originating,
-            terminating => $terminating,
+            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -535,7 +537,7 @@ sub _export_cdrs_init_context {
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time}),
             originating => $originating,
-            terminating => $terminating,
+            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {

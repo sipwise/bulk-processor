@@ -66,6 +66,8 @@ our @EXPORT_OK = qw(
 
     $switch_number_pattern
     $switch_number_replacement
+
+    $terminating_open_digits_6001
 );
 
 our $defaultconfig = 'config.cfg';
@@ -97,6 +99,7 @@ our $ivr_duration_limit = 5;
 our $primary_alias_pattern = undef;
 our $switch_number_pattern = undef;
 our $switch_number_replacement = undef;
+our $terminating_open_digits_6001 = undef;
 
 sub update_settings {
 
@@ -150,6 +153,8 @@ sub update_settings {
         $result &= $regexp_result;
 
         $switch_number_replacement = $data->{switch_number_replacement} if exists $data->{switch_number_replacement};
+
+        $terminating_open_digits_6001 = $data->{terminating_open_digits_6001} if exists $data->{terminating_open_digits_6001};
 
         return $result;
 
