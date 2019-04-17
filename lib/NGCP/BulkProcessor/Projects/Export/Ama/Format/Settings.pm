@@ -36,6 +36,7 @@ our @EXPORT_OK = qw(
     update_settings
 
     $output_path
+    $copy_output_path
     $tempfile_path
 
     $domestic_destination_pattern
@@ -53,6 +54,7 @@ our @EXPORT_OK = qw(
 );
 
 our $output_path = $working_path . 'output/';
+our $copy_output_path = undef;
 our $tempfile_path = $working_path . 'temp/';
 
 our $use_tempfiles = 0;
@@ -79,7 +81,7 @@ sub update_settings {
 
         #&$configurationinfocode("testinfomessage",$configlogger);
 
-        $result &= _prepare_working_paths(1);
+        $result &= _prepare_working_paths($data,1);
 
         $use_tempfiles = $data->{use_tempfiles} if exists $data->{use_tempfiles};
         $make_dir = $data->{make_dir} if exists $data->{make_dir};
@@ -109,12 +111,16 @@ sub update_settings {
 
 sub _prepare_working_paths {
 
-    my ($create) = @_;
+    my ($data,$create) = @_;
     my $result = 1;
     my $path_result;
 
     ($path_result,$output_path) = create_path($working_path . 'output',$output_path,$create,\&fileerror,getlogger(__PACKAGE__));
     $result &= $path_result;
+    if ($data->{copy_output_path}) {
+        ($path_result,$copy_output_path) = create_path($data->{copy_output_path},$copy_output_path,$create,\&fileerror,getlogger(__PACKAGE__));
+        $result &= $path_result;
+    }
     ($path_result,$tempfile_path) = create_path($working_path . 'temp',$output_path,$create,\&fileerror,getlogger(__PACKAGE__));
     $result &= $path_result;
 
