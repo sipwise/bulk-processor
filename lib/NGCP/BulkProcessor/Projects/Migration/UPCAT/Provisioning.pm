@@ -110,6 +110,7 @@ our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
     provision_mta_subscribers
     provision_ccs_subscribers
+    $UPDATE_CCS_PREFERENCES_MODE
 );
 
 my $split_ipnets_pattern =  join('|',(
@@ -124,6 +125,8 @@ my $file_lock :shared = undef;
 my $default_barring = 'default';
 
 my $ccs_contact_identifier_field = 'gpp9';
+
+our $UPDATE_CCS_PREFERENCES_MODE = 'update_ccs_preferences';
 
 sub provision_mta_subscribers {
 
@@ -1039,6 +1042,8 @@ sub _apply_reseller_mapping {
 
 sub provision_ccs_subscribers {
 
+    my $update_mode = shift;
+
     my $static_context = { now => timestamp(), _rowcount => undef };
     my $result = _provision_ccs_subscribers_checks($static_context);
 
@@ -1054,7 +1059,8 @@ sub provision_ccs_subscribers {
             foreach my $switch_number (@$records) {
                 $context->{_rowcount} += 1;
                 next unless _provision_ccs_susbcriber($context,
-                    NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::findby_switch_number(@$switch_number));
+                    NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::findby_switch_number(@$switch_number),
+                    $update_mode);
                 push(@report_data,_get_report_obj($context));
             }
             #cleanup_aig_sequence_ids($context);
@@ -1091,7 +1097,8 @@ sub provision_ccs_subscribers {
 }
 
 sub _provision_ccs_susbcriber {
-    my ($context,$subscriber_group) = @_;
+
+    my ($context,$subscriber_group,$update_mode) = @_;
 
     return 0 unless _provision_ccs_susbcriber_init_context($context,$subscriber_group);
 
@@ -1109,21 +1116,38 @@ sub _provision_ccs_susbcriber {
 
         if ((scalar @$existing_billing_voip_subscribers) == 0) {
 
-            _update_ccs_contact($context);
-            _update_contract($context);
-            #{
-            #    lock $db_lock; #concurrent writes to voip_numbers causes deadlocks
-                _update_subscriber($context);
-                _create_aliases($context);
-            #}
-            _update_ccs_preferences($context);
-            _set_registrations($context);
-            ##_set_callforwards($context);
-            ##todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
-            ##in this main provisioning loop, or align it in separate run-modes, according to the files given.
+            if (not $update_mode) {
+                _update_ccs_contact($context);
+                _update_contract($context);
+                #{
+                #    lock $db_lock; #concurrent writes to voip_numbers causes deadlocks
+                    _update_subscriber($context);
+                    _create_aliases($context);
+                #}
+                _update_ccs_preferences($context);
+                _set_registrations($context);
+                ##_set_callforwards($context);
+                ##todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
+                ##in this main provisioning loop, or align it in separate run-modes, according to the files given.
+            } else {
+                _warn($context,$context->{prov_subscriber}->{username} . ': no active billing subscribers found for updating, skipping');
+            }
 
+        } elsif ((scalar @$existing_billing_voip_subscribers) == 1) {
+            $context->{bill_subscriber} = $existing_billing_voip_subscribers->[0];
+            $context->{prov_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(
+                $context->{db},$context->{bill_subscriber}->{uuid});
+            if (defined $context->{prov_subscriber}) {
+                if ($update_mode eq $UPDATE_CCS_PREFERENCES_MODE) {
+                    _update_ccs_preferences($context);
+                } else {
+                    _warn($context,$context->{prov_subscriber}->{username} . ': ' . (scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
+                }
+            } else {
+                _warn($context,$context->{prov_subscriber}->{username} . ': no provisioning subscribers found for updating, skipping');
+            }
         } else {
-            _warn($context,(scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
+            _warn($context,$context->{prov_subscriber}->{username} . ': ' . (scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
         }
 
         if ($dry) {
@@ -1258,6 +1282,58 @@ sub _provision_ccs_subscribers_checks {
     } else {
         processing_info(threadid(),"serial_forking_by_q_value attribute found",getlogger(__PACKAGE__));
     }
+
+    eval {
+        $context->{attributes}->{cloud_pbx} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CLOUD_PBX_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{cloud_pbx}) {
+        rowprocessingerror(threadid(),'cannot find cloud_pbx attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"cloud_pbx attribute found",getlogger(__PACKAGE__));
+    }
+    eval {
+        $context->{attributes}->{cloud_pbx_base_cli} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CLOUD_PBX_BASE_CLI_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{cloud_pbx_base_cli}) {
+        rowprocessingerror(threadid(),'cannot find cloud_pbx_base_cli attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"cloud_pbx_base_cli attribute found",getlogger(__PACKAGE__));
+    }
+    eval {
+        $context->{attributes}->{cloud_pbx_hunt_policy} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CLOUD_PBX_HUNT_POLICY_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{cloud_pbx_hunt_policy}) {
+        rowprocessingerror(threadid(),'cannot find cloud_pbx_hunt_policy attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"cloud_pbx_hunt_policy attribute found",getlogger(__PACKAGE__));
+    }
+    eval {
+        $context->{attributes}->{music_on_hold} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::MUSIC_ON_HOLD_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{music_on_hold}) {
+        rowprocessingerror(threadid(),'cannot find music_on_hold attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"music_on_hold attribute found",getlogger(__PACKAGE__));
+    }
+    eval {
+        $context->{attributes}->{shared_buddylist_visibility} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::SHARED_BUDDYLIST_VISIBILITY_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{shared_buddylist_visibility}) {
+        rowprocessingerror(threadid(),'cannot find shared_buddylist_visibility attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"shared_buddylist_visibility attribute found",getlogger(__PACKAGE__));
+    }
+
 
     return $result;
 }
@@ -1546,6 +1622,33 @@ sub _update_ccs_preferences {
     #        $gpp_idx++;
     #    }
     #}
+
+    $context->{preferences}->{cloud_pbx} = { id => set_subscriber_preference($context,
+        $context->{prov_subscriber}->{id},
+        $context->{attributes}->{cloud_pbx},
+        '1'), value => '1' };
+
+    $context->{preferences}->{cloud_pbx_base_cli} = { id => set_subscriber_preference($context,
+        $context->{prov_subscriber}->{id},
+        $context->{attributes}->{cloud_pbx_base_cli},
+        $context->{numbers}->{primary}->{number}), value => $context->{numbers}->{primary}->{number} };
+
+    $context->{preferences}->{cloud_pbx_hunt_policy} = { id => set_subscriber_preference($context,
+        $context->{prov_subscriber}->{id},
+        $context->{attributes}->{cloud_pbx_hunt_policy},
+        'serial'), value => 'serial' };
+
+    #contract_sound_set = 25
+
+    $context->{preferences}->{music_on_hold} = { id => set_subscriber_preference($context,
+        $context->{prov_subscriber}->{id},
+        $context->{attributes}->{music_on_hold},
+        '1'), value => '1' };
+
+    $context->{preferences}->{shared_buddylist_visibility} = { id => set_subscriber_preference($context,
+        $context->{prov_subscriber}->{id},
+        $context->{attributes}->{shared_buddylist_visibility},
+        '1'), value => '1' };
 
     return $result;
 

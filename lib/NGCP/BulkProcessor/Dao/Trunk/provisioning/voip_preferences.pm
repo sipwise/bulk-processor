@@ -49,6 +49,11 @@ our @EXPORT_OK = qw(
     $E164_TO_RURI_ATTRIBUTE
     $SERIAL_FORKING_BY_Q_VALUE_ATTRIBUTE
 
+    $CLOUD_PBX_ATTRIBUTE
+    $CLOUD_PBX_BASE_CLI_ATTRIBUTE
+    $CLOUD_PBX_HUNT_POLICY_ATTRIBUTE
+    $MUSIC_ON_HOLD_ATTRIBUTE
+    $SHARED_BUDDYLIST_VISIBILITY_ATTRIBUTE
 );
 #$FORCE_OUTBOUND_CALLS_TO_PEER
 
@@ -108,6 +113,12 @@ our $RINGTIMEOUT_ATTRIBUTE = 'ringtimeout';
 our $EXTENDED_DIALING_MODE_ATTRIBUTE = 'extended_dialing_mode';
 our $E164_TO_RURI_ATTRIBUTE = 'e164_to_ruri';
 our $SERIAL_FORKING_BY_Q_VALUE_ATTRIBUTE = 'serial_forking_by_q_value';
+
+our $CLOUD_PBX_ATTRIBUTE = 'cloud_pbx';
+our $CLOUD_PBX_BASE_CLI_ATTRIBUTE = 'cloud_pbx_base_cli';
+our $CLOUD_PBX_HUNT_POLICY_ATTRIBUTE = 'cloud_pbx_hunt_policy';
+our $MUSIC_ON_HOLD_ATTRIBUTE = 'music_on_hold';
+our $SHARED_BUDDYLIST_VISIBILITY_ATTRIBUTE = 'shared_buddylist_visibility';
 
 sub new {
 
