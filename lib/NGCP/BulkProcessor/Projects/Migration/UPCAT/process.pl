@@ -93,6 +93,7 @@ use NGCP::BulkProcessor::Projects::Migration::UPCAT::Import qw(
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::Provisioning qw(
     provision_mta_subscribers
     provision_ccs_subscribers
+    $UPDATE_CCS_PREFERENCES_MODE
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -124,6 +125,9 @@ push(@TASK_OPTS,$truncate_ccs_subscriber_task_opt);
 
 my $create_ccs_subscriber_task_opt = 'create_ccs_subscriber';
 push(@TASK_OPTS,$create_ccs_subscriber_task_opt);
+
+my $update_ccs_subscriber_preferences_task_opt = 'update_ccs_subscriber_preferences';
+push(@TASK_OPTS,$update_ccs_subscriber_preferences_task_opt);
 
 
 if (init()) {
@@ -199,6 +203,13 @@ sub main() {
                 if (taskinfo($create_ccs_subscriber_task_opt,$result,1)) {
                     next unless check_dry();
                     $result &= create_ccs_subscriber_task(\@messages);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($update_ccs_subscriber_preferences_task_opt) eq lc($task)) {
+                if (taskinfo($update_ccs_subscriber_preferences_task_opt,$result,1)) {
+                    next unless check_dry();
+                    $result &= update_ccs_subscriber_preferences_task(\@messages);
                     $completion |= 1;
                 }
 
@@ -487,6 +498,29 @@ sub create_ccs_subscriber_task {
     destroy_all_dbs();
     return $result;
 
+}
+
+sub update_ccs_subscriber_preferences_task {
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        ($result,$warning_count) = update_ccs_subscriber_preferences($UPDATE_CCS_PREFERENCES_MODE);
+    };
+    my $err = $@;
+    my $stats = ": $warning_count warnings";
+    eval {
+        $stats .= "\n  total contracts: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(undef,undef) . ' rows';
+        $stats .= "\n  total subscribers: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(undef,undef) . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"update ccs subscriber preferences INCOMPLETE$stats");
+    } else {
+        push(@$messages,"update ccs subscribers preferences completed$stats");
+    }
+    destroy_all_dbs();
+    return $result;
 }
 
 #END {
