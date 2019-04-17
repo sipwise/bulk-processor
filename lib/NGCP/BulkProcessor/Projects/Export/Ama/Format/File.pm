@@ -4,9 +4,11 @@ use strict;
 ## no critic
 
 use File::Basename qw(fileparse);
+use File::Copy qw();
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings qw(
     $output_path
+    $copy_output_path
     $ama_filename_format
     $use_tempfiles
     $tempfile_path
@@ -29,6 +31,7 @@ use NGCP::BulkProcessor::Logging qw(
 
 use NGCP::BulkProcessor::LogError qw(
     fileerror
+    filewarn
 );
 
 use NGCP::BulkProcessor::Utils qw(tempfilename makepath);
@@ -114,10 +117,10 @@ sub add_record {
 
 sub get_filename {
     my $self = shift;
-    my ($show_tempfilename) = @_;
+    my ($show_tempfilename,$basepath) = @_;
     return $self->{tempfilename} if ($use_tempfiles and $show_tempfilename);
     return sprintf($ama_filename_format,
-        $output_path,
+        $basepath // $output_path,
         $self->{now}->year,
         substr($self->{now}->year,-2),
         $self->{now}->month,
@@ -139,8 +142,15 @@ sub _rename {
     my $self = shift;
     my ($filename) = @_;
     my $result = rename($self->{tempfilename},$filename);
-    _chownmod($filename,$files_owner,$files_group,oct(666),$files_mask) if $result;
+    #_chownmod($filename,$files_owner,$files_group,oct(666),$files_mask) if $result;
     return $result;
+}
+
+sub _copy {
+
+    my ($source_filename,$target_filename) = @_;
+    File::Copy::cp($source_filename,$target_filename) or die ($!);
+
 }
 
 sub _makedir {
@@ -186,6 +196,13 @@ sub flush {
                 if (defined $commit_cb) {
                     if (&$commit_cb(@_)) {
                         if (not $use_tempfiles or $self->_rename(_makedir($filename))) {
+                            _chownmod($filename,$files_owner,$files_group,oct(666),$files_mask);
+                            eval {
+                                _copy($filename,_makedir($self->get_filename(0,$copy_output_path))) if $copy_output_path;
+                            };
+                            if ($@) {
+                                filewarn("failed to create copy of $filename: " . $@,getlogger(__PACKAGE__));
+                            }
                             return 1;
                         } else {
                             my $err = $!;
