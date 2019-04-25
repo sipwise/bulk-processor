@@ -1,3 +1,27 @@
+ngcp-bulk-processor (7.3.1.0+0~mr7.3.1.0) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * [bee1515] TT#53701 Remove executable bit from perl module files
+  * [382503a] TT#53701 Remove unused dependencies
+  * [0960046] TT#53701 Move and split perl modules into dedicated lib*-perl packages
+  * [154ec4c] TT#53701 Correct copyright information for Excel::* modules
+
+  [ Rene Krenn ]
+  * [60b8655] TT#54612 cashback tool WIP
+  * [8750c0f] TT#54661 .ama exporter: skip malformed CDRs
+  * [819e876] TT#54760 .ama exporter: chown/chmod settings
+  * [e32ad4f] TT#54807 .ama exporter: skip "null" destinations
+  * [9370109] TT#54807 .ama exporter: fix filtering number-only destinations
+  * [0d481d1] TT#55815 TT#55816 TT#55817 .ama export: scenarios
+  * [ecec9bd] TT#56500 ama exporter: switch_number rewrite options
+  * [9e6210d] TT#56502 TT#56501 ama exporter: align sw3number
+  * [5538c56] TT#57201 ama export: option for fixed terminating number in 6001 records
+  * [1bfb457] TT#57568 ama exporter: option to duplciate output files
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 25 Apr 2019 14:25:32 +0200
+
 ngcp-bulk-processor (7.3.0.0+0~mr7.3.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
