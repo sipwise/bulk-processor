@@ -67,6 +67,12 @@ our @EXPORT_OK = qw(
     $switch_number_pattern
     $switch_number_replacement
 
+    $originating_pattern
+    $originating_replacement
+
+    $terminating_pattern
+    $terminating_replacement
+
     $terminating_open_digits_6001
 );
 
@@ -100,6 +106,10 @@ our $primary_alias_pattern = undef;
 our $switch_number_pattern = undef;
 our $switch_number_replacement = undef;
 our $terminating_open_digits_6001 = undef;
+our $originating_pattern = undef;
+our $originating_replacement = undef;
+our $terminating_pattern = undef;
+our $terminating_replacement = undef;
 
 sub update_settings {
 
@@ -153,6 +163,18 @@ sub update_settings {
         $result &= $regexp_result;
 
         $switch_number_replacement = $data->{switch_number_replacement} if exists $data->{switch_number_replacement};
+
+        $originating_pattern = $data->{originating_pattern} if exists $data->{originating_pattern};
+        ($regexp_result,$originating_pattern) = parse_regexp($originating_pattern,$configfile);
+        $result &= $regexp_result;
+
+        $originating_replacement = $data->{originating_replacement} if exists $data->{originating_replacement};
+
+        $terminating_pattern = $data->{terminating_pattern} if exists $data->{terminating_pattern};
+        ($regexp_result,$terminating_pattern) = parse_regexp($terminating_pattern,$configfile);
+        $result &= $regexp_result;
+
+        $terminating_replacement = $data->{terminating_replacement} if exists $data->{terminating_replacement};
 
         $terminating_open_digits_6001 = $data->{terminating_open_digits_6001} if exists $data->{terminating_open_digits_6001};
 
