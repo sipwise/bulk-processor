@@ -30,7 +30,7 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
 
     $switch_number_pattern
     $switch_number_replacement
-    
+
     $terminating_open_digits_6001
 );
 
@@ -685,7 +685,7 @@ sub _create_ama_record {
             originating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($ama->{originating}),
             originating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($ama->{originating}),
 
-            domestic_international => $NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::INTERNATIONAL, #get_number_domestic_international($context->{destination}),
+            domestic_international => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::get_number_domestic_international($ama->{terminating}),
 
             terminating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($ama->{terminating}),
             terminating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($ama->{terminating}),

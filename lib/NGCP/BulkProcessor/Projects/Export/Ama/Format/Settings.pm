@@ -39,7 +39,6 @@ our @EXPORT_OK = qw(
     $copy_output_path
     $tempfile_path
 
-    $domestic_destination_pattern
     $international_destination_pattern
 
     $make_dir
@@ -60,7 +59,7 @@ our $tempfile_path = $working_path . 'temp/';
 our $use_tempfiles = 0;
 
 our $domestic_destination_pattern = undef;
-our $international_destination_pattern = undef;
+#our $international_destination_pattern = undef;
 
 our $ama_max_blocks = 1000;
 
@@ -87,9 +86,9 @@ sub update_settings {
         $make_dir = $data->{make_dir} if exists $data->{make_dir};
 
         my $regexp_result;
-        $domestic_destination_pattern = $data->{domestic_destination_pattern} if exists $data->{domestic_destination_pattern};
-        ($regexp_result,$domestic_destination_pattern) = parse_regexp($domestic_destination_pattern,$configfile);
-        $result &= $regexp_result;
+        #$domestic_destination_pattern = $data->{domestic_destination_pattern} if exists $data->{domestic_destination_pattern};
+        #($regexp_result,$domestic_destination_pattern) = parse_regexp($domestic_destination_pattern,$configfile);
+        #$result &= $regexp_result;
         $international_destination_pattern = $data->{international_destination_pattern} if exists $data->{international_destination_pattern};
         ($regexp_result,$international_destination_pattern) = parse_regexp($international_destination_pattern,$configfile);
         $result &= $regexp_result;
