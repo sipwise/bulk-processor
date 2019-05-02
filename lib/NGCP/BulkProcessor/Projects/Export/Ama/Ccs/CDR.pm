@@ -31,6 +31,12 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
     $switch_number_pattern
     $switch_number_replacement
 
+    $originating_pattern
+    $originating_replacement
+
+    $terminating_pattern
+    $terminating_replacement
+
     $terminating_open_digits_6001
 );
 
@@ -425,8 +431,8 @@ sub _export_cdrs_init_context {
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $parent_cdrs->[1]->{duration},
-            originating => $originating,
-            terminating => $terminating,
+            originating => _rewrite_originating($originating),
+            terminating => _rewrite_terminating($terminating),
             unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -442,8 +448,8 @@ sub _export_cdrs_init_context {
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time}),
-            originating => $originating,
-            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
+            originating => _rewrite_originating($originating),
+            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -454,8 +460,8 @@ sub _export_cdrs_init_context {
         },{
             start_time => $parent_cdrs->[1]->{start_time},
             duration => $parent_cdrs->[1]->{duration},
-            originating => $originating,
-            terminating => $terminating,
+            originating => _rewrite_originating($originating),
+            terminating => _rewrite_terminating($terminating),
             unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -471,8 +477,8 @@ sub _export_cdrs_init_context {
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => 0,
-            originating => $originating,
-            terminating => $terminating,
+            originating => _rewrite_originating($originating),
+            terminating => _rewrite_terminating($terminating),
             unanswered => 1,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -488,8 +494,8 @@ sub _export_cdrs_init_context {
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => $parent_cdrs->[0]->{duration},
-            originating => $originating,
-            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
+            originating => _rewrite_originating($originating),
+            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -500,8 +506,8 @@ sub _export_cdrs_init_context {
         },{
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => 0,
-            originating => $originating,
-            terminating => $terminating,
+            originating => _rewrite_originating($originating),
+            terminating => _rewrite_terminating($terminating),
             unanswered => 1,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -518,8 +524,8 @@ sub _export_cdrs_init_context {
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $correlated_cdr->{duration} - abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{start_time}),
-            originating => $originating,
-            terminating => $terminating,
+            originating => _rewrite_originating($originating),
+            terminating => _rewrite_terminating($terminating),
             unanswered => ($correlated_cdr->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -536,8 +542,8 @@ sub _export_cdrs_init_context {
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time}),
-            originating => $originating,
-            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
+            originating => _rewrite_originating($originating),
+            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -548,8 +554,8 @@ sub _export_cdrs_init_context {
         },{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $correlated_cdr->{duration} - abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{start_time}),
-            originating => $originating,
-            terminating => $terminating,
+            originating => _rewrite_originating($originating),
+            terminating => _rewrite_terminating($terminating),
             unanswered => ($correlated_cdr->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -567,10 +573,31 @@ sub _export_cdrs_init_context {
 sub _rewrite_switch_number {
 
     my ($switch_number) = @_;
-    if (defined $switch_number_pattern and defined $switch_number_replacement) {
-        $switch_number =~ s/$switch_number_pattern/$switch_number_replacement/;
+    return _rewrite_number($switch_number,$switch_number_pattern,$switch_number_replacement);
+
+}
+
+sub _rewrite_originating {
+
+    my ($originating) = @_;
+    return _rewrite_number($originating,$originating_pattern,$originating_replacement);
+
+}
+
+sub _rewrite_terminating {
+
+    my ($terminating) = @_;
+    return _rewrite_number($terminating,$terminating_pattern,$terminating_replacement);
+
+}
+
+sub _rewrite_number {
+
+    my ($number,$pattern,$replacement) = @_;
+    if (defined $pattern and defined $replacement) {
+        $number =~ s/$pattern/$replacement/;
     }
-    return $switch_number;
+    return $number;
 
 }
 

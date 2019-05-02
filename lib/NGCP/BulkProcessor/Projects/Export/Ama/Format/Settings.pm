@@ -58,8 +58,8 @@ our $tempfile_path = $working_path . 'temp/';
 
 our $use_tempfiles = 0;
 
-our $domestic_destination_pattern = undef;
-#our $international_destination_pattern = undef;
+#our $domestic_destination_pattern = undef;
+our $international_destination_pattern = undef;
 
 our $ama_max_blocks = 1000;
 
