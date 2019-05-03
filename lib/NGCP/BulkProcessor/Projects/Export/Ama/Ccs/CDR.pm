@@ -107,6 +107,7 @@ my $NO_TRANSFER_NO_IVR = 3;
 my $NO_TRANSFER = 4;
 my $ATTN_TRANSFER_NO_IVR = 5;
 my $ATTN_TRANSFER = 6;
+my $CFU = 7;
 
 my $file_sequence_number : shared = 0;
 my $rowcount : shared = 0;
@@ -403,6 +404,19 @@ sub _export_cdrs_init_context {
                             $scenario->{code} = $ATTN_TRANSFER;
                         }
                         $result = 1;
+                    #cfu:
+                    } elsif ((scalar @$parent_cdrs) == 2
+                        and not $parent_cdrs->[0]->is_pbx()
+                        and $parent_cdrs->[1]->is_pbx()
+                        and $parent_cdrs->[1]->{call_type} eq $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::CFU_CALL_TYPE
+                        and (scalar @{$parent_cdrs->[0]->{_correlated_cdrs}}) == 0
+                        and (scalar @{$parent_cdrs->[1]->{_correlated_cdrs}}) == 0
+                        and ($scenario->{ccs_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(undef,$parent_cdrs->[1]->{source_user_id}))
+                        and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
+                        and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
+                        ) {
+                        $scenario->{code} = $CFU;
+                        $result = 1;
                     } #elsif (...
                     #
                     #}
@@ -562,6 +576,23 @@ sub _export_cdrs_init_context {
                 originating_digits => $originating,
                 switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
                 mode => '2002',
+            },
+        });
+    } elsif ($scenario->{code} == $CFU) {
+        my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
+        my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
+        my $switch_number = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
+        push(@{$scenario->{ama}},{
+            start_time => $parent_cdrs->[1]->{start_time}, #?
+            duration => $parent_cdrs->[1]->{duration},
+            originating => _rewrite_originating($originating),
+            terminating => _rewrite_terminating($terminating),
+            unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
+            correlation_id => substr($parent_cdrs->[0]->{id},-7),
+            nod => {
+                originating_digits => $originating,
+                switch_number_digits => _rewrite_switch_number($switch_number), #$scenario->{ccs_subscriber}->{primary_alias}->{username},
+                mode => '0001',
             },
         });
     }
@@ -776,6 +807,8 @@ sub _get_record {
         return _create_ama_records($context,'ATTN_TRANSFER_NO_IVR');
     } elsif ($context->{scenario}->{code} == $ATTN_TRANSFER) {
         return _create_ama_records($context,'ATTN_TRANSFER');
+    } elsif ($context->{scenario}->{code} == $CFU) {
+        return _create_ama_records($context,'CFU');
     } else {
         _error($context,"unknown scenario $context->{scenario}->{code} for cdr ids " . join(', ',map { $_->{id}; } @{$context->{scenario}->{all_cdrs}}) );
     }
