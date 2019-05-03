@@ -47,6 +47,8 @@ our @EXPORT_OK = qw(
 
     $OK_CALL_STATUS
 
+    $CFU_CALL_TYPE
+
 );
 #process_records
 #delete_ids
@@ -150,6 +152,8 @@ my $XFERSUFFIX = '_xfer-1';
 push(@callid_suffixes,$XFERSUFFIX);
 
 our $OK_CALL_STATUS = 'ok';
+
+our $CFU_CALL_TYPE = 'cfu';
 
 my $indexes = {};
 
