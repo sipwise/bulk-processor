@@ -39,7 +39,10 @@ our @EXPORT_OK = qw(
     $copy_output_path
     $tempfile_path
 
+    $domestic_destination_pattern
     $international_destination_pattern
+    $domestic_destination_not_pattern
+    $international_destination_not_pattern
 
     $make_dir
     $ama_filename_format
@@ -58,8 +61,10 @@ our $tempfile_path = $working_path . 'temp/';
 
 our $use_tempfiles = 0;
 
-#our $domestic_destination_pattern = undef;
+our $domestic_destination_pattern = undef;
 our $international_destination_pattern = undef;
+our $domestic_destination_not_pattern = undef;
+our $international_destination_not_pattern = undef;
 
 our $ama_max_blocks = 1000;
 
@@ -86,12 +91,28 @@ sub update_settings {
         $make_dir = $data->{make_dir} if exists $data->{make_dir};
 
         my $regexp_result;
-        #$domestic_destination_pattern = $data->{domestic_destination_pattern} if exists $data->{domestic_destination_pattern};
-        #($regexp_result,$domestic_destination_pattern) = parse_regexp($domestic_destination_pattern,$configfile);
-        #$result &= $regexp_result;
+        $domestic_destination_pattern = $data->{domestic_destination_pattern} if exists $data->{domestic_destination_pattern};
+        ($regexp_result,$domestic_destination_pattern) = parse_regexp($domestic_destination_pattern,$configfile);
+        $result &= $regexp_result;
         $international_destination_pattern = $data->{international_destination_pattern} if exists $data->{international_destination_pattern};
         ($regexp_result,$international_destination_pattern) = parse_regexp($international_destination_pattern,$configfile);
         $result &= $regexp_result;
+        $domestic_destination_not_pattern = $data->{domestic_destination_not_pattern} if exists $data->{domestic_destination_not_pattern};
+        ($regexp_result,$domestic_destination_not_pattern) = parse_regexp($domestic_destination_not_pattern,$configfile);
+        $result &= $regexp_result;
+        $international_destination_not_pattern = $data->{international_destination_not_pattern} if exists $data->{international_destination_not_pattern};
+        ($regexp_result,$international_destination_not_pattern) = parse_regexp($international_destination_not_pattern,$configfile);
+        $result &= $regexp_result;
+
+        my $domestic_intl_pattern_count = 0;
+        foreach ($domestic_destination_pattern,$international_destination_pattern,$domestic_destination_not_pattern,$international_destination_not_pattern) {
+            $domestic_intl_pattern_count += 1 if defined $_;
+        }
+        if ($domestic_intl_pattern_count != 1) {
+            configurationerror($configfile,'exactly 1 parameter out of domestic_destination_pattern, international_destination_pattern, domestic_destination_not_pattern, international_destination_not_pattern is required',getlogger(__PACKAGE__));
+            $result = 0;
+        }
+
 
         $ama_filename_format = $data->{ama_filename_format} if exists $data->{ama_filename_format};
 

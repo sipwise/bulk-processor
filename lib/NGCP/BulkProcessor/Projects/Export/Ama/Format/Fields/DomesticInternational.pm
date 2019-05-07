@@ -4,9 +4,11 @@ use strict;
 ## no critic
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Settings qw(
+    $domestic_destination_pattern
     $international_destination_pattern
+    $domestic_destination_not_pattern
+    $international_destination_not_pattern
 );
-#$domestic_destination_pattern
 
 use NGCP::BulkProcessor::Projects::Export::Ama::Format::Field qw($TERMINATOR);
 
@@ -62,10 +64,30 @@ sub get_hex {
 sub get_number_domestic_international {
     my $number = shift; #called number (destination)
     if (defined $number) {
-        if (defined $international_destination_pattern and $number =~ $international_destination_pattern) {
-            return $INTERNATIONAL;
-        } else {
-            return $DOMESTIC;
+        if (defined $international_destination_pattern) {
+            if ($number =~ $international_destination_pattern) {
+                return $INTERNATIONAL;
+            } else {
+                return $DOMESTIC;
+            }
+        } elsif (defined $domestic_destination_pattern) {
+            if ($number =~ $domestic_destination_pattern) {
+                return $DOMESTIC;
+            } else {
+                return $INTERNATIONAL;
+            }
+        } elsif (defined $international_destination_not_pattern) {
+            if ($number !~ $international_destination_not_pattern) {
+                return $DOMESTIC;
+            } else {
+                return $INTERNATIONAL;
+            }
+        } elsif (defined $domestic_destination_not_pattern) {
+            if ($number !~ $domestic_destination_not_pattern) {
+                return $INTERNATIONAL;
+            } else {
+                return $DOMESTIC;
+            }
         }
     }
     return $UNKNOWN;
