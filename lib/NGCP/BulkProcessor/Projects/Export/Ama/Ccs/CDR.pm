@@ -443,8 +443,8 @@ sub _export_cdrs_init_context {
         my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
         my $switch_number = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
         push(@{$scenario->{ama}},{
-            start_time => $parent_cdrs->[0]->{start_time}, #?
-            duration => $parent_cdrs->[0]->{duration},
+            start_time => $parent_cdrs->[1]->{start_time}, #?
+            duration => $parent_cdrs->[1]->{duration},
             originating => _rewrite_originating($originating),
             terminating => _rewrite_terminating($terminating),
             unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
