@@ -78,15 +78,15 @@ sub get_number_domestic_international {
             }
         } elsif (defined $international_destination_not_pattern) {
             if ($number !~ $international_destination_not_pattern) {
-                return $DOMESTIC;
-            } else {
                 return $INTERNATIONAL;
+            } else {
+                return $DOMESTIC;
             }
         } elsif (defined $domestic_destination_not_pattern) {
             if ($number !~ $domestic_destination_not_pattern) {
-                return $INTERNATIONAL;
-            } else {
                 return $DOMESTIC;
+            } else {
+                return $INTERNATIONAL;
             }
         }
     }
