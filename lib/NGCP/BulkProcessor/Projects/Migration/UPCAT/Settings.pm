@@ -92,6 +92,10 @@ our @EXPORT_OK = qw(
     $ccs_sippassword_length
 
     @css_trusted_source_ips
+
+    $cf_default_priority
+    $cf_default_timeout
+    $cft_default_ringtimeout
 );
 #$default_channels_map
 
@@ -149,6 +153,10 @@ our $ccs_domain = undef;
 our $ccs_sippassword_length = 16;
 
 our @css_trusted_source_ips = ();
+
+our $cf_default_priority = 1;
+our $cf_default_timeout = 300;
+our $cft_default_ringtimeout = 20;
 
 sub update_settings {
 
@@ -237,6 +245,10 @@ sub update_settings {
                 $result = 0;
             }
         }
+
+        $cf_default_priority = $data->{cf_default_priority} if exists $data->{cf_default_priority};
+        $cf_default_timeout = $data->{cf_default_timeout} if exists $data->{cf_default_timeout};
+        $cft_default_ringtimeout = $data->{cft_default_ringtimeout} if exists $data->{cft_default_ringtimeout};
 
         return $result;
 
