@@ -94,6 +94,7 @@ use NGCP::BulkProcessor::Projects::Migration::UPCAT::Provisioning qw(
     provision_mta_subscribers
     provision_ccs_subscribers
     $UPDATE_CCS_PREFERENCES_MODE
+    $SET_CCS_CF_MODE
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -128,6 +129,9 @@ push(@TASK_OPTS,$create_ccs_subscriber_task_opt);
 
 my $update_ccs_subscriber_preferences_task_opt = 'update_ccs_subscriber_preferences';
 push(@TASK_OPTS,$update_ccs_subscriber_preferences_task_opt);
+
+my $set_ccs_subscriber_cf_task_opt = 'set_ccs_subscriber_cf';
+push(@TASK_OPTS,$set_ccs_subscriber_cf_task_opt);
 
 
 if (init()) {
@@ -210,6 +214,13 @@ sub main() {
                 if (taskinfo($update_ccs_subscriber_preferences_task_opt,$result,1)) {
                     next unless check_dry();
                     $result &= update_ccs_subscriber_preferences_task(\@messages);
+                    $completion |= 1;
+                }
+
+            } elsif (lc($set_ccs_subscriber_cf_task_opt) eq lc($task)) {
+                if (taskinfo($set_ccs_subscriber_cf_task_opt,$result,1)) {
+                    next unless check_dry();
+                    $result &= set_ccs_subscriber_cf_task(\@messages);
                     $completion |= 1;
                 }
 
@@ -518,6 +529,29 @@ sub update_ccs_subscriber_preferences_task {
         push(@$messages,"update ccs subscriber preferences INCOMPLETE$stats");
     } else {
         push(@$messages,"update ccs subscribers preferences completed$stats");
+    }
+    destroy_all_dbs();
+    return $result;
+}
+
+sub set_ccs_subscriber_cf_task {
+    my ($messages) = @_;
+    my ($result,$warning_count) = (0,0);
+    eval {
+        ($result,$warning_count) = provision_ccs_subscribers($SET_CCS_CF_MODE);
+    };
+    my $err = $@;
+    my $stats = ": $warning_count warnings";
+    eval {
+        $stats .= "\n  total contracts: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::contracts::countby_status_resellerid(undef,undef) . ' rows';
+        $stats .= "\n  total subscribers: " .
+            NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::countby_status_resellerid(undef,undef) . ' rows';
+    };
+    if ($err or !$result) {
+        push(@$messages,"set ccs subscriber callforwards INCOMPLETE$stats");
+    } else {
+        push(@$messages,"set ccs subscribers callforwards completed$stats");
     }
     destroy_all_dbs();
     return $result;

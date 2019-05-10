@@ -115,6 +115,7 @@ our @EXPORT_OK = qw(
     provision_mta_subscribers
     provision_ccs_subscribers
     $UPDATE_CCS_PREFERENCES_MODE
+    $SET_CCS_CF_MODE
 );
 
 my $split_ipnets_pattern =  join('|',(
@@ -131,6 +132,12 @@ my $default_barring = 'default';
 my $ccs_contact_identifier_field = 'gpp9';
 
 our $UPDATE_CCS_PREFERENCES_MODE = 'update_ccs_preferences';
+our $SET_CCS_CF_MODE = 'set_ccs_cf';
+
+my $cf_types_pattern = '^' . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFB_TYPE . '|'
+ . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFT_TYPE . '|'
+ . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFU_TYPE . '|'
+ . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFNA_TYPE . '$';
 
 my $cf_types_pattern = '^' . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFB_TYPE . '|'
  . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFT_TYPE . '|'
@@ -1135,7 +1142,7 @@ sub _provision_ccs_susbcriber {
                 #}
                 _update_ccs_preferences($context);
                 _set_registrations($context);
-                ##_set_callforwards($context);
+                _set_callforwards($context);
                 ##todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
                 ##in this main provisioning loop, or align it in separate run-modes, according to the files given.
             } else {
@@ -1149,6 +1156,8 @@ sub _provision_ccs_susbcriber {
             if (defined $context->{prov_subscriber}) {
                 if ($update_mode eq $UPDATE_CCS_PREFERENCES_MODE) {
                     _update_ccs_preferences($context);
+                } elsif ($update_mode eq $SET_CCS_CF_MODE) {
+                    _set_callforwards($context);
                 } else {
                     _warn($context,$context->{prov_subscriber}->{username} . ': ' . (scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
                 }
@@ -1343,6 +1352,28 @@ sub _provision_ccs_subscribers_checks {
         processing_info(threadid(),"shared_buddylist_visibility attribute found",getlogger(__PACKAGE__));
     }
 
+    foreach my $cf_attribute (@NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CF_ATTRIBUTES) {
+        eval {
+            $context->{attributes}->{$cf_attribute} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute($cf_attribute);
+        };
+        if ($@ or not defined $context->{attributes}->{$cf_attribute}) {
+            rowprocessingerror(threadid(),"cannot find $cf_attribute attribute",getlogger(__PACKAGE__));
+            $result = 0; #even in skip-error mode..
+        } else {
+            processing_info(threadid(),"$cf_attribute attribute found",getlogger(__PACKAGE__));
+        }
+    }
+
+    eval {
+        $context->{attributes}->{ringtimeout} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::RINGTIMEOUT_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{ringtimeout}) {
+        rowprocessingerror(threadid(),'cannot find ringtimeout attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"ringtimeout attribute found",getlogger(__PACKAGE__));
+    }
 
     return $result;
 }
@@ -1737,6 +1768,9 @@ sub _set_callforwards {
     my ($context) = @_;
     my $result = 1;
     foreach my $type (keys %{$context->{callforwards}}) {
+        NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::delete_cfmappings($context->{db},
+        $context->{prov_subscriber}->{id},{ '=' => $type });
+
         my $destination_set_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets::insert_row($context->{db},{
             subscriber_id => $context->{prov_subscriber}->{id},
             name => "quickset_$type",
