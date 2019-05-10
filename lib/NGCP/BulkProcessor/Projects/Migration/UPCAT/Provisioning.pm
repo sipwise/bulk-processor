@@ -36,6 +36,10 @@ use NGCP::BulkProcessor::Projects::Migration::UPCAT::Settings qw(
     $ccs_sippassword_length
 
     @css_trusted_source_ips
+
+    $cf_default_priority
+    $cf_default_timeout
+    $cft_default_ringtimeout
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -72,9 +76,9 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
@@ -111,6 +115,7 @@ our @EXPORT_OK = qw(
     provision_mta_subscribers
     provision_ccs_subscribers
     $UPDATE_CCS_PREFERENCES_MODE
+    $SET_CCS_CF_MODE
 );
 
 my $split_ipnets_pattern =  join('|',(
@@ -127,6 +132,12 @@ my $default_barring = 'default';
 my $ccs_contact_identifier_field = 'gpp9';
 
 our $UPDATE_CCS_PREFERENCES_MODE = 'update_ccs_preferences';
+our $SET_CCS_CF_MODE = 'set_ccs_cf';
+
+my $cf_types_pattern = '^' . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFB_TYPE . '|'
+ . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFT_TYPE . '|'
+ . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFU_TYPE . '|'
+ . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFNA_TYPE . '$';
 
 sub provision_mta_subscribers {
 
@@ -1126,7 +1137,7 @@ sub _provision_ccs_susbcriber {
                 #}
                 _update_ccs_preferences($context);
                 _set_registrations($context);
-                ##_set_callforwards($context);
+                _set_callforwards($context);
                 ##todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
                 ##in this main provisioning loop, or align it in separate run-modes, according to the files given.
             } else {
@@ -1140,6 +1151,8 @@ sub _provision_ccs_susbcriber {
             if (defined $context->{prov_subscriber}) {
                 if ($update_mode eq $UPDATE_CCS_PREFERENCES_MODE) {
                     _update_ccs_preferences($context);
+                } elsif ($update_mode eq $SET_CCS_CF_MODE) {
+                    _set_callforwards($context);
                 } else {
                     _warn($context,$context->{prov_subscriber}->{username} . ': ' . (scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
                 }
@@ -1334,6 +1347,28 @@ sub _provision_ccs_subscribers_checks {
         processing_info(threadid(),"shared_buddylist_visibility attribute found",getlogger(__PACKAGE__));
     }
 
+    foreach my $cf_attribute (@NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CF_ATTRIBUTES) {
+        eval {
+            $context->{attributes}->{$cf_attribute} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute($cf_attribute);
+        };
+        if ($@ or not defined $context->{attributes}->{$cf_attribute}) {
+            rowprocessingerror(threadid(),"cannot find $cf_attribute attribute",getlogger(__PACKAGE__));
+            $result = 0; #even in skip-error mode..
+        } else {
+            processing_info(threadid(),"$cf_attribute attribute found",getlogger(__PACKAGE__));
+        }
+    }
+
+    eval {
+        $context->{attributes}->{ringtimeout} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute(
+            $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::RINGTIMEOUT_ATTRIBUTE);
+    };
+    if ($@ or not defined $context->{attributes}->{ringtimeout}) {
+        rowprocessingerror(threadid(),'cannot find ringtimeout attribute',getlogger(__PACKAGE__));
+        $result = 0; #even in skip-error mode..
+    } else {
+        processing_info(threadid(),"ringtimeout attribute found",getlogger(__PACKAGE__));
+    }
 
     return $result;
 }
@@ -1531,6 +1566,52 @@ sub _provision_ccs_susbcriber_init_context {
     $context->{registrations} = \@registrations;
     $context->{trusted_sources} = \@trusted_sources;
 
+    $context->{ringtimeout} = undef;
+    my %cfsimple = ();
+    my @callforwards = ();
+    push(@callforwards,{
+        type => 'cfu',
+        destination => $first->{target_number},
+    }) if $first->{routing_type} eq '1:1';
+    if ((scalar @callforwards) > 0) {
+        my %vmcf = ();
+        my %maxpriority = ();
+        foreach my $callforward (@callforwards) {
+            my $type = lc($callforward->{type});
+            if ($type =~ /$cf_types_pattern/) {
+                unless (defined $callforward->{destination} and length($callforward->{destination}) > 0) {
+                    _warn($context,"empty callforward destination, ignoring");
+                    next;
+                }
+                if ($callforward->{destination} =~ /voicemail/i) {
+                    $callforward->{destination} = 'sip:vm' . ('cfb' eq $type ? 'b' : 'u') . $context->{numbers}->{primary}->{number} . '@voicebox.local';
+                    $vmcf{$type} = 1 unless $vmcf{$type};
+                } elsif ($callforward->{destination} !~ /^\d+$/i) {
+                    _warn($context,"invalid callforward destination '$callforward->{destination}', ignoring");
+                    next;
+                } else { #todo: allow sip uri destinations
+                    $callforward->{destination} = 'sip:' . $callforward->{destination} .'@' . $context->{domain}->{domain};
+                }
+                $callforward->{priority} //= $cf_default_priority;
+                $callforward->{timeout} //= $cf_default_timeout;
+                $callforward->{ringtimeout} //= $cft_default_ringtimeout if 'cft' eq $type;
+                $context->{ringtimeout} = $callforward->{ringtimeout} if ('cft' eq $type and (not defined $context->{ringtimeout} or $callforward->{ringtimeout} > $context->{ringtimeout}));
+
+                $cfsimple{$type} = [] unless exists $cfsimple{$type};
+                push(@{$cfsimple{$type}},{
+                    destination => $callforward->{destination},
+                    priority => $callforward->{priority},
+                    timeout => $callforward->{timeout},
+                });
+                #$vmcf{$type} = ($callforward->{destination} =~ /voicemail/i) unless $vmcf{$type};
+                $maxpriority{$type} = $callforward->{priority} if (not defined $maxpriority{$type} or $callforward->{priority} > $maxpriority{$type});
+            } else {
+                _warn($context,"invalid callforward type '$type', ignoring");
+            }
+        }
+    }
+    $context->{callforwards} = \%cfsimple;
+
     #$context->{preferences} = {};
 
     #$context->{preferences}->{gpp} = [
@@ -1672,6 +1753,56 @@ sub _set_registrations {
             uuid => $context->{prov_subscriber}->{uuid},
         });
         _info($context,"trusted source $trusted_source->{protocol} $trusted_source->{src_ip} from $trusted_source->{from_pattern} added",1);
+    }
+    return $result;
+
+}
+
+sub _set_callforwards {
+
+    my ($context) = @_;
+    my $result = 1;
+    foreach my $type (keys %{$context->{callforwards}}) {
+        NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::delete_cfmappings($context->{db},
+        $context->{prov_subscriber}->{id},{ '=' => $type });
+
+        my $destination_set_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets::insert_row($context->{db},{
+            subscriber_id => $context->{prov_subscriber}->{id},
+            name => "quickset_$type",
+        });
+        foreach my $callforward (@{$context->{callforwards}->{$type}}) {
+            $callforward->{id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations::insert_row($context->{db},{
+                %$callforward,
+                destination_set_id => $destination_set_id,
+            });
+        }
+        my $cf_mapping_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::insert_row($context->{db},{
+            subscriber_id => $context->{prov_subscriber}->{id},
+            type => $type,
+            destination_set_id => $destination_set_id,
+            #time_set_id
+        });
+
+        $context->{preferences}->{$type} = { id => set_subscriber_preference($context,
+            $context->{prov_subscriber}->{id},
+            $context->{attributes}->{$type},
+            $cf_mapping_id), value => $cf_mapping_id };
+
+        if (defined $context->{ringtimeout}) {
+            $context->{preferences}->{ringtimeout} = { id => set_subscriber_preference($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{ringtimeout},
+                $context->{ringtimeout}), value => $context->{ringtimeout} };
+        }
+        _info($context,"$type created (destination(s) " . join(', ',(map { $_->{destination}; } @{$context->{callforwards}->{$type}})) . ")",1);
+
+        $context->{callforwards}->{$type} = {
+            destination_set => {
+                destinations => $context->{callforwards}->{$type},
+                id => $destination_set_id,
+            },
+            id => $cf_mapping_id,
+        };
     }
     return $result;
 
