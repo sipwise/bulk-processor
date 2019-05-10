@@ -72,9 +72,9 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users qw();
@@ -1672,6 +1672,53 @@ sub _set_registrations {
             uuid => $context->{prov_subscriber}->{uuid},
         });
         _info($context,"trusted source $trusted_source->{protocol} $trusted_source->{src_ip} from $trusted_source->{from_pattern} added",1);
+    }
+    return $result;
+
+}
+
+sub _set_callforwards {
+
+    my ($context) = @_;
+    my $result = 1;
+    foreach my $type (keys %{$context->{callforwards}}) {
+        my $destination_set_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets::insert_row($context->{db},{
+            subscriber_id => $context->{prov_subscriber}->{id},
+            name => "quickset_$type",
+        });
+        foreach my $callforward (@{$context->{callforwards}->{$type}}) {
+            $callforward->{id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations::insert_row($context->{db},{
+                %$callforward,
+                destination_set_id => $destination_set_id,
+            });
+        }
+        my $cf_mapping_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::insert_row($context->{db},{
+            subscriber_id => $context->{prov_subscriber}->{id},
+            type => $type,
+            destination_set_id => $destination_set_id,
+            #time_set_id
+        });
+
+        $context->{preferences}->{$type} = { id => set_subscriber_preference($context,
+            $context->{prov_subscriber}->{id},
+            $context->{attributes}->{$type},
+            $cf_mapping_id), value => $cf_mapping_id };
+
+        if (defined $context->{ringtimeout}) {
+            $context->{preferences}->{ringtimeout} = { id => set_subscriber_preference($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{ringtimeout},
+                $context->{ringtimeout}), value => $context->{ringtimeout} };
+        }
+        _info($context,"$type created (destination(s) " . join(', ',(map { $_->{destination}; } @{$context->{callforwards}->{$type}})) . ")",1);
+
+        $context->{callforwards}->{$type} = {
+            destination_set => {
+                destinations => $context->{callforwards}->{$type},
+                id => $destination_set_id,
+            },
+            id => $cf_mapping_id,
+        };
     }
     return $result;
 
