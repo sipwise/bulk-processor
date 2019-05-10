@@ -447,6 +447,7 @@ sub _export_cdrs_init_context {
             duration => $parent_cdrs->[1]->{duration},
             originating => _rewrite_originating($originating),
             terminating => _rewrite_terminating($terminating),
+            terminating_cdr => $terminating,
             unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -464,6 +465,7 @@ sub _export_cdrs_init_context {
             duration => abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time}),
             originating => _rewrite_originating($originating),
             terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
+            terminating_cdr => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -476,6 +478,7 @@ sub _export_cdrs_init_context {
             duration => $parent_cdrs->[1]->{duration},
             originating => _rewrite_originating($originating),
             terminating => _rewrite_terminating($terminating),
+            terminating_cdr => $terminating,
             unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -493,6 +496,7 @@ sub _export_cdrs_init_context {
             duration => 0,
             originating => _rewrite_originating($originating),
             terminating => _rewrite_terminating($terminating),
+            terminating_cdr => $terminating,
             unanswered => 1,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -510,6 +514,7 @@ sub _export_cdrs_init_context {
             duration => $parent_cdrs->[0]->{duration},
             originating => _rewrite_originating($originating),
             terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
+            terminating_cdr => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -522,6 +527,7 @@ sub _export_cdrs_init_context {
             duration => 0,
             originating => _rewrite_originating($originating),
             terminating => _rewrite_terminating($terminating),
+            terminating_cdr => $terminating,
             unanswered => 1,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -540,6 +546,7 @@ sub _export_cdrs_init_context {
             duration => $correlated_cdr->{duration} - abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{start_time}),
             originating => _rewrite_originating($originating),
             terminating => _rewrite_terminating($terminating),
+            terminating_cdr => $terminating,
             unanswered => ($correlated_cdr->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -558,6 +565,7 @@ sub _export_cdrs_init_context {
             duration => abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time}),
             originating => _rewrite_originating($originating),
             terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
+            terminating_cdr => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -570,6 +578,7 @@ sub _export_cdrs_init_context {
             duration => $correlated_cdr->{duration} - abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{start_time}),
             originating => _rewrite_originating($originating),
             terminating => _rewrite_terminating($terminating),
+            terminating_cdr => $terminating,
             unanswered => ($correlated_cdr->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -587,6 +596,7 @@ sub _export_cdrs_init_context {
             duration => $parent_cdrs->[1]->{duration},
             originating => _rewrite_originating($originating),
             terminating => _rewrite_terminating($terminating),
+            terminating_cdr => $terminating,
             unanswered => ($parent_cdrs->[1]->{call_status} ne $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::OK_CALL_STATUS ? 1 : 0),
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
             nod => {
@@ -743,7 +753,7 @@ sub _create_ama_record {
             originating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($ama->{originating}),
             originating_open_digits_2 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_2($ama->{originating}),
 
-            domestic_international => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::get_number_domestic_international($ama->{terminating}),
+            domestic_international => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::DomesticInternational::get_number_domestic_international($ama->{terminating_cdr}),
 
             terminating_significant_digits => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_length($ama->{terminating}),
             terminating_open_digits_1 => NGCP::BulkProcessor::Projects::Export::Ama::Format::Fields::SignificantDigitsNextField::get_number_digits_1($ama->{terminating}),
