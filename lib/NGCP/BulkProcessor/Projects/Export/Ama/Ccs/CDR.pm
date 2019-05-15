@@ -590,7 +590,7 @@ sub _export_cdrs_init_context {
     } elsif ($scenario->{code} == $CFU) {
         my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
         my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
-        my $switch_number = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
+        my $switch_number = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $parent_cdrs->[1]->{duration},
