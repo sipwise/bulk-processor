@@ -464,7 +464,7 @@ sub _export_cdrs_init_context {
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time}),
             originating => _rewrite_originating($originating),
-            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
+            terminating => ($terminating_open_digits_6001 ? _rewrite_terminating($terminating_open_digits_6001) : _rewrite_terminating($terminating)),
             terminating_cdr => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
@@ -513,7 +513,7 @@ sub _export_cdrs_init_context {
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => $parent_cdrs->[0]->{duration},
             originating => _rewrite_originating($originating),
-            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
+            terminating => ($terminating_open_digits_6001 ? _rewrite_terminating($terminating_open_digits_6001) : _rewrite_terminating($terminating)),
             terminating_cdr => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
@@ -564,7 +564,7 @@ sub _export_cdrs_init_context {
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time}),
             originating => _rewrite_originating($originating),
-            terminating => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : _rewrite_terminating($terminating)),
+            terminating => ($terminating_open_digits_6001 ? _rewrite_terminating($terminating_open_digits_6001) : _rewrite_terminating($terminating)),
             terminating_cdr => ($terminating_open_digits_6001 ? $terminating_open_digits_6001 : $terminating),
             unanswered => 0,
             correlation_id => substr($parent_cdrs->[0]->{id},-7),
