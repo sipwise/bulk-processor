@@ -5,7 +5,7 @@ use strict;
 
 use threads::shared qw();
 
-#use Encode qw();
+use Encode qw();
 
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::Settings qw(
     $provision_mta_subscriber_rownum_start
@@ -264,6 +264,7 @@ sub import_ccs_subscriber {
                 next if (scalar @$row) == 0 or (scalar @$row) == 1;
                 $row = [ map { local $_ = $_; trim($_); $_; } @$row ]; #Encode::encode('utf8',Encode::decode('cp1252',$_));
                 my $record = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber->new($row);
+                next unless _import_ccs_subscriber_check_cancelled($context,$record);
                 $record->{rownum} = $rownum;
                 my %r = %$record; my @row_ext = @r{@NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::fieldnames};
                 if ($context->{upsert}) {
@@ -319,6 +320,16 @@ sub import_ccs_subscriber {
         multithreading => $import_multithreading
     ),$warning_count);
 
+}
+
+sub _import_ccs_subscriber_check_cancelled {
+    my ($context,$subscriber) = @_;
+    my $comment = Encode::decode('utf8',$subscriber->{comment}) if defined $subscriber->{comment}; #mark as utf-8
+    if (defined $comment and $subscriber->{comment} =~ /k(\x{00dc}|\x{00fc})ndig/i) {
+        _warn($context,"$subscriber->{customer} $subscriber->{service_number} $subscriber->{comment}, skipping");
+        return 0;
+    }
+    return 1;
 }
 
 sub _import_ccs_subscriber_reset_delta {
