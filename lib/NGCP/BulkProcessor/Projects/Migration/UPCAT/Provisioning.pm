@@ -1128,18 +1128,18 @@ sub _provision_ccs_susbcriber {
         if ((scalar @$existing_billing_voip_subscribers) == 0) {
 
             if (not $update_mode) {
-                _update_ccs_contact($context);
-                _update_contract($context);
-                #{
-                #    lock $db_lock; #concurrent writes to voip_numbers causes deadlocks
+                #if ($imported_subscriber->{delta} eq
+                #    $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::deleted_delta) {
+                #    _info($context,$context->{prov_subscriber}->{username} . ': is deleted, and no active subscriber found');
+                #} else {
+                    _update_ccs_contact($context);
+                    _update_contract($context);
                     _update_subscriber($context);
                     _create_aliases($context);
+                    _update_ccs_preferences($context);
+                    _set_registrations($context);
+                    _set_callforwards($context);
                 #}
-                _update_ccs_preferences($context);
-                _set_registrations($context);
-                _set_callforwards($context);
-                ##todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
-                ##in this main provisioning loop, or align it in separate run-modes, according to the files given.
             } else {
                 _warn($context,$context->{prov_subscriber}->{username} . ': no active billing subscribers found for updating, skipping');
             }
@@ -1463,14 +1463,6 @@ sub _provision_ccs_susbcriber_init_context {
     my @service_numbers = ();
     foreach my $subscriber (@$subscriber_group) {
         $subscriber->{comment} = Encode::decode('utf8',$subscriber->{comment}) if defined $subscriber->{comment}; #mark as utf-8
-        #if ($subscriber->{comment} =~ /gek/i) {
-        #    print "blah";
-        #}
-        if (defined $subscriber->{comment} and $subscriber->{comment} =~ /k(\x{00dc}|\x{00fc})ndig/i) {
-        #if (defined $subscriber->{comment} and $subscriber->{comment} =~ /k..ndig/i) {
-            _warn($context,"$subscriber->{customer} $subscriber->{service_number} $subscriber->{comment}, skipping");
-            next;
-        }
         my $alias = {};
         ($alias->{cc},$alias->{ac},$alias->{sn}) = split_number($subscriber->{service_number});
         $alias->{number} = $alias->{cc} . $alias->{ac} . $alias->{sn};
@@ -1803,6 +1795,35 @@ sub _set_callforwards {
             },
             id => $cf_mapping_id,
         };
+    }
+    return $result;
+
+}
+
+sub _terminate_contract {
+    my ($context,$contract_id) = @_;
+
+    my $result = 0;
+    my $contract_path = NGCP::BulkProcessor::RestRequests::Trunk::Customers::get_item_path($contract_id);
+    eval {
+        my $customer;
+        if ($dry) {
+            $customer = NGCP::BulkProcessor::RestRequests::Trunk::Customers::get_item($contract_id);
+        } else {
+            $customer = NGCP::BulkProcessor::RestRequests::Trunk::Customers::update_item($contract_id,{
+                status => $NGCP::BulkProcessor::RestRequests::Trunk::Customers::TERMINATED_STATE,
+            });
+        }
+        $result = (defined $customer ? 1 : 0);
+    };
+    if ($@ or not $result) {
+        if ($skip_errors) {
+            _warn($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ': could not ' . ($dry ? 'fetch' : 'terminate') . ' old contract ' . $contract_path);
+        } else {
+            _error($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ': could not ' . ($dry ? 'fetch' : 'terminate') . ' old contract ' . $contract_path);
+        }
+    } else {
+        _info($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ': old contract ' . $contract_path . ($dry ? ' fetched' : ' terminated'));
     }
     return $result;
 

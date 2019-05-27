@@ -102,6 +102,7 @@ scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unl
 my @TASK_OPTS = ();
 
 my $tasks = [];
+my $files = [];
 
 my $check_task_opt = 'check';
 push(@TASK_OPTS,$check_task_opt);
@@ -154,6 +155,7 @@ sub init {
         "dry" => \$dry,
         "skip-errors" => \$skip_errors,
         "force" => \$force,
+        "file=s" => $files,
     ); # or scripterror('error in command line arguments',getlogger(getscriptpath()));
 
     $tasks = removeduplicates($tasks,1);
@@ -311,7 +313,11 @@ sub import_mta_subscriber_task {
     my ($messages) = @_;
     my ($result,$warning_count) = (0,0);
     eval {
-        ($result,$warning_count) = import_mta_subscriber(@mta_subscriber_filenames);
+        if (scalar @$files) {
+            ($result,$warning_count) = import_mta_subscriber(@$files);
+        } else {
+            ($result,$warning_count) = import_mta_subscriber(@mta_subscriber_filenames);
+        }
     };
     my $err = $@;
     my $stats = ": $warning_count warnings";
@@ -416,7 +422,11 @@ sub import_ccs_subscriber_task {
     my ($messages) = @_;
     my ($result,$warning_count) = (0,0);
     eval {
-        ($result,$warning_count) = import_ccs_subscriber($ccs_subscriber_filename);
+        if (scalar @$files) {
+            ($result,$warning_count) = import_ccs_subscriber($files->[0]);
+        } else {
+            ($result,$warning_count) = import_ccs_subscriber($ccs_subscriber_filename);
+        }
     };
     my $err = $@;
     my $stats = ": $warning_count warnings";
