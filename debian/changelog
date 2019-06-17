@@ -1,3 +1,24 @@
+ngcp-bulk-processor (7.4.1.0+0~mr7.4.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [dbf0f0c] TT#57614 ccs importer: implement writing pbx prefs
+  * [194dfde] TT#58800 ama exporter: regex for domestic/international
+  * [1a18421] TT#58006 TT#58007 ama exporter: rewrite originating/terminating
+  * [05b2d9c] TT#58651 ama exporter: add cfu_no_ivr scenario
+  * [536948b] TT#58825 ama exporter: fix blindxfer-noivr scenario duration
+  * [7b3b986] TT#58800 ama exporter: regex *varaints* for domestic/intl
+  * [3c6aa60] Revert "TT#58825 ama exporter: fix blindxfer-noivr scenario duration"
+  * [cf43479] TT#58800 ama exporter: fix domestic/intl "not" patterns
+  * [2d432d7] TT#58800 ama exporter: use unaltered destination number for domestic/intl
+  * [8a0c240] TT#58688 CCS importer: set CFU for subs with "1:1" routing typ
+  * [082dce9] TT#58800 ama exporter: rewrite 6001 terminating number
+  * [753aa4d] TT#58651 ama exporter: change TERM_DIGITS for cfu_no_ivr scenario
+  * [baf0d3e] TT#59265 ccs importer: detect delta of imports
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 17 Jun 2019 14:33:46 +0200
+
 ngcp-bulk-processor (7.4.0.0+0~mr7.4.0.0) unstable; urgency=medium
 
   [ Guillem Jover ]
