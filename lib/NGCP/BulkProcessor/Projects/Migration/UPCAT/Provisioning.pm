@@ -116,6 +116,7 @@ our @EXPORT_OK = qw(
     provision_ccs_subscribers
     $UPDATE_CCS_PREFERENCES_MODE
     $SET_CCS_CF_MODE
+    $CLEAR_CCS_CF_MODE
 );
 
 my $split_ipnets_pattern =  join('|',(
@@ -133,6 +134,7 @@ my $ccs_contact_identifier_field = 'gpp9';
 
 our $UPDATE_CCS_PREFERENCES_MODE = 'update_ccs_preferences';
 our $SET_CCS_CF_MODE = 'set_ccs_cf';
+our $CLEAR_CCS_CF_MODE = 'clear_ccs_cf';
 
 my $cf_types_pattern = '^' . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFB_TYPE . '|'
  . $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::CFT_TYPE . '|'
@@ -1158,6 +1160,8 @@ sub _provision_ccs_susbcriber {
                     _update_ccs_preferences($context);
                 } elsif ($update_mode eq $SET_CCS_CF_MODE) {
                     _set_callforwards($context);
+                } elsif ($update_mode eq $CLEAR_CCS_CF_MODE) {
+                    _set_callforwards($context,1);
                 } else {
                     _warn($context,$context->{prov_subscriber}->{username} . ': ' . (scalar @$existing_billing_voip_subscribers) . ' existing billing subscribers found, skipping');
                 }
@@ -1757,49 +1761,51 @@ sub _set_registrations {
 
 sub _set_callforwards {
 
-    my ($context) = @_;
+    my ($context,$clear) = @_;
     my $result = 1;
     foreach my $type (keys %{$context->{callforwards}}) {
-        NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::delete_cfmappings($context->{db},
-        $context->{prov_subscriber}->{id},{ '=' => $type });
-
-        my $destination_set_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets::insert_row($context->{db},{
-            subscriber_id => $context->{prov_subscriber}->{id},
-            name => "quickset_$type",
-        });
-        foreach my $callforward (@{$context->{callforwards}->{$type}}) {
-            $callforward->{id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations::insert_row($context->{db},{
-                %$callforward,
-                destination_set_id => $destination_set_id,
+        _info($context,"$type deleted",1)
+            if NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::delete_cfmappings($context->{db},
+                $context->{prov_subscriber}->{id},{ '=' => $type });
+        unless ($clear) {
+            my $destination_set_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets::insert_row($context->{db},{
+                subscriber_id => $context->{prov_subscriber}->{id},
+                name => "quickset_$type",
             });
-        }
-        my $cf_mapping_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::insert_row($context->{db},{
-            subscriber_id => $context->{prov_subscriber}->{id},
-            type => $type,
-            destination_set_id => $destination_set_id,
-            #time_set_id
-        });
+            foreach my $callforward (@{$context->{callforwards}->{$type}}) {
+                $callforward->{id} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations::insert_row($context->{db},{
+                    %$callforward,
+                    destination_set_id => $destination_set_id,
+                });
+            }
+            my $cf_mapping_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::insert_row($context->{db},{
+                subscriber_id => $context->{prov_subscriber}->{id},
+                type => $type,
+                destination_set_id => $destination_set_id,
+                #time_set_id
+            });
 
-        $context->{preferences}->{$type} = { id => set_subscriber_preference($context,
-            $context->{prov_subscriber}->{id},
-            $context->{attributes}->{$type},
-            $cf_mapping_id), value => $cf_mapping_id };
-
-        if (defined $context->{ringtimeout}) {
-            $context->{preferences}->{ringtimeout} = { id => set_subscriber_preference($context,
+            $context->{preferences}->{$type} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
-                $context->{attributes}->{ringtimeout},
-                $context->{ringtimeout}), value => $context->{ringtimeout} };
-        }
-        _info($context,"$type created (destination(s) " . join(', ',(map { $_->{destination}; } @{$context->{callforwards}->{$type}})) . ")",1);
+                $context->{attributes}->{$type},
+                $cf_mapping_id), value => $cf_mapping_id };
 
-        $context->{callforwards}->{$type} = {
-            destination_set => {
-                destinations => $context->{callforwards}->{$type},
-                id => $destination_set_id,
-            },
-            id => $cf_mapping_id,
-        };
+            if (defined $context->{ringtimeout}) {
+                $context->{preferences}->{ringtimeout} = { id => set_subscriber_preference($context,
+                    $context->{prov_subscriber}->{id},
+                    $context->{attributes}->{ringtimeout},
+                    $context->{ringtimeout}), value => $context->{ringtimeout} };
+            }
+            _info($context,"$type created (destination(s) " . join(', ',(map { $_->{destination}; } @{$context->{callforwards}->{$type}})) . ")",1);
+
+            $context->{callforwards}->{$type} = {
+                destination_set => {
+                    destinations => $context->{callforwards}->{$type},
+                    id => $destination_set_id,
+                },
+                id => $cf_mapping_id,
+            };
+        }
     }
     return $result;
 
