@@ -61,7 +61,7 @@ our @EXPORT_OK = qw(
     $ama_originating_digits_cdr_field
     $ama_terminating_digits_cdr_field
 
-    $ivr_duration_limit
+
     $primary_alias_pattern
 
     $switch_number_pattern
@@ -75,6 +75,7 @@ our @EXPORT_OK = qw(
 
     $terminating_open_digits_6001
 );
+#$ivr_duration_limit
 
 our $defaultconfig = 'config.cfg';
 our $defaultsettings = 'settings.cfg';
@@ -101,7 +102,7 @@ our $ama_outgoing_trunk_group_number;
 our $ama_originating_digits_cdr_field;
 our $ama_terminating_digits_cdr_field;
 
-our $ivr_duration_limit = 5;
+#our $ivr_duration_limit = 5;
 our $primary_alias_pattern = undef;
 our $switch_number_pattern = undef;
 our $switch_number_replacement = undef;
@@ -151,7 +152,7 @@ sub update_settings {
             configurationerror($configfile,'unknown ama_terminating_digits_cdr_field',getlogger(__PACKAGE__));
         }
 
-        $ivr_duration_limit = $data->{ivr_duration_limit} if exists $data->{ivr_duration_limit};
+        #$ivr_duration_limit = $data->{ivr_duration_limit} if exists $data->{ivr_duration_limit};
 
         my $regexp_result;
         $primary_alias_pattern = $data->{primary_alias_pattern} if exists $data->{primary_alias_pattern};
