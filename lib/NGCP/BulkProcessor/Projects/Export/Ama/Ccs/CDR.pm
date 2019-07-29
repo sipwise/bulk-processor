@@ -25,7 +25,7 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
     $ama_originating_digits_cdr_field
     $ama_terminating_digits_cdr_field
 
-    $ivr_duration_limit
+
     $primary_alias_pattern
 
     $switch_number_pattern
@@ -39,6 +39,7 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
 
     $terminating_open_digits_6001
 );
+#$ivr_duration_limit
 
 use NGCP::BulkProcessor::Logging qw (
     getlogger
@@ -55,6 +56,10 @@ use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag_data qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::mark qw();
 
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
@@ -92,6 +97,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::Utils qw(threadid kbytes2gigs); # stringtobool check_ipnet trim);
 
 use NGCP::BulkProcessor::Calendar qw(from_epoch);
+use NGCP::BulkProcessor::Array qw(array_to_map);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -363,12 +369,17 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        my $ivr_duration = abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time});
-                        if ($ivr_duration < $ivr_duration_limit) {
-                            $scenario->{code} = $BLIND_TRANSFER_NO_IVR;
-                        } else {
+                        if (get_u2u_header($context,$parent_cdrs->[0])) {
                             $scenario->{code} = $BLIND_TRANSFER;
+                        } else {
+                            $scenario->{code} = $BLIND_TRANSFER_NO_IVR;
                         }
+                        #my $ivr_duration = abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time});
+                        #if ($ivr_duration < $ivr_duration_limit) {
+                        #    $scenario->{code} = $BLIND_TRANSFER_NO_IVR;
+                        #} else {
+                        #    $scenario->{code} = $BLIND_TRANSFER;
+                        #}
                         $result = 1;
                     #no transfer:
                     } elsif ((scalar @$parent_cdrs) == 1
@@ -379,12 +390,17 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        my $ivr_duration = $parent_cdrs->[0]->{duration};
-                        if ($ivr_duration < $ivr_duration_limit) {
-                            $scenario->{code} = $NO_TRANSFER_NO_IVR;
-                        } else {
+                        if (get_u2u_header($context,$parent_cdrs->[0])) {
                             $scenario->{code} = $NO_TRANSFER;
+                        } else {
+                            $scenario->{code} = $NO_TRANSFER_NO_IVR;
                         }
+                        #my $ivr_duration = $parent_cdrs->[0]->{duration};
+                        #if ($ivr_duration < $ivr_duration_limit) {
+                        #    $scenario->{code} = $NO_TRANSFER_NO_IVR;
+                        #} else {
+                        #    $scenario->{code} = $NO_TRANSFER;
+                        #}
                         $result = 1;
                     #attn transfer:
                     } elsif ((scalar @$parent_cdrs) == 2
@@ -396,13 +412,18 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
-                        my $ivr_duration = abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time});
-                        if ($ivr_duration < $ivr_duration_limit) {
-                            $scenario->{code} = $ATTN_TRANSFER_NO_IVR;
-                        } else {
+                        if (get_u2u_header($context,$parent_cdrs->[1])) {
                             $scenario->{code} = $ATTN_TRANSFER;
+                        } else {
+                            $scenario->{code} = $ATTN_TRANSFER_NO_IVR;
                         }
+                        #my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
+                        #my $ivr_duration = abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time});
+                        #if ($ivr_duration < $ivr_duration_limit) {
+                        #    $scenario->{code} = $ATTN_TRANSFER_NO_IVR;
+                        #} else {
+                        #    $scenario->{code} = $ATTN_TRANSFER;
+                        #}
                         $result = 1;
                     #cfu:
                     } elsif ((scalar @$parent_cdrs) == 2
@@ -938,7 +959,56 @@ sub _export_cdrs_create_context {
         $file_sequence_number = $fsn;
     }
 
+    eval {
+        ($context->{cdr_provider_map}, my $types, my $ids) = array_to_map(NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider::findall(),
+            sub { return shift->{type}; }, sub { return shift->{id}; }, 'last');
+    };
+    if ($@) {
+        _error($context,"failed to load cdr_provider enum: " . $@);
+        $result = 0;
+    } elsif (not exists $context->{cdr_provider_map}->{$NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider::CUSTOMER}) {
+        _error($context,"cannot find cdr_provider '" . $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider::CUSTOMER . "'");
+        $result = 0;
+    } else {
+        _info($context,"cdr_provider '" . $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider::CUSTOMER . "' found");
+    }
+    eval {
+        ($context->{cdr_direction_map}, my $types, my $ids) = array_to_map(NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction::findall(),
+            sub { return shift->{type}; }, sub { return shift->{id}; }, 'last');
+    };
+    if ($@) {
+        _error($context,"failed to load cdr_direction enum: " . $@);
+        $result = 0;
+    } elsif (not exists $context->{cdr_direction_map}->{$NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction::SOURCE}) {
+        _error($context,"cannot find cdr_direction '" . $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction::SOURCE . "'");
+        $result = 0;
+    } else {
+        _info($context,"cdr_direction '" . $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction::SOURCE . "' found");
+    }
+    eval {
+        ($context->{cdr_tag_map}, my $types, my $ids) = array_to_map(NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag::findall(),
+            sub { return shift->{type}; }, sub { return shift->{id}; }, 'last');
+    };
+    if ($@) {
+        _error($context,"failed to load cdr_tag enum: " . $@);
+        $result = 0;
+    } elsif (not exists $context->{cdr_tag_map}->{$NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag::HEADER_USER_TO_USER}) {
+        _error($context,"cannot find cdr_tag '" . $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag::HEADER_USER_TO_USER . "'");
+        $result = 0;
+    } else {
+        _info($context,"cdr_tag '" . $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag::HEADER_USER_TO_USER . "' found");
+    }
+
     return $result;
+}
+
+sub get_u2u_header {
+    my ($context,$cdrid) = @_;
+
+    return NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag_data::findby_cdrproviderdirectiontag($context->{db},$cdrid,
+        $context->{cdr_provider_map}->{$NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider::CUSTOMER},
+        $context->{cdr_direction_map}->{$NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction::SOURCE},
+        $context->{cdr_tag_map}->{$NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag::HEADER_USER_TO_USER})->[0]->{val};
 }
 
 sub _error {
