@@ -61,7 +61,7 @@ our @EXPORT_OK = qw(
     $ama_originating_digits_cdr_field
     $ama_terminating_digits_cdr_field
 
-
+    @ivr_u2u_headers
     $primary_alias_pattern
 
     $switch_number_pattern
@@ -103,6 +103,7 @@ our $ama_originating_digits_cdr_field;
 our $ama_terminating_digits_cdr_field;
 
 #our $ivr_duration_limit = 5;
+our @ivr_u2u_headers = ();
 our $primary_alias_pattern = undef;
 our $switch_number_pattern = undef;
 our $switch_number_replacement = undef;
@@ -153,6 +154,7 @@ sub update_settings {
         }
 
         #$ivr_duration_limit = $data->{ivr_duration_limit} if exists $data->{ivr_duration_limit};
+        @ivr_u2u_headers = split_tuple($data->{ivr_u2u_headers}) if exists $data->{ivr_u2u_headers};
 
         my $regexp_result;
         $primary_alias_pattern = $data->{primary_alias_pattern} if exists $data->{primary_alias_pattern};
