@@ -25,7 +25,7 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
     $ama_originating_digits_cdr_field
     $ama_terminating_digits_cdr_field
 
-
+    @ivr_u2u_headers
     $primary_alias_pattern
 
     $switch_number_pattern
@@ -97,7 +97,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::Utils qw(threadid kbytes2gigs); # stringtobool check_ipnet trim);
 
 use NGCP::BulkProcessor::Calendar qw(from_epoch);
-use NGCP::BulkProcessor::Array qw(array_to_map);
+use NGCP::BulkProcessor::Array qw(array_to_map contains);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -369,7 +369,7 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        if (get_u2u_header($context,$parent_cdrs->[0])) {
+                        if (contains(get_u2u_header($context,$parent_cdrs->[0]),\@ivr_u2u_headers)) {
                             $scenario->{code} = $BLIND_TRANSFER;
                         } else {
                             $scenario->{code} = $BLIND_TRANSFER_NO_IVR;
@@ -390,7 +390,7 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        if (get_u2u_header($context,$parent_cdrs->[0])) {
+                        if (contains(get_u2u_header($context,$parent_cdrs->[0]),\@ivr_u2u_headers)) {
                             $scenario->{code} = $NO_TRANSFER;
                         } else {
                             $scenario->{code} = $NO_TRANSFER_NO_IVR;
@@ -412,7 +412,7 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        if (get_u2u_header($context,$parent_cdrs->[1])) {
+                        if (contains(get_u2u_header($context,$parent_cdrs->[1]),\@ivr_u2u_headers)) {
                             $scenario->{code} = $ATTN_TRANSFER;
                         } else {
                             $scenario->{code} = $ATTN_TRANSFER_NO_IVR;
