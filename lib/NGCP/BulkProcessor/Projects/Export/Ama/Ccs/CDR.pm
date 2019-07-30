@@ -429,7 +429,8 @@ sub _export_cdrs_init_context {
                     } elsif ((scalar @$parent_cdrs) == 2
                         and not $parent_cdrs->[0]->is_pbx()
                         and $parent_cdrs->[1]->is_pbx()
-                        and $parent_cdrs->[1]->{call_type} eq $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::CFU_CALL_TYPE
+                        and ($parent_cdrs->[1]->{call_type} eq $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::CFU_CALL_TYPE
+                             or $parent_cdrs->[1]->{call_type} eq $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::CFB_CALL_TYPE)
                         and (scalar @{$parent_cdrs->[0]->{_correlated_cdrs}}) == 0
                         and (scalar @{$parent_cdrs->[1]->{_correlated_cdrs}}) == 0
                         and ($scenario->{ccs_subscriber} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid(undef,$parent_cdrs->[1]->{source_user_id}))

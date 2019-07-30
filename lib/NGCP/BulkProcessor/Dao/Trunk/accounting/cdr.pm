@@ -47,6 +47,7 @@ our @EXPORT_OK = qw(
     $OK_CALL_STATUS
 
     $CFU_CALL_TYPE
+    $CFB_CALL_TYPE
 
 );
 #process_records
@@ -153,6 +154,7 @@ push(@callid_suffixes,$XFERSUFFIX);
 our $OK_CALL_STATUS = 'ok';
 
 our $CFU_CALL_TYPE = 'cfu';
+our $CFB_CALL_TYPE = 'cfb';
 
 my $indexes = {};
 
