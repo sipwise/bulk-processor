@@ -1025,6 +1025,7 @@ sub process_table {
     my ($get_db,
         $class,
         $process_code,
+        $read_code,
         $static_context,
         $init_process_context_code,
         $uninit_process_context_code,
@@ -1038,6 +1039,7 @@ sub process_table {
             get_db
             class
             process_code
+            read_code
             static_context
             init_process_context_code
             uninit_process_context_code
@@ -1119,6 +1121,7 @@ sub process_table {
                                             errorstates          => \%errorstates,
                                             #readererrorstate_ref => \$readererrorstate,
                                             #writererrorstate_ref => \$processorerrorstate,
+                                            read_code         => $read_code,
                                             threadqueuelength    => $tableprocessing_threadqueuelength,
                                             get_db               => $get_db,
                                             tablename            => $tablename,
@@ -1217,6 +1220,9 @@ sub process_table {
                     fetching_rows($db,$tablename,$i,$blocksize,$rowcount,getlogger(__PACKAGE__));
                     $db->db_get_begin($selectstatement,$i,$blocksize,@$values) unless $db->rowblock_transactional;
                     my $rowblock = $db->db_get_rowblock($blocksize);
+                    if ('CODE' eq ref $read_code) {
+                        $rowblock = &$read_code($rowblock);
+                    }
                     $db->db_finish() unless $db->rowblock_transactional;
                     my $realblocksize = scalar @$rowblock;
                     if ($realblocksize > 0) {
@@ -1396,6 +1402,9 @@ sub _reader {
             #              #block    => $i,
             #              row_offset => $i};
             my %packet :shared = ();
+            if ('CODE' eq ref $context->{read_code}) {
+                $rowblock = &{$context->{read_code}}($rowblock);
+            }
             $packet{rows} = $rowblock;
             $packet{size} = $realblocksize;
             $packet{row_offset} = $i;
