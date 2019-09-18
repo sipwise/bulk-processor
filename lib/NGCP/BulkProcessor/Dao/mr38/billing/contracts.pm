@@ -32,6 +32,7 @@ our @EXPORT_OK = qw(
     countby_status_resellerid
 
     process_records
+    process_records_source
 
     $ACTIVE_STATE
     $TERMINATED_STATE
@@ -73,6 +74,18 @@ sub new {
 
     my $class = shift;
     my $self = NGCP::BulkProcessor::SqlRecord->new($class,$get_db,
+                           $tablename,$expected_fieldnames,$indexes);
+
+    copy_row($self,shift,$expected_fieldnames);
+
+    return $self;
+
+}
+
+sub new_source {
+
+    my $class = shift;
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,shift,
                            $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
@@ -181,6 +194,50 @@ sub process_records {
     );
 }
 
+sub process_records_source {
+
+    my %params = @_;
+    my ($source_db,
+        $process_code,
+        $static_context,
+        $init_process_context_code,
+        $uninit_process_context_code,
+        $multithreading,
+        $numofthreads,
+        $load_recursive) = @params{qw/
+            source_db
+            process_code
+            static_context
+            init_process_context_code
+            uninit_process_context_code
+            multithreading
+            numofthreads
+            load_recursive
+        /};
+
+    $source_db //= $get_db;
+    check_table($source_db);
+    my $db = &$source_db();
+    my $table = $db->tableidentifier($tablename);
+
+    return process_table(
+        get_db                      => $source_db,
+        class                       => __PACKAGE__,
+        process_code                => sub {
+                my ($context,$rowblock,$row_offset) = @_;
+                return &$process_code($context,buildrecords_fromrows_source($rowblock,$source_db,$load_recursive),$row_offset);
+            },
+        static_context              => $static_context,
+        init_process_context_code   => $init_process_context_code,
+        uninit_process_context_code => $uninit_process_context_code,
+        destroy_reader_dbs_code     => \&destroy_dbs,
+        multithreading              => $multithreading,
+        tableprocessing_threads     => $numofthreads,
+        'select'                    => 'SELECT * FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"',
+        'selectcount'               => 'SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"',
+    );
+}
+
 
 sub buildrecords_fromrows {
 
@@ -192,6 +249,27 @@ sub buildrecords_fromrows {
     if (defined $rows and ref $rows eq 'ARRAY') {
         foreach my $row (@$rows) {
             $record = __PACKAGE__->new($row);
+
+            # transformations go here ...
+
+            push @records,$record;
+        }
+    }
+
+    return \@records;
+
+}
+
+sub buildrecords_fromrows_source {
+
+    my ($rows,$source_db,$load_recursive) = @_;
+
+    my @records = ();
+    my $record;
+
+    if (defined $rows and ref $rows eq 'ARRAY') {
+        foreach my $row (@$rows) {
+            $record = __PACKAGE__->new_source($source_db,$row);
 
             # transformations go here ...
 
