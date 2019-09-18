@@ -46,6 +46,7 @@ my $LongReadLen = $LongReadLen_limit; #bytes
 my $LongTruncOk = 0;
 
 my $net_read_timeout = 300;
+my $wait_timeout = 300;
 #my $logger = getlogger(__PACKAGE__);
 
 #my $lock_do_chunk = 0; #1;
@@ -242,6 +243,9 @@ sub db_connect {
     #$self->db_do('SET SESSION datetime_format = \'%Y-%m-%d %H:%i:%s\'');
     if (defined $net_read_timeout) {
         $self->db_do('SET SESSION net_read_timeout = ' . $net_read_timeout);
+    }
+    if (defined $wait_timeout) {
+        $self->db_do('SET SESSION wait_timeout = ' . $wait_timeout);
     }
 
     if (length($serialization_level) > 0) {

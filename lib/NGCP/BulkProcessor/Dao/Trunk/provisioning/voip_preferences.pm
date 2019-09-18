@@ -13,6 +13,8 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_rewrite_rule_sets qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -29,8 +31,10 @@ our @EXPORT_OK = qw(
 
     $NCOS_ID_ATTRIBUTE
     $ADM_NCOS_ID_ATTRIBUTE
+    $ADM_CF_NCOS_ID_ATTRIBUTE
 
     $GPPx_ATTRIBUTE
+    %DPID_ATTRIBUTES
 
     $PEER_AUTH_USER
     $PEER_AUTH_PASS
@@ -39,6 +43,7 @@ our @EXPORT_OK = qw(
     $FORCE_INBOUND_CALLS_TO_PEER
 
     $ALLOWED_IPS_GRP_ATTRIBUTE
+    $MAN_ALLOWED_IPS_GRP_ATTRIBUTE
     $CONCURRENT_MAX_TOTAL_ATTRIBUTE
     $CONCURRENT_MAX_PER_ACCOUNT
 
@@ -54,6 +59,13 @@ our @EXPORT_OK = qw(
     $CLOUD_PBX_HUNT_POLICY_ATTRIBUTE
     $MUSIC_ON_HOLD_ATTRIBUTE
     $SHARED_BUDDYLIST_VISIBILITY_ATTRIBUTE
+
+    $CDR_EXPORT_SCLIDUI_RWRS_ID_ATTRIBUTE
+    $EMERGENCY_MAPPING_CONTAINER_ID_ATTRIBUTE
+
+    $SOUND_SET_ATTRIBUTE
+    $CONTRACT_SOUND_SET_ATTRIBUTE
+    $HEADER_RULE_SET_ATTRIBUTE
 );
 #$FORCE_OUTBOUND_CALLS_TO_PEER
 
@@ -91,7 +103,10 @@ our $ACCOUNT_ID_ATTRIBUTE = 'account_id';
 
 our $NCOS_ID_ATTRIBUTE = 'ncos_id';
 our $ADM_NCOS_ID_ATTRIBUTE = 'adm_ncos_id';
+our $ADM_CF_NCOS_ID_ATTRIBUTE = 'adm_ncos_id';
 our $GPPx_ATTRIBUTE = 'gpp';
+
+our %DPID_ATTRIBUTES = map { 'rewrite_' . $_ => $_; } @NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_rewrite_rule_sets::DPID_FIELDS;
 
 our $PEER_AUTH_USER = 'peer_auth_user';
 our $PEER_AUTH_PASS = 'peer_auth_pass';
@@ -101,6 +116,7 @@ our $FORCE_INBOUND_CALLS_TO_PEER = 'force_inbound_calls_to_peer';
 #our $FORCE_OUTBOUND_CALLS_TO_PEER = 'force_outbound_calls_to_peer';
 
 our $ALLOWED_IPS_GRP_ATTRIBUTE = 'allowed_ips_grp';
+our $MAN_ALLOWED_IPS_GRP_ATTRIBUTE = 'man_allowed_ips_grp';
 
 our $CONCURRENT_MAX_TOTAL_ATTRIBUTE = 'concurrent_max_total';
 our $CONCURRENT_MAX_PER_ACCOUNT_ATTRIBUTE = 'concurrent_max_per_account';
@@ -119,6 +135,12 @@ our $CLOUD_PBX_BASE_CLI_ATTRIBUTE = 'cloud_pbx_base_cli';
 our $CLOUD_PBX_HUNT_POLICY_ATTRIBUTE = 'cloud_pbx_hunt_policy';
 our $MUSIC_ON_HOLD_ATTRIBUTE = 'music_on_hold';
 our $SHARED_BUDDYLIST_VISIBILITY_ATTRIBUTE = 'shared_buddylist_visibility';
+
+our $CDR_EXPORT_SCLIDUI_RWRS_ID_ATTRIBUTE = 'cdr_export_sclidui_rwrs_id';
+our $EMERGENCY_MAPPING_CONTAINER_ID_ATTRIBUTE = 'emergency_mapping_container_id';
+our $SOUND_SET_ATTRIBUTE = 'sound_set';
+our $CONTRACT_SOUND_SET_ATTRIBUTE = 'contract_sound_set';
+our $HEADER_RULE_SET_ATTRIBUTE = 'header_rule_set';
 
 sub new {
 
