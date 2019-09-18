@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_peer_groups;
 use strict;
 
 ## no critic
@@ -28,15 +28,20 @@ our @EXPORT_OK = qw(
 
     insert_row
 
-    findby_domain
+
 );
 
-my $tablename = 'voip_domains';
+my $tablename = 'voip_peer_groups';
 my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
     'id',
-    'domain',
+    'name',
+    'priority',
+    'description',
+    'peering_contract_id',
+    'has_inbound_rules',
+    'time_set_id',
 ];
 
 my $indexes = {};
@@ -55,22 +60,7 @@ sub new {
 
 }
 
-sub findby_domain {
 
-    my ($domain,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
-
-}
 
 sub insert_row {
 
@@ -84,14 +74,14 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($domain) = @params{qw/
-                domain
-            /};
+        my ($name) = @params{qw/
+            name
+        /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('domain') . ') VALUES (' .
+                $db->columnidentifier('name') . ') VALUES (' .
                 '?)',
-                $domain,
+                $name,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();

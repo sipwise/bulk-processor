@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_peer_rules;
 use strict;
 
 ## no critic
@@ -28,15 +28,21 @@ our @EXPORT_OK = qw(
 
     insert_row
 
-    findby_domain
+
 );
 
-my $tablename = 'voip_domains';
+my $tablename = 'voip_peer_rules';
 my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
-    'id',
-    'domain',
+  'id',
+  'group_id',
+  'callee_prefix',
+  'callee_pattern',
+  'caller_pattern',
+  'description',
+  'enabled',
+  'stopper',
 ];
 
 my $indexes = {};
@@ -55,22 +61,7 @@ sub new {
 
 }
 
-sub findby_domain {
 
-    my ($domain,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
-
-}
 
 sub insert_row {
 
@@ -84,14 +75,19 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($domain) = @params{qw/
-                domain
-            /};
+        my ($group_id,
+            $description) = @params{qw/
+            group_id
+            description
+        /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('domain') . ') VALUES (' .
+                $db->columnidentifier('group_id') . ', ' .
+                $db->columnidentifier('description') . ') VALUES (' .
+                '?, ' .
                 '?)',
-                $domain,
+                $group_id,
+                $description,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();

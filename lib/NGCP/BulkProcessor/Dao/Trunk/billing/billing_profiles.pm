@@ -3,6 +3,11 @@ use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+);
+
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
 
@@ -11,6 +16,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     copy_row
+    insert_record
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -19,6 +25,7 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
+    insert_row
 
     findby_id
     findall
@@ -26,6 +33,8 @@ our @EXPORT_OK = qw(
 
     $DEFAULT_PROFILE_FREE_CASH
     $DEFAULT_PROFILE_FREE_TIME
+
+    $DEFAULT_PROFILE_HANDLE
 );
 
 my $tablename = 'billing_profiles';
@@ -58,8 +67,12 @@ my $expected_fieldnames = [
 
 my $indexes = {};
 
+my $insert_unique_fields = [];
+
 our $DEFAULT_PROFILE_FREE_CASH = 0.0;
 our $DEFAULT_PROFILE_FREE_TIME = 0;
+
+our $DEFAULT_PROFILE_HANDLE = 'default';
 
 sub new {
 
@@ -136,6 +149,47 @@ sub findby_resellerid_name_handle {
     return buildrecords_fromrows($rows,$load_recursive);
 
 }
+
+
+sub insert_row {
+
+    my $db = &$get_db();
+    my $xa_db = shift // $db;
+    if ('HASH' eq ref $_[0]) {
+        my ($data,$insert_ignore) = @_;
+        check_table();
+        if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
+            return $xa_db->db_last_insert_id();
+        }
+    } else {
+        my %params = @_;
+        my ($reseller_id,
+            $name,
+            $handle) = @params{qw/
+                reseller_id
+                name
+                handle
+            /};
+
+        if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+                $db->columnidentifier('reseller_id') . ',' .
+                $db->columnidentifier('handle')  . ',' .
+                $db->columnidentifier('name') .') VALUES (' .
+                '?, ' .
+                '?, ' .
+                '?)',
+                $reseller_id,
+                $handle,
+                $name
+            )) {
+            rowinserted($db,$tablename,getlogger(__PACKAGE__));
+            return $xa_db->db_last_insert_id();
+        }
+    }
+    return undef;
+
+}
+
 
 sub buildrecords_fromrows {
 

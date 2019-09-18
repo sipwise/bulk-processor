@@ -407,7 +407,7 @@ sub _postprocess_masterconfig {
     my ($data) = @params{qw/data/};
 
     if (defined $data) {
-            # databases - dsp
+
         $accounting_host = $data->{accounting_host} if exists $data->{accounting_host};
         $accounting_port = $data->{accounting_port} if exists $data->{accounting_port};
         $accounting_databasename = $data->{accounting_databasename} if exists $data->{accounting_databasename};
