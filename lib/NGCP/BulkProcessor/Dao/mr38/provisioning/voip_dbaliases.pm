@@ -1,11 +1,16 @@
-package NGCP::BulkProcessor::Dao::mr38::billing::billing_profiles;
+package NGCP::BulkProcessor::Dao::mr38::provisioning::voip_dbaliases;
 use strict;
 
 ## no critic
 
-use NGCP::BulkProcessor::ConnectorPool qw(
-    get_billing_db
+use threads::shared;
 
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+);
+
+use NGCP::BulkProcessor::ConnectorPool qw(
+    get_provisioning_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -20,38 +25,23 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    source_findby_resellerid
+    source_findby_subscriberid
 );
 
-my $tablename = 'billing_profiles';
-my $get_db = \&get_billing_db;
+my $tablename = 'voip_dbaliases';
+my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
     'id',
-    'reseller_id',
-    'handle',
-    'name',
-    'prepaid',
-    'interval_charge',
-    'interval_free_time',
-    'interval_free_cash',
-    'interval_unit',
-    'interval_count',
-    'fraud_interval_limit',
-    'fraud_interval_lock',
-    'fraud_interval_notify',
-    'fraud_daily_limit',
-    'fraud_daily_lock',
-    'fraud_daily_notify',
-    'fraud_use_reseller_rates',
-    'currency',
-    'status',
-    'modify_timestamp',
-    'create_timestamp',
-    'terminate_timestamp',
+    'username',
+    'domain_id',
+    'subscriber_id',
+    'is_primary',
 ];
 
 my $indexes = {};
+
+my $insert_unique_fields = [];
 
 sub new {
 
@@ -64,7 +54,6 @@ sub new {
     return $self;
 
 }
-
 
 sub gettablename {
 
@@ -81,6 +70,7 @@ sub check_table {
 
 }
 
+
 sub source_new {
 
     my $class = shift;
@@ -93,18 +83,18 @@ sub source_new {
 
 }
 
-sub source_findby_resellerid {
+sub source_findby_subscriberid {
 
-    my ($source_dbs,$reseller_id) = @_;
+    my ($source_dbs,$subscriber_id) = @_;
 
-    my $source_db = $source_dbs->{billing_db};
+    my $source_db = $source_dbs->{provisioning_db};
     check_table($source_db);
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('reseller_id') . ' = ?';
-    my @params = ($reseller_id);
+            $db->columnidentifier('subscriber_id') . ' = ?';
+    my @params = ($subscriber_id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
@@ -116,12 +106,12 @@ sub source_buildrecords_fromrows {
 
     my ($rows,$source_dbs) = @_;
 
-    my @records = (); # : shared = ();
+    my @records : shared = ();
     my $record;
 
     if (defined $rows and ref $rows eq 'ARRAY') {
         foreach my $row (@$rows) {
-            $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
+            $record = __PACKAGE__->source_new($source_dbs->{provisioning_db},$row);
 
             # transformations go here ...
 

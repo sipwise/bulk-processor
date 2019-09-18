@@ -66,8 +66,8 @@ sub append_billing_mappings {
 
     my $mappings = '';
     foreach my $mapping (@$mappings_to_create) {
-        $mappings .= (defined $mapping->{start_date} ? datetime_to_string($mapping->{start_date}) : '') . ',';
-        $mappings .= (defined $mapping->{end_date} ? datetime_to_string($mapping->{end_date}) : '') . ',';
+        $mappings .= (defined $mapping->{start_date} ? _datetime_to_string($mapping->{start_date}) : '') . ',';
+        $mappings .= (defined $mapping->{end_date} ? _datetime_to_string($mapping->{end_date}) : '') . ',';
         $mappings .= (defined $mapping->{billing_profile_id} ? $mapping->{billing_profile_id} : '') . ',';
         $mappings .= (defined $mapping->{network_id} ? $mapping->{network_id} : '') . ',';
         $mappings .= ';'; #last = 1 by default
@@ -75,10 +75,18 @@ sub append_billing_mappings {
 
     $xa_db->db_do('call billing.schedule_contract_billing_profile_network(?,?,?)',
         $contract_id,
-        ((defined $now and $delete_mappings) ? datetime_to_string($now) : undef),
+        ((defined $now and $delete_mappings) ? _datetime_to_string($now) : undef),
         $mappings
     );
 
+}
+
+sub _datetime_to_string {
+    my $dt = shift;
+    if (ref $dt) {
+        return datetime_to_string($dt);
+    }
+    return $dt;
 }
 
 sub buildrecords_fromrows {

@@ -29,6 +29,7 @@ our @EXPORT_OK = qw(
     update_row
 
     findby_reselleridfields
+    findby_fields
     findby_id
 );
 
@@ -101,6 +102,29 @@ sub findby_reselleridfields {
         $stmt .= ' AND ' . $db->columnidentifier($field) . ' = ?';
         push(@params,$fields->{$field});
     }
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_fields {
+
+    my ($xa_db,$fields,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    foreach my $field (keys %$fields) {
+        push(@terms,$db->columnidentifier($field) . ' = ?');
+        push(@params,$fields->{$field});
+    }
+    $stmt .= ' WHERE ' . join(' AND ',@terms) if (scalar @terms) > 0;
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);
