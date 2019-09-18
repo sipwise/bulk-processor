@@ -3,6 +3,11 @@ use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+);
+
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
 
@@ -11,6 +16,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     copy_row
+    insert_record
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -19,6 +25,8 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
+
+    insert_row
 
     findby_domain
     findby_id
@@ -34,6 +42,8 @@ my $expected_fieldnames = [
 ];
 
 my $indexes = {};
+
+my $insert_unique_fields = [];
 
 sub new {
 
@@ -93,6 +103,35 @@ sub findby_id {
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub insert_row {
+
+    my $db = &$get_db();
+    my $xa_db = shift // $db;
+    if ('HASH' eq ref $_[0]) {
+        my ($data,$insert_ignore) = @_;
+        check_table();
+        if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
+            return $xa_db->db_last_insert_id();
+        }
+    } else {
+        my %params = @_;
+        my ($domain) = @params{qw/
+                domain
+            /};
+
+        if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+                $db->columnidentifier('domain') . ') VALUES (' .
+                '?)',
+                $domain,
+            )) {
+            rowinserted($db,$tablename,getlogger(__PACKAGE__));
+            return $xa_db->db_last_insert_id();
+        }
+    }
+    return undef;
 
 }
 
