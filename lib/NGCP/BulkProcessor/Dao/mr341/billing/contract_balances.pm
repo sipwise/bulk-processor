@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr38::billing::contract_balances;
+package NGCP::BulkProcessor::Dao::mr341::billing::contract_balances;
 use strict;
 
 ## no critic
