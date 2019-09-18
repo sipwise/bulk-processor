@@ -1,6 +1,8 @@
 package NGCP::BulkProcessor::SqlRecord;
 use strict;
 
+use threads::shared;
+
 ## no critic
 
 use NGCP::BulkProcessor::Table qw(get_rowhash);
@@ -16,6 +18,16 @@ sub new {
     my $base_class = shift;
     my $class = shift;
     my $self = bless {}, $class;
+    return init_record($self,$class,@_);
+
+}
+
+sub new_shared {
+
+    my $base_class = shift;
+    my $class = shift;
+    my %obj : shared = ();
+    my $self = bless \%obj, $class;
     return init_record($self,$class,@_);
 
 }
