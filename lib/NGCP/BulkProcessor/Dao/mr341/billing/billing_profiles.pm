@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr38::billing::billing_profiles;
+package NGCP::BulkProcessor::Dao::mr341::billing::billing_profiles;
 use strict;
 
 ## no critic
@@ -43,12 +43,12 @@ my $expected_fieldnames = [
     'fraud_daily_limit',
     'fraud_daily_lock',
     'fraud_daily_notify',
-    'fraud_use_reseller_rates',
+    #'fraud_use_reseller_rates',
     'currency',
-    'status',
-    'modify_timestamp',
-    'create_timestamp',
-    'terminate_timestamp',
+    #'status',
+    #'modify_timestamp',
+    #'create_timestamp',
+    #'terminate_timestamp',
 ];
 
 my $indexes = {};
