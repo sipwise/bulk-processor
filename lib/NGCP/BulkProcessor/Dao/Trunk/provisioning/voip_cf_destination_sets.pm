@@ -3,6 +3,12 @@ use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+
+);
+
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_provisioning_db
 
@@ -21,7 +27,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    countby_subscriberid_type
+
     insert_row
 );
 
@@ -50,32 +56,7 @@ sub new {
 
 }
 
-sub countby_subscriberid_type {
 
-    my ($subscriber_id,$type,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT COUNT(*) FROM ' . $table;
-    my @params = ();
-    my @terms = ();
-    if ($subscriber_id) {
-        push(@terms,$db->columnidentifier('subscriber_id') . ' = ?');
-        push(@params,$subscriber_id);
-    }
-    if ($type) {
-        push(@terms,$db->columnidentifier('type') . ' = ?');
-        push(@params,$type);
-    }
-    if ((scalar @terms) > 0) {
-        $stmt .= ' WHERE ' . join(' AND ',@terms);
-    }
-
-    return $db->db_get_value($stmt,@params);
-
-}
 
 sub insert_row {
 
@@ -99,7 +80,9 @@ sub insert_row {
                 $db->columnidentifier('subscriber_id') . ', ' .
                 $db->columnidentifier('name') .') VALUES (' .
                 '?, ' .
-                '?)'
+                '?)',
+                $subscriber_id,
+                $name
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();
