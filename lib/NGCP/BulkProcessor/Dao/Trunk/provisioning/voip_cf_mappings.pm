@@ -46,6 +46,8 @@ my $expected_fieldnames = [
     'type',
     'destination_set_id',
     'time_set_id',
+    'source_set_id',
+    'bnumber_set_id',
 ];
 
 my $indexes = {};
@@ -142,18 +144,25 @@ sub insert_row {
         my ($subscriber_id,
             $type,
             $destination_set_id,
-            $time_set_id) = @params{qw/
+            $time_set_id,
+            $source_set_id,
+            $bnumber_set_id) = @params{qw/
                 subscriber_id
                 type
                 destination_set_id
                 time_set_id
+                source_set_id
+                bnumber_set_id
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
                 $db->columnidentifier('subscriber_id') . ', ' .
                 $db->columnidentifier('type') . ', ' .
                 $db->columnidentifier('destination_set_id') . ', ' .
-                $db->columnidentifier('time_set_id') . ') VALUES (' .
+                $db->columnidentifier('time_set_id') . ', ' .
+                $db->columnidentifier('source_set_id') . ', ' .
+                $db->columnidentifier('bnumber_set_id') . ') VALUES (' .
+                '?, ' .
                 '?, ' .
                 '?, ' .
                 '?, ' .
@@ -161,7 +170,9 @@ sub insert_row {
                 $subscriber_id,
                 $type,
                 $destination_set_id,
-                $time_set_id
+                $time_set_id,
+                $source_set_id,
+                $bnumber_set_id
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();
