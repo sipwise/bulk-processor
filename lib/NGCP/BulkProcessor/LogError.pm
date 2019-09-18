@@ -411,12 +411,10 @@ sub transferzerorowcount {
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
     my $message = _getsqlconnectorinstanceprefix($db) . '[' . $db->connectidentifier() . '].' . $tablename . ' has 0 rows';
     if (defined $logger) {
-        $logger->error($message);
+        $logger->warn($message);
     }
 
-    terminate($message, $logger);
-    #terminatethreads();
-    #die();
+    #terminate($message, $logger);
 
 }
 
@@ -425,12 +423,10 @@ sub processzerorowcount {
     my ($db,$tablename,$numofrows,$logger) = @_;
     my $message = '[' . $db->connectidentifier() . '].' . $tablename . ' has 0 rows';
     if (defined $logger) {
-        $logger->error($message);
+        $logger->warn($message);
     }
 
-    terminate($message, $logger);
-    #terminatethreads();
-    #die();
+    #terminate($message, $logger);
 
 }
 
