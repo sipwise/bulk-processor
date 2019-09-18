@@ -44,6 +44,8 @@ my $expected_fieldnames = [
     'domain_id',
     'subscriber_id',
     'is_primary',
+    'is_devid',
+    'devid_alias',
 ];
 
 my $indexes = {};
