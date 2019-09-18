@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr38::billing::contracts;
+package NGCP::BulkProcessor::Dao::mr341::billing::contracts;
 use strict;
 
 use threads::shared;
@@ -24,10 +24,10 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
-use NGCP::BulkProcessor::Dao::mr38::billing::billing_mappings qw();
-use NGCP::BulkProcessor::Dao::mr38::billing::contacts qw();
-use NGCP::BulkProcessor::Dao::mr38::billing::contract_balances qw();
-use NGCP::BulkProcessor::Dao::mr38::billing::voip_subscribers qw();
+use NGCP::BulkProcessor::Dao::mr341::billing::billing_mappings qw();
+use NGCP::BulkProcessor::Dao::mr341::billing::contacts qw();
+use NGCP::BulkProcessor::Dao::mr341::billing::contract_balances qw();
+use NGCP::BulkProcessor::Dao::mr341::billing::voip_subscribers qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -40,6 +40,8 @@ our @EXPORT_OK = qw(
 
     process_records
     source_process_records
+
+    source_findby_id
 
     $ACTIVE_STATE
     $TERMINATED_STATE
@@ -246,6 +248,7 @@ sub source_process_records {
         $static_context,
         $init_process_context_code,
         $uninit_process_context_code,
+        $destroy_reader_dbs_code,
         $multithreading,
         $numofthreads) = @params{qw/
             source_dbs
@@ -254,6 +257,7 @@ sub source_process_records {
             static_context
             init_process_context_code
             uninit_process_context_code
+            destroy_reader_dbs_code
             multithreading
             numofthreads
         /};
@@ -278,12 +282,31 @@ sub source_process_records {
         static_context              => $static_context,
         init_process_context_code   => $init_process_context_code,
         uninit_process_context_code => $uninit_process_context_code,
-        destroy_reader_dbs_code     => \&destroy_dbs,
+        destroy_reader_dbs_code     => $destroy_reader_dbs_code,
         multithreading              => $multithreading,
         tableprocessing_threads     => $numofthreads,
         'select'                    => 'SELECT * FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"',
         'selectcount'               => 'SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"',
     );
+}
+
+sub source_findby_id {
+
+    my ($source_dbs,$id) = @_;
+
+    my $source_db = $source_dbs->{billing_db};
+    check_table($source_db);
+    my $db = &$source_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+
+    my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return source_buildrecords_fromrows($rows,$source_dbs)->[0];
+
 }
 
 sub source_buildrecords_fromrows {
@@ -297,11 +320,13 @@ sub source_buildrecords_fromrows {
         foreach my $row (@$rows) {
             $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
 
-            $record->{billing_mappings} = NGCP::BulkProcessor::Dao::mr38::billing::billing_mappings::source_findby_contractid($source_dbs,$record->{id});
-            $record->{contact} = NGCP::BulkProcessor::Dao::mr38::billing::contacts::source_findby_id($source_dbs,$record->{contact_id});
-            $record->{contract_balances} = NGCP::BulkProcessor::Dao::mr38::billing::contract_balances::source_findby_contractid($source_dbs,$record->{id});
+            $record->{billing_mappings} = NGCP::BulkProcessor::Dao::mr341::billing::billing_mappings::source_findby_contractid($source_dbs,$record->{id});
+            $record->{contact} = NGCP::BulkProcessor::Dao::mr341::billing::contacts::source_findby_id($source_dbs,$record->{contact_id});
+            $record->{contract_balances} = NGCP::BulkProcessor::Dao::mr341::billing::contract_balances::source_findby_contractid($source_dbs,$record->{id});
             #contract_fraud_preferences
-            $record->{voip_subscribers} = NGCP::BulkProcessor::Dao::mr38::billing::voip_subscribers::source_findby_contractid($source_dbs,$record->{id});
+            if ($record->{contact}->{reseller_id}) {
+                $record->{voip_subscribers} = NGCP::BulkProcessor::Dao::mr341::billing::voip_subscribers::source_findby_contractid($source_dbs,$record->{id});
+            }
 
             push @records,$record;
         }

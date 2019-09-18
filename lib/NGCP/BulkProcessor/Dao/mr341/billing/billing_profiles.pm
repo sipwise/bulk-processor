@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr38::billing::billing_profiles;
+package NGCP::BulkProcessor::Dao::mr341::billing::billing_profiles;
 use strict;
 
 ## no critic
@@ -19,6 +19,8 @@ our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
+
+
 
     source_findby_resellerid
 );
@@ -43,12 +45,12 @@ my $expected_fieldnames = [
     'fraud_daily_limit',
     'fraud_daily_lock',
     'fraud_daily_notify',
-    'fraud_use_reseller_rates',
+    #'fraud_use_reseller_rates',
     'currency',
-    'status',
-    'modify_timestamp',
-    'create_timestamp',
-    'terminate_timestamp',
+    #'status',
+    #'modify_timestamp',
+    #'create_timestamp',
+    #'terminate_timestamp',
 ];
 
 my $indexes = {};
@@ -64,6 +66,7 @@ sub new {
     return $self;
 
 }
+
 
 
 sub gettablename {
@@ -84,7 +87,7 @@ sub check_table {
 sub source_new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new_shared($class,shift,
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,shift,
                            $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);

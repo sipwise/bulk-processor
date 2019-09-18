@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains;
+package NGCP::BulkProcessor::Dao::Trunk::billing::email_templates;
 use strict;
 
 ## no critic
@@ -9,7 +9,7 @@ use NGCP::BulkProcessor::Logging qw(
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+    get_billing_db
 
 );
 
@@ -28,15 +28,19 @@ our @EXPORT_OK = qw(
 
     insert_row
 
-    findby_domain
 );
 
-my $tablename = 'voip_domains';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'email_templates';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
-    'id',
-    'domain',
+  'id',
+  'reseller_id',
+  'name',
+  'from_email',
+  'subject',
+  'body',
+  'attachment_name',
 ];
 
 my $indexes = {};
@@ -55,22 +59,6 @@ sub new {
 
 }
 
-sub findby_domain {
-
-    my ($domain,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?';
-    my @params = ($domain);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
-
-}
 
 sub insert_row {
 
@@ -84,14 +72,39 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($domain) = @params{qw/
-                domain
-            /};
+        my ($reseller_id,
+            $name,
+            $from_email,
+            $subject,
+            $body,
+            $attachment_name) = @params{qw/
+            reseller_id
+            name
+            from_email
+            subject
+            body
+            attachment_name
+        /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('domain') . ') VALUES (' .
+                $db->columnidentifier('reseller_id') . ', ' .
+                $db->columnidentifier('name') . ', ' .
+                $db->columnidentifier('from_email') . ', ' .
+                $db->columnidentifier('subject') . ', ' .
+                $db->columnidentifier('body') . ', ' .
+                $db->columnidentifier('attachment_name') . ') VALUES (' .
+                '?, ' .
+                '?, ' .
+                '?, ' .
+                '?, ' .
+                '?, ' .
                 '?)',
-                $domain,
+                $reseller_id,
+                $name,
+                $from_email,
+                $subject,
+                $body,
+                $attachment_name,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();
