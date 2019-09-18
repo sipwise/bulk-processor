@@ -13,6 +13,8 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_rewrite_rule_sets qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -31,6 +33,7 @@ our @EXPORT_OK = qw(
     $ADM_NCOS_ID_ATTRIBUTE
 
     $GPPx_ATTRIBUTE
+    %DPID_ATTRIBUTES
 
     $PEER_AUTH_USER
     $PEER_AUTH_PASS
@@ -92,6 +95,8 @@ our $ACCOUNT_ID_ATTRIBUTE = 'account_id';
 our $NCOS_ID_ATTRIBUTE = 'ncos_id';
 our $ADM_NCOS_ID_ATTRIBUTE = 'adm_ncos_id';
 our $GPPx_ATTRIBUTE = 'gpp';
+
+our %DPID_ATTRIBUTES = map { 'rewrite_' . $_ => $_; } @NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_rewrite_rule_sets::DPID_FIELDS;
 
 our $PEER_AUTH_USER = 'peer_auth_user';
 our $PEER_AUTH_PASS = 'peer_auth_pass';
