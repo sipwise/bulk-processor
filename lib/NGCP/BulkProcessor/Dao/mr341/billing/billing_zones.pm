@@ -1,57 +1,54 @@
-package NGCP::BulkProcessor::Dao::mr38::billing::billing_profiles;
+package NGCP::BulkProcessor::Dao::mr341::billing::billing_zones;
 use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+);
+
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
-
+    destroy_dbs
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
+    insert_record
     copy_row
+
+    process_table
 );
 use NGCP::BulkProcessor::SqlRecord qw();
+
+#use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
+    insert_row
 
-    source_findby_resellerid
+    process_records
+    source_findby_billingprofileid
+
 );
 
-my $tablename = 'billing_profiles';
+my $tablename = 'billing_zones';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
-    'id',
-    'reseller_id',
-    'handle',
-    'name',
-    'prepaid',
-    'interval_charge',
-    'interval_free_time',
-    'interval_free_cash',
-    'interval_unit',
-    'interval_count',
-    'fraud_interval_limit',
-    'fraud_interval_lock',
-    'fraud_interval_notify',
-    'fraud_daily_limit',
-    'fraud_daily_lock',
-    'fraud_daily_notify',
-    'fraud_use_reseller_rates',
-    'currency',
-    'status',
-    'modify_timestamp',
-    'create_timestamp',
-    'terminate_timestamp',
+  'id',
+  'billing_profile_id',
+  'zone',
+  'detail',
 ];
 
 my $indexes = {};
+
 
 sub new {
 
@@ -64,6 +61,7 @@ sub new {
     return $self;
 
 }
+
 
 
 sub gettablename {
@@ -84,7 +82,7 @@ sub check_table {
 sub source_new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new_shared($class,shift,
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,shift,
                            $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
@@ -93,9 +91,9 @@ sub source_new {
 
 }
 
-sub source_findby_resellerid {
+sub source_findby_billingprofileid {
 
-    my ($source_dbs,$reseller_id) = @_;
+    my ($source_dbs,$billing_profile_id) = @_;
 
     my $source_db = $source_dbs->{billing_db};
     check_table($source_db);
@@ -103,8 +101,8 @@ sub source_findby_resellerid {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('reseller_id') . ' = ?';
-    my @params = ($reseller_id);
+            $db->columnidentifier('billing_profile_id') . ' = ?';
+    my @params = ($billing_profile_id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
@@ -124,6 +122,7 @@ sub source_buildrecords_fromrows {
             $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
 
             # transformations go here ...
+            #$record->{billing_profiles} = NGCP::BulkProcessor::Dao::mr38::billing::billing_profiles::source_findby_resellerid($source_dbs,$record->{id});
 
 
             push @records,$record;

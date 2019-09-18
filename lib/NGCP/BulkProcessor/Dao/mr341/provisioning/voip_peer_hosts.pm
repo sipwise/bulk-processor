@@ -1,16 +1,18 @@
-package NGCP::BulkProcessor::Dao::mr38::billing::billing_profiles;
+package NGCP::BulkProcessor::Dao::mr341::provisioning::voip_peer_hosts;
 use strict;
 
 ## no critic
 
+
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_billing_db
+    get_provisioning_db
 
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     copy_row
+
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -20,38 +22,32 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    source_findby_resellerid
+
+    source_findby_groupid
+
 );
 
-my $tablename = 'billing_profiles';
-my $get_db = \&get_billing_db;
+my $tablename = 'voip_peer_hosts';
+my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
-    'id',
-    'reseller_id',
-    'handle',
-    'name',
-    'prepaid',
-    'interval_charge',
-    'interval_free_time',
-    'interval_free_cash',
-    'interval_unit',
-    'interval_count',
-    'fraud_interval_limit',
-    'fraud_interval_lock',
-    'fraud_interval_notify',
-    'fraud_daily_limit',
-    'fraud_daily_lock',
-    'fraud_daily_notify',
-    'fraud_use_reseller_rates',
-    'currency',
-    'status',
-    'modify_timestamp',
-    'create_timestamp',
-    'terminate_timestamp',
+  'id',
+  'group_id',
+  'name',
+  'ip',
+  'host',
+  'port',
+  'transport',
+  'weight',
+  'via_route',
+  'via_lb',
+  #'enabled',
+  #'probe',
 ];
 
 my $indexes = {};
+
+
 
 sub new {
 
@@ -64,6 +60,7 @@ sub new {
     return $self;
 
 }
+
 
 
 sub gettablename {
@@ -84,7 +81,7 @@ sub check_table {
 sub source_new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new_shared($class,shift,
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,shift,
                            $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
@@ -93,18 +90,18 @@ sub source_new {
 
 }
 
-sub source_findby_resellerid {
+sub source_findby_groupid {
 
-    my ($source_dbs,$reseller_id) = @_;
+    my ($source_dbs,$group_id) = @_;
 
-    my $source_db = $source_dbs->{billing_db};
+    my $source_db = $source_dbs->{provisioning_db};
     check_table($source_db);
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('reseller_id') . ' = ?';
-    my @params = ($reseller_id);
+            $db->columnidentifier('group_id') . ' = ?';
+    my @params = ($group_id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
@@ -121,7 +118,7 @@ sub source_buildrecords_fromrows {
 
     if (defined $rows and ref $rows eq 'ARRAY') {
         foreach my $row (@$rows) {
-            $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
+            $record = __PACKAGE__->source_new($source_dbs->{provisioning_db},$row);
 
             # transformations go here ...
 
