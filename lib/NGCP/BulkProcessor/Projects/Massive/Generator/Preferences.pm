@@ -8,7 +8,7 @@ no strict 'refs';
 use threads::shared qw();
 #use List::Util qw();
 
-use NGCP::BulkProcessor::Projects::Migration::Teletek::Settings qw(
+use NGCP::BulkProcessor::Projects::Massive::Generator::Settings qw(
     $dry
     $skip_errors
 
@@ -29,8 +29,6 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::domains qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::domain_resellers qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 
-use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
-
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
@@ -39,10 +37,6 @@ use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_allowed_ip_groups qw();
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_xa_db
-);
-
-use NGCP::BulkProcessor::Projects::Migration::Teletek::ProjectConnectorPool qw(
-    destroy_all_dbs
 );
 
 use NGCP::BulkProcessor::Utils qw(threadid);
