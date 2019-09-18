@@ -120,16 +120,16 @@ sub get_filename {
     my ($show_tempfilename,$basepath) = @_;
     return $self->{tempfilename} if ($use_tempfiles and $show_tempfilename);
     return sprintf($ama_filename_format,
-        $basepath // $output_path,
-        $self->{now}->year,
-        substr($self->{now}->year,-2),
-        $self->{now}->month,
-        $self->{now}->day,
-        $self->{now}->hour,
-        $self->{now}->minute,
-        $self->{now}->second,
-        $self->{transfer_in}->get_structure()->get_file_sequence_number_field()->{file_sequence_number},
-        $ama_file_extension,
+        $basepath // $output_path, #%1
+        $self->{now}->year, #%2
+        substr($self->{now}->year,-2), #%3
+        $self->{now}->month, #%4
+        $self->{now}->day, #%5
+        $self->{now}->hour, #%6
+        $self->{now}->minute, #%7
+        $self->{now}->second, #%8
+        $self->{transfer_in}->get_structure()->get_file_sequence_number_field()->{file_sequence_number}, #%9
+        $ama_file_extension, #%10
     );
 }
 

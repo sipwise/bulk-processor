@@ -1,0 +1,41 @@
+perl /home/rkrenn/sipwise/git/bulk-processor/lib/NGCP/BulkProcessor/Projects/Migration/CommunicationConcept/process.pl \
+--task=cleanup \
+--task=copy_resellers \
+--force \
+--settings=settings_mr553.cfg
+
+perl /home/rkrenn/sipwise/git/bulk-processor/lib/NGCP/BulkProcessor/Projects/Migration/CommunicationConcept/process.pl \
+--task=cleanup \
+--task=copy_peers \
+--force \
+--settings=settings_mr553.cfg
+
+perl /home/rkrenn/sipwise/git/bulk-processor/lib/NGCP/BulkProcessor/Projects/Migration/CommunicationConcept/process.pl \
+--task=cleanup \
+--task=copy_resellers \
+--force \
+--settings=settings_mr341.cfg
+
+perl /home/rkrenn/sipwise/git/bulk-processor/lib/NGCP/BulkProcessor/Projects/Migration/CommunicationConcept/process.pl \
+--task=cleanup \
+--task=copy_peers \
+--force \
+--settings=settings_mr341.cfg
+
+
+perl /home/rkrenn/sipwise/git/bulk-processor/lib/NGCP/BulkProcessor/Projects/Migration/CommunicationConcept/process.pl \
+--task=cleanup \
+--task=copy_customers \
+--force \
+--dry \
+--settings=settings_mr553.cfg
+
+perl /home/rkrenn/sipwise/git/bulk-processor/lib/NGCP/BulkProcessor/Projects/Migration/CommunicationConcept/process.pl \
+--task=cleanup \
+--task=copy_customers \
+--force \
+--dry \
+--settings=settings_mr341.cfg
+
+
+
