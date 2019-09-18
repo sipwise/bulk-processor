@@ -1,11 +1,17 @@
-package NGCP::BulkProcessor::Dao::mr38::billing::billing_profiles;
+package NGCP::BulkProcessor::Dao::mr341::provisioning::voip_subscribers;
 use strict;
 
 ## no critic
 
-use NGCP::BulkProcessor::ConnectorPool qw(
-    get_billing_db
+use threads::shared;
 
+use NGCP::BulkProcessor::Logging qw(
+    getlogger
+    rowinserted
+);
+
+use NGCP::BulkProcessor::ConnectorPool qw(
+    get_provisioning_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -14,44 +20,45 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_dbaliases qw();
+use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_usr_preferences qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    source_findby_resellerid
+    source_findby_uuid
 );
 
-my $tablename = 'billing_profiles';
-my $get_db = \&get_billing_db;
+my $tablename = 'voip_subscribers';
+my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
     'id',
-    'reseller_id',
-    'handle',
-    'name',
-    'prepaid',
-    'interval_charge',
-    'interval_free_time',
-    'interval_free_cash',
-    'interval_unit',
-    'interval_count',
-    'fraud_interval_limit',
-    'fraud_interval_lock',
-    'fraud_interval_notify',
-    'fraud_daily_limit',
-    'fraud_daily_lock',
-    'fraud_daily_notify',
-    'fraud_use_reseller_rates',
-    'currency',
-    'status',
+    'username',
+    'domain_id',
+    'uuid',
+    'password',
+    'admin',
+    'account_id',
+    'webusername',
+    'webpassword',
+    'is_pbx_pilot',
+    'is_pbx_group',
+    'pbx_hunt_policy',
+    'pbx_hunt_timeout',
+    'pbx_extension',
+    'profile_set_id',
+    'profile_id',
     'modify_timestamp',
     'create_timestamp',
-    'terminate_timestamp',
 ];
 
 my $indexes = {};
+
+my $insert_unique_fields = [];
 
 sub new {
 
@@ -64,7 +71,6 @@ sub new {
     return $self;
 
 }
-
 
 sub gettablename {
 
@@ -93,22 +99,21 @@ sub source_new {
 
 }
 
-sub source_findby_resellerid {
+sub source_findby_uuid {
 
-    my ($source_dbs,$reseller_id) = @_;
+    my ($source_dbs,$uuid) = @_;
 
-    my $source_db = $source_dbs->{billing_db};
+    my $source_db = $source_dbs->{provisioning_db};
     check_table($source_db);
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('reseller_id') . ' = ?';
-    my @params = ($reseller_id);
-
+            $db->columnidentifier('uuid') . ' = ?';
+    my @params = ($uuid);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
-    return source_buildrecords_fromrows($rows,$source_dbs);
+    return source_buildrecords_fromrows($rows,$source_dbs)->[0];
 
 }
 
@@ -116,15 +121,16 @@ sub source_buildrecords_fromrows {
 
     my ($rows,$source_dbs) = @_;
 
-    my @records = (); # : shared = ();
+    my @records : shared = ();
     my $record;
 
     if (defined $rows and ref $rows eq 'ARRAY') {
         foreach my $row (@$rows) {
-            $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
+            $record = __PACKAGE__->source_new($source_dbs->{provisioning_db},$row);
 
             # transformations go here ...
-
+            $record->{voip_dbaliases} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_dbaliases::source_findby_subscriberid($source_dbs,$record->{id});
+            $record->{voip_usr_preferences} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_usr_preferences::source_findby_subscriberid($source_dbs,$record->{id});
 
             push @records,$record;
         }
