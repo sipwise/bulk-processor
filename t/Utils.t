@@ -16,13 +16,22 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 18;
+use Time::Local;
 
 require_ok('NGCP::BulkProcessor::Utils');
 
 NGCP::BulkProcessor::Utils->import(qw(
     zerofill
     secs_to_years
+    timestampdigits
+    datestampdigits
+    timestamp
+    timestamp_fromepochsecs
+    datestamp
+    get_year
+    get_year_month
+    get_year_month_day
 ));
 
 # zerofill()
@@ -37,3 +46,15 @@ is(secs_to_years(3661), '1 hour, 1 minute, 1 second');
 is(secs_to_years(7322), '2 hours, 2 minutes, 2 seconds');
 is(secs_to_years(86461), '1 day, 0 hours, 1 minute, 1 second');
 is(secs_to_years(691261), '8 days, 0 hours, 1 minute, 1 second');
+
+# time functions
+my $time = timelocal(58, 59, 23, 2, 10, 2042);
+
+is(timestampdigits($time), '20421102235958');
+is(datestampdigits($time), '20421102');
+is(timestamp($time), '2042-11-02 23:59:58');
+is(timestamp_fromepochsecs($time), '2042-11-02 23:59:58');
+is(datestamp($time), '2042-11-02');
+is(get_year($time), '2042');
+is_deeply([ get_year_month($time) ], [ '2042', '11' ]);
+is_deeply([ get_year_month_day($time) ], [ '2042', '11', '02' ]);
