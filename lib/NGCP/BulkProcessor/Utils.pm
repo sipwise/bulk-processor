@@ -24,6 +24,7 @@ use Net::Domain qw(hostname hostfqdn hostdomain);
 use Cwd qw(abs_path);
 #use File::Basename qw(fileparse);
 
+use Time::Piece;
 use Time::Seconds;
 use Date::Manip qw(Date_Init ParseDate UnixDate);
 #Date_Init('Language=English','DateFormat=non-US');
@@ -167,17 +168,40 @@ sub check_bool {
 }
 
 sub timestampdigits {
-
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-  return sprintf "%4d%02d%02d%02d%02d%02d",$year+1900,$mon+1,$mday,$hour,$min,$sec;
-
+  return localtime(shift)->strftime('%Y%m%d%H%M%S');
 }
 
 sub datestampdigits {
+  return localtime(shift)->strftime('%Y%m%d');
+}
 
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-  return sprintf "%4d%02d%02d",$year+1900,$mon+1,$mday;
+sub timestamp {
+  return localtime(shift)->strftime('%Y-%m-%d %H:%M:%S');
+}
 
+# Compat alias
+sub timestamp_fromepochsecs {
+  return timestamp(shift);
+}
+
+sub datestamp {
+  return localtime(shift)->strftime('%Y-%m-%d');
+}
+
+sub get_year {
+  return localtime(shift)->strftime('%Y');
+}
+
+sub get_year_month {
+  my $t = localtime(shift);
+
+  return ($t->strftime('%Y'), $t->strftime('%m'));
+}
+
+sub get_year_month_day {
+  my $t = localtime(shift);
+
+  return ($t->strftime('%Y'), $t->strftime('%m'), $t->strftime('%d'));
 }
 
 sub parse_datetime {
@@ -395,48 +419,6 @@ sub urldecode {
   my ($urltodecode) = @_;
   $urltodecode =~ s/%([\dA-Fa-f][\dA-Fa-f])/pack ("C", hex ($1))/eg;
   return $urltodecode;
-}
-
-sub timestamp {
-
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-  return sprintf "%4d-%02d-%02d %02d:%02d:%02d",$year+1900,$mon+1,$mday,$hour,$min,$sec;
-
-}
-
-sub timestamp_fromepochsecs {
-
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(shift);
-  return sprintf "%4d-%02d-%02d %02d:%02d:%02d",$year+1900,$mon+1,$mday,$hour,$min,$sec;
-
-}
-
-sub datestamp {
-
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-  return sprintf "%4d-%02d-%02d",$year+1900,$mon+1,$mday;
-
-}
-
-sub get_year {
-
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-  return (sprintf "%4d",$year+1900);
-
-}
-
-sub get_year_month {
-
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-  return ((sprintf "%4d",$year+1900),(sprintf "%02d",$mon+1));
-
-}
-
-sub get_year_month_day {
-
-  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-  return ((sprintf "%4d",$year+1900),(sprintf "%02d",$mon+1),(sprintf "%02d",$mday));
-
 }
 
 sub zerofill {
