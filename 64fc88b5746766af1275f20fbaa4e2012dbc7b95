@@ -16,6 +16,24 @@
       "revId": "64fc88b5746766af1275f20fbaa4e2012dbc7b95",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "4e603ac1_77b5998a",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 32,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-10-17T15:18:02Z",
+      "side": 1,
+      "message": "ok this is a replacement for \n\nsub prompt {\n  my ($query) \u003d @_; # take a prompt string as argument\n  local $| \u003d 1; # activate autoflush to immediately show the prompt\n  print $query;\n  chomp(my $answer \u003d \u003cSTDIN\u003e);\n  return $answer;\n}\n\nlgtm, but please try out such changes on your own -\u003e if it behaves fine w/o bad surprises.",
+      "parentUuid": "ef2f648b_f0ede565",
+      "revId": "64fc88b5746766af1275f20fbaa4e2012dbc7b95",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
