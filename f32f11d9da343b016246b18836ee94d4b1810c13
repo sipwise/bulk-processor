@@ -16,6 +16,24 @@
       "revId": "f32f11d9da343b016246b18836ee94d4b1810c13",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "1a3ebcbd_e26da010",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2019-10-17T17:00:34Z",
+      "side": 1,
+      "message": "Not needed, this is part of the perl core modules.",
+      "parentUuid": "88a92092_8da62873",
+      "revId": "f32f11d9da343b016246b18836ee94d4b1810c13",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
