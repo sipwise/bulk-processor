@@ -29,6 +29,8 @@ Date_Init('DateFormat=US');
 
 use Date::Calc qw(Normalize_DHMS Add_Delta_DHMS);
 
+use IO::Prompt::Tiny;
+
 use Text::Wrap qw();
 #use FindBin qw($Bin);
 use Digest::MD5 qw(); #qw(md5 md5_hex md5_base64);
@@ -1130,12 +1132,9 @@ sub get_cpucount {
    #printf "CPU load: %s\n"       , $cpu->load  || 0;
 }
 
+# Compat wrapper.
 sub prompt {
-  my ($query) = @_; # take a prompt string as argument
-  local $| = 1; # activate autoflush to immediately show the prompt
-  print $query;
-  chomp(my $answer = <STDIN>);
-  return $answer;
+  return IO::Prompt::Tiny::prompt(@_);
 }
 
 sub check_ipnet {

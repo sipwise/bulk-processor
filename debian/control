@@ -52,6 +52,7 @@ Depends:
  libgearman-client-perl,
  libhtml-parser-perl,
  libintl-perl,
+ libio-prompt-tiny-perl,
  libio-socket-ssl-perl,
  liblog-log4perl-perl,
  libmail-imapclient-perl,
