@@ -9,6 +9,8 @@ use threads;
 use POSIX qw(strtod locale_h floor fmod);
 setlocale(LC_NUMERIC, 'C');
 
+use List::Util qw(max min);
+
 use Data::UUID qw();
 use UUID qw();
 
@@ -708,14 +710,7 @@ sub min_timestamp {
 
     my (@timestamps) = @_;
 
-    my $min_ts = $timestamps[0];
-    foreach my $ts (@timestamps) {
-        if (($ts cmp $min_ts) < 0) {
-            $min_ts = $ts;
-        }
-    }
-
-    return $min_ts;
+    return min(@timestamps);
 
 }
 
@@ -723,14 +718,7 @@ sub max_timestamp {
 
     my (@timestamps) = @_;
 
-    my $min_ts = $timestamps[0];
-    foreach my $ts (@timestamps) {
-        if (($ts cmp $min_ts) > 0) {
-            $min_ts = $ts;
-        }
-    }
-
-    return $min_ts;
+    return max(@timestamps);
 
 }
 
