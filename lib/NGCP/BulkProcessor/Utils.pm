@@ -24,6 +24,7 @@ use Net::Domain qw(hostname hostfqdn hostdomain);
 use Cwd qw(abs_path);
 #use File::Basename qw(fileparse);
 
+use Time::Seconds;
 use Date::Manip qw(Date_Init ParseDate UnixDate);
 #Date_Init('Language=English','DateFormat=non-US');
 Date_Init('DateFormat=US');
@@ -746,69 +747,7 @@ sub secs_to_years {
 
   my $time_in_secs = shift;
 
-  my $negative = 0;
-  if ($time_in_secs < 0) {
-    $time_in_secs *= -1;
-    $negative = 1;
-  }
-
-  my $years = 0;
-  my $months = 0;
-  my $days = 0;
-  my $hours = 0;
-  my $mins = 0;
-  my $secs = $time_in_secs;
-
-  if ($secs >= 60) {
-    $mins = int($secs / 60);
-    $secs = ($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60-$mins*60);
-    if ($mins >= 60) {
-      $hours = int($mins / 60);
-      $mins = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60) / (60));
-      $secs = ($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60-$mins*60);
-      if ($hours >= 24) {
-        $days = int($hours / 24);
-        $hours = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24) / (60*60));
-        $mins = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60) / (60));
-        $secs = ($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60-$mins*60);
-        if ($days >= 30) {
-          $months = int($days / 30);
-          $days = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30) / (60*60*24));
-          $hours = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24) / (60*60));
-          $mins = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60) / (60));
-          $secs = ($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60-$mins*60);
-          if ($months >= 12) {
-            $years = int($months / 12);
-            $months = int(($time_in_secs-$years*60*60*24*30*12) / (60*60*24*30));
-            $days = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30) / (60*60*24));
-            $hours = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24) / (60*60));
-            $mins = int(($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60) / (60));
-            $secs = ($time_in_secs-$years*60*60*24*30*12-$months*60*60*24*30-$days*60*60*24-$hours*60*60-$mins*60);
-          }
-        }
-      }
-    }
-  }
-
-  $secs = zerofill(int($secs),2);
-  $mins = zerofill($mins,2);
-  $hours = zerofill($hours,2);
-
-  if ($years == 0 && $months == 0 && $days == 0) {
-    $time_in_secs = $hours . ':' . $mins . ':' . $secs;
-  } elsif($years == 0 && $months == 0) {
-    $time_in_secs = $days . ' day(s) - ' . $hours . ':' . $mins . ':' . $secs;
-  } elsif($years == 0) {
-    $time_in_secs = $months . ' month(s)/' . $days . ' day(s) - ' . $hours . ':' . $mins . ':' . $secs;
-  } else {
-    $time_in_secs = $years . ' year(s)/' . $months . ' month(s)/' . $days . ' day(s) - ' . $hours . ':' . $mins . ':' . $secs;
-  }
-
-  if ($negative == 1) {
-    return '- ' . $time_in_secs;
-  } else {
-    return $time_in_secs;
-  }
+  return Time::Seconds->new($time_in_secs)->pretty;
 }
 
 sub to_duration_string {
