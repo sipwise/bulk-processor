@@ -442,14 +442,8 @@ sub get_year_month_day {
 
 sub zerofill {
   my ($integer,$digits) = @_;
-  my $numberofzeroes = $digits - length($integer);
-  my $resultstring = $integer;
-  if ($digits > 0) {
-    for (my $i = 0; $i < $numberofzeroes; $i += 1) {
-      $resultstring = "0" . $resultstring;
-    }
-  }
-  return $resultstring;
+
+  return sprintf '%0*d', $digits, $integer;
 }
 
 sub trim {
