@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "ef2f648b_f0ede565",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 32,
+      "author": {
+        "id": 1000001
+      },
+      "writtenOn": "2019-10-17T14:55:46Z",
+      "side": 1,
+      "message": "what about new dependency in debian/control here?",
+      "revId": "64fc88b5746766af1275f20fbaa4e2012dbc7b95",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
