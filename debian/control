@@ -4,7 +4,14 @@ Priority: optional
 Maintainer: Sipwise Development Team <support@sipwise.com>
 Build-Depends:
  debhelper-compat (= 12),
+ libdata-uuid-perl <!nocheck>,
+ libdata-validate-ip-perl <!nocheck>,
+ libdate-calc-perl <!nocheck>,
+ libdate-manip-perl <!nocheck>,
  libmodule-build-perl,
+ libnet-address-ip-local-perl <!nocheck>,
+ libsys-cpuaffinity-perl <!nocheck>,
+ libuuid-perl <!nocheck>,
 Standards-Version: 3.9.8
 Homepage: https://www.sipwise.com/
 
