@@ -22,6 +22,30 @@
       "revId": "413324341c849d7f0922ffbeb3ebf987fd51d63c",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a68414d1_c6af784e",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 2
+      },
+      "lineNbr": 752,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-10-18T09:05:28Z",
+      "side": 1,
+      "message": "\u003eIt doesn\u0027t return years while I guess it should:\nyes, but that\u0027s cosmetic. this method is not critical, used for logoutput only.",
+      "parentUuid": "186d85dc_a7bd14e9",
+      "range": {
+        "startLine": 752,
+        "startChar": 44,
+        "endLine": 752,
+        "endChar": 50
+      },
+      "revId": "413324341c849d7f0922ffbeb3ebf987fd51d63c",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
     }
   ]
 }
