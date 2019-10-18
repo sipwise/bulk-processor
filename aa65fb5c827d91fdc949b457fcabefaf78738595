@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f4af0442_8b2af149",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 184,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2019-10-18T09:41:35Z",
+      "side": 1,
+      "message": "AFAICS we don\u0027t have any consumers for this in all our code base, BTW?",
+      "revId": "aa65fb5c827d91fdc949b457fcabefaf78738595",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
+    }
+  ]
+}
