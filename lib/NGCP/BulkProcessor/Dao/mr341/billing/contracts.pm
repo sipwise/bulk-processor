@@ -288,8 +288,8 @@ sub source_process_records {
         destroy_reader_dbs_code     => $destroy_reader_dbs_code,
         multithreading              => $multithreading,
         tableprocessing_threads     => $numofthreads,
-        'select'                    => 'SELECT * FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '" and id = 7185',
-        'selectcount'               => 'SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '" and id = 7185',
+        'select'                    => 'SELECT * FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"', # and id = 7185',
+        'selectcount'               => 'SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $db->columnidentifier('status') . ' != "' . $TERMINATED_STATE . '"', # and id = 7185',
     );
 }
 
