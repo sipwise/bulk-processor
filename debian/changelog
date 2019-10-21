@@ -1,3 +1,12 @@
+ngcp-bulk-processor (7.5.1.4+0~mr7.5.1.4) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [11b943e] TT#63528 CCS importer: clear CFU prefs for subs with "1:1" routing type
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 21 Oct 2019 17:20:23 +0200
+
 ngcp-bulk-processor (7.5.1.3+0~mr7.5.1.3) unstable; urgency=medium
 
   [ Rene Krenn ]
