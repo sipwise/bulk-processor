@@ -1762,7 +1762,13 @@ sub _set_callforwards {
         _info($context,"$type deleted",1)
             if NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::delete_cfmappings($context->{db},
                 $context->{prov_subscriber}->{id},{ '=' => $type });
-        unless ($clear) {
+        if ($clear) {
+            clear_subscriber_preferences($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{$type},
+                undef,
+            );
+        } else {
             my $destination_set_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destination_sets::insert_row($context->{db},{
                 subscriber_id => $context->{prov_subscriber}->{id},
                 name => "quickset_$type",
