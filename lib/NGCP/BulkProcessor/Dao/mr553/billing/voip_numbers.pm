@@ -42,7 +42,7 @@ my $expected_fieldnames = [
     'subscriber_id',
     'status',
     'ported',
-    #'list_timestamp',
+    'list_timestamp',
 ];
 
 my $indexes = {};
