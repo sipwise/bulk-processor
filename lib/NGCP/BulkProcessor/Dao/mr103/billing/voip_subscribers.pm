@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr553::billing::voip_numbers;
+package NGCP::BulkProcessor::Dao::mr103::billing::voip_subscribers;
 use strict;
 
 ## no critic
@@ -19,34 +19,37 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::mr103::provisioning::voip_subscribers qw();
+use NGCP::BulkProcessor::Dao::mr103::billing::voip_numbers qw();
+use NGCP::BulkProcessor::Dao::mr103::billing::domains qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    source_findby_subscriberid
-    source_findby_id
-
+    source_findby_contractid
 );
 
-my $tablename = 'voip_numbers';
+my $tablename = 'voip_subscribers';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'cc',
-    'ac',
-    'sn',
-    'reseller_id',
-    'subscriber_id',
+    'contract_id',
+    'uuid',
+    'username',
+    'domain_id',
     'status',
-    'ported',
-    'list_timestamp',
+    'primary_number_id',
 ];
 
 my $indexes = {};
 
+my $insert_unique_fields = [];
+
+our $TERMINATED_STATE = 'terminated';
 our $ACTIVE_STATE = 'active';
 
 sub new {
@@ -110,41 +113,22 @@ sub source_new {
 
 }
 
-sub source_findby_subscriberid {
+sub source_findby_contractid {
 
-    my ($source_dbs,$subscriber_id) = @_;
+    my ($source_dbs,$contract_id) = @_;
 
     my $source_db = $source_dbs->{billing_db};
     check_table($source_db);
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('subscriber_id') . ' = ?';
-    my @params = ($subscriber_id);
+    my $stmt = 'SELECT s.*,d.domain as domain FROM ' . $table . ' s JOIN billing.domains d ON s.domain_id = d.id WHERE ' .
+            $db->columnidentifier('contract_id') . ' = ?';
+    my @params = ($contract_id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return source_buildrecords_fromrows($rows,$source_dbs);
-
-}
-
-sub source_findby_id {
-
-    my ($source_dbs,$id) = @_;
-
-    my $source_db = $source_dbs->{billing_db};
-    check_table($source_db);
-    my $db = &$source_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('id') . ' = ?';
-    my @params = ($id);
-
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return source_buildrecords_fromrows($rows,$source_dbs)->[0];
 
 }
 
@@ -159,9 +143,16 @@ sub source_buildrecords_fromrows {
         foreach my $row (@$rows) {
             $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
 
-            # transformations go here ...
+            $record->{domain} = $row->{domain};
 
-            #$record->{provisioning_voip_subscriber} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_subscribers::source_findby_uuid($source_dbs,$record->{uuid});
+            $record->{provisioning_voip_subscriber} = NGCP::BulkProcessor::Dao::mr103::provisioning::voip_subscribers::source_findby_uuid($source_dbs,$record->{uuid});
+            $record->{voip_numbers} = NGCP::BulkProcessor::Dao::mr103::billing::voip_numbers::source_findby_subscriberid($source_dbs,$record->{id});
+            $record->{primary_number} = NGCP::BulkProcessor::Dao::mr103::billing::voip_numbers::source_findby_id($source_dbs,$record->{primary_number_id});
+
+            delete $record->{domain_id};
+            delete $record->{primary_number_id};
+            delete $record->{contract_id};
+            delete $record->{id};
 
             push @records,$record;
         }
