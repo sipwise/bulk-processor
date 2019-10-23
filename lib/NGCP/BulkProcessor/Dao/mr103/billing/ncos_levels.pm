@@ -1,13 +1,9 @@
-package NGCP::BulkProcessor::Dao::mr553::billing::voip_numbers;
+package NGCP::BulkProcessor::Dao::mr103::billing::ncos_levels;
 use strict;
 
 ## no critic
 
-use threads::shared;
-
-use NGCP::BulkProcessor::Logging qw(
-    getlogger
-);
+#use threads::shared;
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
@@ -19,35 +15,35 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::mr103::billing::ncos_pattern_list qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    source_findby_subscriberid
-    source_findby_id
+    source_findby_resellerid
+
+    source_getuniquename
 
 );
 
-my $tablename = 'voip_numbers';
+my $tablename = 'ncos_levels';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
     'id',
-    'cc',
-    'ac',
-    'sn',
     'reseller_id',
-    'subscriber_id',
-    'status',
-    'ported',
-    'list_timestamp',
+    'level',
+    'mode',
+    'local_ac',
+    'description',
 ];
 
 my $indexes = {};
 
-our $ACTIVE_STATE = 'active';
+
 
 sub new {
 
@@ -60,6 +56,7 @@ sub new {
     return $self;
 
 }
+
 
 
 sub buildrecords_fromrows {
@@ -98,10 +95,11 @@ sub check_table {
 
 }
 
+
 sub source_new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new_shared($class,shift,
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,shift,
                            $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
@@ -110,9 +108,9 @@ sub source_new {
 
 }
 
-sub source_findby_subscriberid {
+sub source_findby_resellerid {
 
-    my ($source_dbs,$subscriber_id) = @_;
+    my ($source_dbs,$reseller_id) = @_;
 
     my $source_db = $source_dbs->{billing_db};
     check_table($source_db);
@@ -120,8 +118,8 @@ sub source_findby_subscriberid {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('subscriber_id') . ' = ?';
-    my @params = ($subscriber_id);
+            $db->columnidentifier('reseller_id') . ' = ?';
+    my @params = ($reseller_id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
@@ -129,7 +127,7 @@ sub source_findby_subscriberid {
 
 }
 
-sub source_findby_id {
+sub source_getuniquename {
 
     my ($source_dbs,$id) = @_;
 
@@ -138,13 +136,15 @@ sub source_findby_id {
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('id') . ' = ?';
+    my $stmt = 'SELECT r.name as reseller_name,n.level as level FROM ' . $table . ' n join billing.resellers r on n.reseller_id = r.id WHERE ' .
+        'n.id = ?';
     my @params = ($id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
-    return source_buildrecords_fromrows($rows,$source_dbs)->[0];
+    return $rows->[0];
+
+    #return source_buildrecords_fromrows($rows,$source_dbs);
 
 }
 
@@ -152,7 +152,7 @@ sub source_buildrecords_fromrows {
 
     my ($rows,$source_dbs) = @_;
 
-    my @records : shared = ();
+    my @records = (); # : shared = ();
     my $record;
 
     if (defined $rows and ref $rows eq 'ARRAY') {
@@ -160,8 +160,8 @@ sub source_buildrecords_fromrows {
             $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
 
             # transformations go here ...
+            $record->{ncos_pattern_list} = NGCP::BulkProcessor::Dao::mr103::billing::ncos_pattern_list::source_findby_ncoslevelid($source_dbs,$record->{id});
 
-            #$record->{provisioning_voip_subscriber} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_subscribers::source_findby_uuid($source_dbs,$record->{uuid});
 
             push @records,$record;
         }
