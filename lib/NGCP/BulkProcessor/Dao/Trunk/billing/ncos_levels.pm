@@ -25,6 +25,9 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
+    findby_resellerid_level
+    findby_resellername_level
+
     insert_row
 );
 
@@ -69,6 +72,22 @@ sub findby_resellerid_level {
             $db->columnidentifier('reseller_id') . ' = ?' .
             ' AND ' . $db->columnidentifier('level') . ' = ?';
     my @params = ($reseller_id,$level);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub findby_resellername_level {
+
+    my ($reseller_name,$level,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT n.* FROM ' . $table . ' n join billing.resellers r ON n.reseller_id = r.id WHERE r.name = ? AND n.level = ?';
+    my @params = ($reseller_name,$level);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
