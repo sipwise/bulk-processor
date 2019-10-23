@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr553::billing::voip_numbers;
+package NGCP::BulkProcessor::Dao::mr103::billing::voip_numbers;
 use strict;
 
 ## no critic
@@ -160,8 +160,6 @@ sub source_buildrecords_fromrows {
             $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
 
             # transformations go here ...
-
-            #$record->{provisioning_voip_subscriber} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_subscribers::source_findby_uuid($source_dbs,$record->{uuid});
 
             push @records,$record;
         }

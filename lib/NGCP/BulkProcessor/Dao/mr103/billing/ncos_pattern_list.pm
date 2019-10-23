@@ -1,13 +1,9 @@
-package NGCP::BulkProcessor::Dao::mr553::billing::voip_numbers;
+package NGCP::BulkProcessor::Dao::mr341::billing::ncos_pattern_list;
 use strict;
 
 ## no critic
 
-use threads::shared;
-
-use NGCP::BulkProcessor::Logging qw(
-    getlogger
-);
+#use threads::shared;
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
@@ -25,29 +21,22 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    source_findby_subscriberid
-    source_findby_id
-
+    source_findby_ncoslevelid
 );
 
-my $tablename = 'voip_numbers';
+my $tablename = 'ncos_pattern_list';
 my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
-    'id',
-    'cc',
-    'ac',
-    'sn',
-    'reseller_id',
-    'subscriber_id',
-    'status',
-    'ported',
-    'list_timestamp',
+  'id',
+  'ncos_level_id',
+  'pattern',
+  'description',
 ];
 
 my $indexes = {};
 
-our $ACTIVE_STATE = 'active';
+my $insert_unique_fields = [];
 
 sub new {
 
@@ -61,6 +50,41 @@ sub new {
 
 }
 
+
+
+sub insert_row {
+
+    my $db = &$get_db();
+    my $xa_db = shift // $db;
+    if ('HASH' eq ref $_[0]) {
+        my ($data,$insert_ignore) = @_;
+        check_table();
+        if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
+            return $xa_db->db_last_insert_id();
+        }
+    } else {
+        my %params = @_;
+        my ($ncos_level_id,
+            $pattern) = @params{qw/
+                ncos_level_id
+                pattern
+            /};
+
+        if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+                $db->columnidentifier('ncos_level_id') . ', ' .
+                $db->columnidentifier('pattern') . ') VALUES (' .
+                '?, ' .
+                '?)',
+                $ncos_level_id,
+                $pattern,
+            )) {
+            rowinserted($db,$tablename,getlogger(__PACKAGE__));
+            return $xa_db->db_last_insert_id();
+        }
+    }
+    return undef;
+
+}
 
 sub buildrecords_fromrows {
 
@@ -91,7 +115,7 @@ sub gettablename {
 
 sub check_table {
 
-    return checktableinfo(shift // $get_db,
+    return checktableinfo($get_db,
                    __PACKAGE__,$tablename,
                    $expected_fieldnames,
                    $indexes);
@@ -101,7 +125,7 @@ sub check_table {
 sub source_new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::SqlRecord->new_shared($class,shift,
+    my $self = NGCP::BulkProcessor::SqlRecord->new($class,shift,
                            $tablename,$expected_fieldnames,$indexes);
 
     copy_row($self,shift,$expected_fieldnames);
@@ -110,9 +134,9 @@ sub source_new {
 
 }
 
-sub source_findby_subscriberid {
+sub source_findby_ncoslevelid {
 
-    my ($source_dbs,$subscriber_id) = @_;
+    my ($source_dbs,$ncos_level_id) = @_;
 
     my $source_db = $source_dbs->{billing_db};
     check_table($source_db);
@@ -120,8 +144,8 @@ sub source_findby_subscriberid {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('subscriber_id') . ' = ?';
-    my @params = ($subscriber_id);
+            $db->columnidentifier('ncos_level_id') . ' = ?';
+    my @params = ($ncos_level_id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
@@ -129,30 +153,11 @@ sub source_findby_subscriberid {
 
 }
 
-sub source_findby_id {
-
-    my ($source_dbs,$id) = @_;
-
-    my $source_db = $source_dbs->{billing_db};
-    check_table($source_db);
-    my $db = &$source_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('id') . ' = ?';
-    my @params = ($id);
-
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return source_buildrecords_fromrows($rows,$source_dbs)->[0];
-
-}
-
 sub source_buildrecords_fromrows {
 
     my ($rows,$source_dbs) = @_;
 
-    my @records : shared = ();
+    my @records = (); # : shared = ();
     my $record;
 
     if (defined $rows and ref $rows eq 'ARRAY') {
@@ -161,7 +166,6 @@ sub source_buildrecords_fromrows {
 
             # transformations go here ...
 
-            #$record->{provisioning_voip_subscriber} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_subscribers::source_findby_uuid($source_dbs,$record->{uuid});
 
             push @records,$record;
         }

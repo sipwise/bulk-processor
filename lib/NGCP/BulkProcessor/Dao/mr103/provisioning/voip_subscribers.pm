@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr553::billing::voip_numbers;
+package NGCP::BulkProcessor::Dao::mr103::provisioning::voip_subscribers;
 use strict;
 
 ## no critic
@@ -7,10 +7,11 @@ use threads::shared;
 
 use NGCP::BulkProcessor::Logging qw(
     getlogger
+    rowinserted
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_billing_db
+    get_provisioning_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -19,35 +20,46 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::mr103::provisioning::voip_dbaliases qw();
+use NGCP::BulkProcessor::Dao::mr103::provisioning::voip_usr_preferences qw();
+use NGCP::BulkProcessor::Dao::mr103::kamailio::voicemail_users qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    source_findby_subscriberid
-    source_findby_id
-
+    source_findby_uuid
 );
 
-my $tablename = 'voip_numbers';
-my $get_db = \&get_billing_db;
+my $tablename = 'voip_subscribers';
+my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
     'id',
-    'cc',
-    'ac',
-    'sn',
-    'reseller_id',
-    'subscriber_id',
-    'status',
-    'ported',
-    'list_timestamp',
+    'username',
+    'domain_id',
+
+    'uuid',
+    'password',
+    'timezone',
+
+    'admin',
+    'account_id',
+    'webusername',
+    'webpassword',
+
+    'autoconf_displayname',
+    'autoconf_group_id',
+
+    'modify_timestamp',
+    'create_timestamp',
 ];
 
 my $indexes = {};
 
-our $ACTIVE_STATE = 'active';
+my $insert_unique_fields = [];
 
 sub new {
 
@@ -58,28 +70,6 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
-
-}
-
-
-sub buildrecords_fromrows {
-
-    my ($rows,$load_recursive) = @_;
-
-    my @records = ();
-    my $record;
-
-    if (defined $rows and ref $rows eq 'ARRAY') {
-        foreach my $row (@$rows) {
-            $record = __PACKAGE__->new($row);
-
-            # transformations go here ...
-
-            push @records,$record;
-        }
-    }
-
-    return \@records;
 
 }
 
@@ -110,38 +100,18 @@ sub source_new {
 
 }
 
-sub source_findby_subscriberid {
+sub source_findby_uuid {
 
-    my ($source_dbs,$subscriber_id) = @_;
+    my ($source_dbs,$uuid) = @_;
 
-    my $source_db = $source_dbs->{billing_db};
+    my $source_db = $source_dbs->{provisioning_db};
     check_table($source_db);
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('subscriber_id') . ' = ?';
-    my @params = ($subscriber_id);
-
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return source_buildrecords_fromrows($rows,$source_dbs);
-
-}
-
-sub source_findby_id {
-
-    my ($source_dbs,$id) = @_;
-
-    my $source_db = $source_dbs->{billing_db};
-    check_table($source_db);
-    my $db = &$source_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('id') . ' = ?';
-    my @params = ($id);
-
+            $db->columnidentifier('uuid') . ' = ?';
+    my @params = ($uuid);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return source_buildrecords_fromrows($rows,$source_dbs)->[0];
@@ -157,11 +127,14 @@ sub source_buildrecords_fromrows {
 
     if (defined $rows and ref $rows eq 'ARRAY') {
         foreach my $row (@$rows) {
-            $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
+            $record = __PACKAGE__->source_new($source_dbs->{provisioning_db},$row);
 
             # transformations go here ...
+            $record->{voip_dbaliases} = NGCP::BulkProcessor::Dao::mr103::provisioning::voip_dbaliases::source_findby_subscriberid($source_dbs,$record->{id});
+            $record->{voip_usr_preferences} = NGCP::BulkProcessor::Dao::mr103::provisioning::voip_usr_preferences::source_findby_subscriberid($source_dbs,$record->{id});
 
-            #$record->{provisioning_voip_subscriber} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_subscribers::source_findby_uuid($source_dbs,$record->{uuid});
+            $record->{voicemail_users} = NGCP::BulkProcessor::Dao::mr103::openser::voicemail_users::source_findby_customerid($source_dbs,$record->{uuid});
+
 
             push @records,$record;
         }
