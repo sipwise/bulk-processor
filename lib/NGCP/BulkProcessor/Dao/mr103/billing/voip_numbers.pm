@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr553::billing::voip_numbers;
+package NGCP::BulkProcessor::Dao::mr103::billing::voip_numbers;
 use strict;
 
 ## no critic
@@ -119,8 +119,8 @@ sub source_findby_subscriberid {
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('subscriber_id') . ' = ?';
+    my $stmt = 'SELECT vn.*,r.name as reseller_name FROM ' . $table . ' vn left join billing.resellers r on vn.reseller_id = r.id WHERE ' .
+        'vn.subscriber_id = ?';
     my @params = ($subscriber_id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
@@ -138,8 +138,8 @@ sub source_findby_id {
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('id') . ' = ?';
+    my $stmt = 'SELECT vn.*,r.name as reseller_name FROM ' . $table . ' vn left join billing.resellers r on vn.reseller_id = r.id WHERE ' .
+        'vn.id = ?';
     my @params = ($id);
 
     my $rows = $db->db_get_all_arrayref($stmt,@params);
@@ -160,8 +160,11 @@ sub source_buildrecords_fromrows {
             $record = __PACKAGE__->source_new($source_dbs->{billing_db},$row);
 
             # transformations go here ...
+            $record->{reseller_name} = $row->{reseller_name};
 
-            #$record->{provisioning_voip_subscriber} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_subscribers::source_findby_uuid($source_dbs,$record->{uuid});
+            #delete $record->{id};
+            #delete $record->{reseller_id};
+            #delete $record->{subscriber_id};
 
             push @records,$record;
         }

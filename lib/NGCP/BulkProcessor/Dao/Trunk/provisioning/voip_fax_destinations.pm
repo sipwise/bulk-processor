@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels;
+package NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_fax_destinations;
 use strict;
 
 ## no critic
@@ -6,10 +6,11 @@ use strict;
 use NGCP::BulkProcessor::Logging qw(
     getlogger
     rowinserted
+    rowsdeleted
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_billing_db
+    get_provisioning_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -25,28 +26,28 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findby_resellerid_level
-    findby_resellername_level
-
-    insert_row
+    source_findby_subscriberid
 );
 
-my $tablename = 'ncos_levels';
-my $get_db = \&get_billing_db;
+my $tablename = 'voip_fax_destinations';
+my $get_db = \&get_provisioning_db;
 
 my $expected_fieldnames = [
-    'id',
-    'reseller_id',
-    'level',
-    'mode',
-    'local_ac',
-    'intra_pbx',
-    'description',
+  'id',
+  'subscriber_id',
+  'destination',
+  'filetype',
+  'cc',
+  'incoming',
+  'outgoing',
+  'status',
+
 ];
 
 my $indexes = {};
 
 my $insert_unique_fields = [];
+
 
 sub new {
 
@@ -60,39 +61,6 @@ sub new {
 
 }
 
-sub findby_resellerid_level {
-
-    my ($reseller_id,$level,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('reseller_id') . ' = ?' .
-            ' AND ' . $db->columnidentifier('level') . ' = ?';
-    my @params = ($reseller_id,$level);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
-
-}
-
-sub findby_resellername_level {
-
-    my ($reseller_name,$level,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT n.* FROM ' . $table . ' n join billing.resellers r ON n.reseller_id = r.id WHERE r.name = ? AND n.level = ?';
-    my @params = ($reseller_name,$level);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return buildrecords_fromrows($rows,$load_recursive)->[0];
-
-}
 
 sub insert_row {
 
@@ -106,19 +74,14 @@ sub insert_row {
         }
     } else {
         my %params = @_;
-        my ($reseller_id,
-            $level) = @params{qw/
-                reseller_id
-                level
+        my ($subscriber_id) = @params{qw/
+                subscriber_id
             /};
 
         if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
-                $db->columnidentifier('reseller_id') . ', ' .
-                $db->columnidentifier('level') . ') VALUES (' .
-                '?, ' .
+                $db->columnidentifier('subscriber_id') . ') VALUES (' .
                 '?)',
-                $reseller_id,
-                $level,
+                $subscriber_id,
             )) {
             rowinserted($db,$tablename,getlogger(__PACKAGE__));
             return $xa_db->db_last_insert_id();
@@ -148,6 +111,7 @@ sub buildrecords_fromrows {
     return \@records;
 
 }
+
 
 sub gettablename {
 
