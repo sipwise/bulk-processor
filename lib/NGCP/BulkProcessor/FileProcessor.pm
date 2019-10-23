@@ -76,6 +76,7 @@ sub _extractlines {
     foreach my $line (split(/$separator/,$$buffer_ref,-1)) {
         $last_line = $line;
         push(@$lines,$line);
+        #print $$buffer_ref;
     }
     #$count--;
     $$buffer_ref = $last_line;
