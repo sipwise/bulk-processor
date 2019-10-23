@@ -41,6 +41,7 @@ our @EXPORT_OK = qw(
     find_random
     findby_contractid_states
     findby_domainid_usernames
+    findby_domain_usernames
 
     $TERMINATED_STATE
     $ACTIVE_STATE
@@ -92,6 +93,27 @@ sub findby_domainid_usernames {
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
             $db->columnidentifier('domain_id') . ' = ?';
     my @params = ($domain_id);
+    if (defined $usernames and 'ARRAY' eq ref $usernames) {
+        $stmt .= ' AND ' . $db->columnidentifier('username') . ' IN (' . substr(',?' x scalar @$usernames,1) . ')';
+        push(@params,@$usernames);
+    }
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_domain_usernames {
+
+    my ($xa_db,$domain,$usernames,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT s.* FROM ' . $table . ' s join billing.domains d on s.domain_id = d.id WHERE d.domain = ?';
+    my @params = ($domain);
     if (defined $usernames and 'ARRAY' eq ref $usernames) {
         $stmt .= ' AND ' . $db->columnidentifier('username') . ' IN (' . substr(',?' x scalar @$usernames,1) . ')';
         push(@params,@$usernames);
