@@ -483,56 +483,27 @@ sub getscriptpath {
 
 }
 
+my @unit_suffix = qw(
+    kBytes
+    MBytes
+    GBytes
+);
+
 sub kbytes2gigs {
-   my ($TotalkBytes,$kbytebase,$round) = @_;
+    my ($number, $base, $round_integer) = @_;
 
-   if ($kbytebase <= 0) {
-     $kbytebase = 1024;
-   }
+    $base = 1024 if $base <= 0;
 
-   my $TotalkByteskBytes = $TotalkBytes;
-   my $TotalkBytesMBytes = $TotalkBytes;
-   my $TotalkBytesGBytes = $TotalkBytes;
+    my $unit = 0;
+    while ($unit < @unit_suffix && $number >= $base) {
+        # We only want two decimals of precision.
+        $number = int(($number / $base) * 100) / 100;
+        $unit++;
+    }
 
-   my $rounded = 0;
-   $TotalkByteskBytes = $TotalkBytes;
-   $TotalkBytesMBytes = 0;
-   $TotalkBytesGBytes = 0;
+    $number = int $number if $round_integer;
 
-   if ($TotalkByteskBytes >= $kbytebase) {
-     $TotalkBytesMBytes = int($TotalkByteskBytes / $kbytebase);
-     $rounded = int(($TotalkByteskBytes * 100) / $kbytebase) / 100;
-     if ($round) { # == 1) {
-       $rounded = int($rounded);
-     }
-     $rounded .= " MBytes";
-     $TotalkByteskBytes = $TotalkBytes - $TotalkBytesGBytes * $kbytebase * $kbytebase - $TotalkBytesMBytes * $kbytebase;
-     if ($TotalkBytesMBytes >= $kbytebase) {
-       $TotalkBytesGBytes = int($TotalkBytesMBytes / $kbytebase);
-       $rounded = int(($TotalkBytesMBytes * 100) / $kbytebase) / 100;
-       if ($round) { # == 1) {
-         $rounded = int($rounded);
-       }
-       $rounded .= " GBytes";
-       $TotalkBytesMBytes = int(($TotalkBytes - $TotalkBytesGBytes * $kbytebase * $kbytebase) / $kbytebase);
-       $TotalkByteskBytes = $TotalkBytes - $TotalkBytesGBytes * $kbytebase * $kbytebase - $TotalkBytesMBytes * $kbytebase;
-     }
-   }
-
-   if ($TotalkBytesGBytes == 0 && $TotalkBytesMBytes == 0) {
-     $TotalkBytes .= " kBytes";
-   } elsif ($TotalkBytesGBytes == 0) {
-     $TotalkBytes = $rounded; # . " (" . $TotalkBytesMBytes . " MBytes " . $TotalkByteskBytes . " kBytes)";
-     if ($round) { # == 1) {
-       $TotalkBytes = $rounded;
-     }
-   } else {
-     $TotalkBytes = $rounded; # . " (" . $TotalkBytesGBytes . " GBytes " . $TotalkBytesMBytes . " MBytes " . $TotalkByteskBytes . " kBytes)";
-     if ($round) { # == 1) {
-       $TotalkBytes = $rounded;
-     }
-   }
-   return $TotalkBytes;
+    return "$number $unit_suffix[$unit]";
 }
 
 sub cleanupdir {
