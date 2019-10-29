@@ -104,17 +104,14 @@ sub grouparray {
 }
 
 sub reversearray {
+    my ($array_ptr) = @_;
 
-  my ($array_ptr) = @_;
-  my @result = ();
-  if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
-    my $ubound = (scalar @$array_ptr) - 1;
-    for (my $i = $ubound; $i >= 0; $i -= 1) {
-      $result[$i] = $array_ptr->[$ubound - $i];
+    my @result;
+    if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
+        @result = reverse @{$array_ptr};
     }
-  }
-  return \@result;
 
+    return \@result;
 }
 
 sub contains {
