@@ -26,6 +26,7 @@ use Cwd qw(abs_path);
 
 use Time::Piece;
 use Time::Seconds;
+use Time::Local;
 use Date::Manip qw(Date_Init ParseDate UnixDate);
 #Date_Init('Language=English','DateFormat=non-US');
 Date_Init('DateFormat=US');
@@ -698,31 +699,16 @@ sub max_timestamp {
 }
 
 sub add_months {
+    my ($month, $year, $ads) = @_;
 
-  my ($month, $year, $ads) = @_;
+    if ($month > 0 and $month <= 12) {
+        my $time = timelocal(0, 0, 0, 1, $month - 1, $year);
+        my $t = Time::Piece->new($time)->add_months($ads);
 
-  if ($month > 0  and $month <= 12) {
-
-    my $sign = ($ads > 0) ? 1 : -1;
-    my $rmonths = $month + $sign * (abs($ads) % 12);
-    my $ryears = $year + int( $ads / 12 );
-
-    if ($rmonths < 1) {
-      $rmonths += 12;
-      $ryears -= 1;
-    } elsif ($rmonths > 12) {
-      $rmonths -= 12;
-      $ryears += 1;
+        return ($t->mon, $t->year);
+    } else {
+        return (undef, undef);
     }
-
-    return ($rmonths,$ryears);
-
-  } else {
-
-    return (undef,undef);
-
-  }
-
 }
 
 sub secs_to_years {
