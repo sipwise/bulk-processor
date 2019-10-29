@@ -24,21 +24,17 @@ our @EXPORT_OK = qw(
     array_to_map);
 
 sub mergearrays {
+    my ($array_ptr1, $array_ptr2) = @_;
 
-  my ($array_ptr1,$array_ptr2) = @_;
-  my @result = ();
-  if (defined $array_ptr1 and ref $array_ptr1 eq 'ARRAY') {
-    foreach my $element (@$array_ptr1) {
-      push @result,$element;
+    my @result;
+    if (defined $array_ptr1 and ref $array_ptr1 eq 'ARRAY') {
+        push @result, @{$array_ptr1};
     }
-  }
-  if (defined $array_ptr2 and ref $array_ptr2 eq 'ARRAY') {
-    foreach my $element (@$array_ptr2) {
-      push @result,$element;
+    if (defined $array_ptr2 and ref $array_ptr2 eq 'ARRAY') {
+        push @result, @{$array_ptr2};
     }
-  }
-  return \@result;
 
+    return \@result;
 }
 
 sub removeduplicates {
