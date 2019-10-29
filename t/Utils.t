@@ -16,13 +16,14 @@
 use strict;
 use warnings;
 
-use Test::More tests => 25;
+use Test::More tests => 45;
 use Time::Local;
 
 require_ok('NGCP::BulkProcessor::Utils');
 
 NGCP::BulkProcessor::Utils->import(qw(
     zerofill
+    kbytes2gigs
     secs_to_years
     timestampdigits
     datestampdigits
@@ -39,6 +40,35 @@ NGCP::BulkProcessor::Utils->import(qw(
 is(zerofill(0, 4), '0000');
 is(zerofill(25, 4), '0025');
 is(zerofill(1000, 4), '1000');
+
+# Unit conversion
+is(kbytes2gigs(1), '1 kBytes');
+is(kbytes2gigs(1024), '1 MBytes');
+is(kbytes2gigs(1048576), '1 GBytes');
+
+is(kbytes2gigs(2), '2 kBytes');
+is(kbytes2gigs(2049), '2 MBytes');
+is(kbytes2gigs(2098177), '2 GBytes');
+
+is(kbytes2gigs(920), '920 kBytes');
+is(kbytes2gigs(942080), '920 MBytes');
+is(kbytes2gigs(964689920), '920 GBytes');
+
+is(kbytes2gigs(920, 1000), '920 kBytes');
+is(kbytes2gigs(920000, 1000), '920 MBytes');
+is(kbytes2gigs(920000000, 1000), '920 GBytes');
+
+is(kbytes2gigs(942172), '920.08 MBytes');
+is(kbytes2gigs(965632092), '920.89 GBytes');
+
+is(kbytes2gigs(920920, 1000), '920.92 MBytes');
+is(kbytes2gigs(920920920, 1000), '920.92 GBytes');
+
+is(kbytes2gigs(942172, 1024, 1), '920 MBytes');
+is(kbytes2gigs(965632092, 1024, 1), '920 GBytes');
+
+is(kbytes2gigs(920920, 1000, 1), '920 MBytes');
+is(kbytes2gigs(920920920, 1000,1 ), '920 GBytes');
 
 # secs_to_years()
 is(secs_to_years(1), '1 second');
