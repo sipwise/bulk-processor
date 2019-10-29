@@ -3,7 +3,7 @@ use strict;
 
 ## no critic
 
-use List::Util qw(any);
+use List::Util qw(any uniq);
 
 use NGCP::BulkProcessor::Table;
 
@@ -40,18 +40,19 @@ sub mergearrays {
 }
 
 sub removeduplicates {
+    my ($array_ptr, $case_insensitive) = @_;
 
-  my ($array_ptr,$case_insensitive) = @_;
-  my @result = ();
-  if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
-
-    foreach my $element (@$array_ptr) {
-      if (not contains($element,\@result,$case_insensitive)) {
-        push @result,$element;
-      }
+    my @result;
+    if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
+        if ($case_insensitive) {
+            @result = map { lc } @{$array_ptr};
+        } else {
+            @result = @{$array_ptr};
+        }
+        @result = uniq @result;
     }
-  }
-  return \@result;
+
+    return \@result;
 
 }
 
