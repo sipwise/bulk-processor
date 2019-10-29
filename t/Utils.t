@@ -16,7 +16,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 18;
+use Test::More tests => 25;
 use Time::Local;
 
 require_ok('NGCP::BulkProcessor::Utils');
@@ -32,6 +32,7 @@ NGCP::BulkProcessor::Utils->import(qw(
     get_year
     get_year_month
     get_year_month_day
+    add_months
 ));
 
 # zerofill()
@@ -58,3 +59,11 @@ is(datestamp($time), '2042-11-02');
 is(get_year($time), '2042');
 is_deeply([ get_year_month($time) ], [ '2042', '11' ]);
 is_deeply([ get_year_month_day($time) ], [ '2042', '11', '02' ]);
+
+is_deeply([ add_months(1, 2042, 11) ] , [ 12, 2042 ]);
+is_deeply([ add_months(1, 2042, 12) ] , [ 1, 2043 ]);
+is_deeply([ add_months(12, 2042, 0) ] , [ 12, 2042 ]);
+is_deeply([ add_months(12, 2042, 1) ] , [ 1, 2043 ]);
+is_deeply([ add_months(1, 2042, 25) ] , [ 2, 2044 ]);
+is_deeply([ add_months(0, 2042, 2) ] , [ undef, undef ]);
+is_deeply([ add_months(13, 2042, 2) ] , [ undef, undef ]);
