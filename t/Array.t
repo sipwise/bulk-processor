@@ -53,7 +53,7 @@ is_deeply(removeduplicates([ qw(aa bb aa cc aa) ], 0), [ qw(aa bb cc) ]);
 is_deeply(removeduplicates([ qw(aa aa bb bb cc cc) ], 0), [ qw(aa bb cc) ]);
 is_deeply(removeduplicates([ qw(aa bb aa cc bb cc) ], 0), [ qw(aa bb cc) ]);
 
-is_deeply(removeduplicates([ qw(Aa BB cC) ], 1), [ qw(Aa BB cC) ]);
-is_deeply(removeduplicates([ qw(aA BB Aa Cc aa) ], 1), [ qw(aA BB Cc) ]);
-is_deeply(removeduplicates([ qw(aA AA bB Bb CC cc) ], 1), [ qw(aA bB CC) ]);
-is_deeply(removeduplicates([ qw(AA bB Aa cc Bb CC) ], 1), [ qw(AA bB cc) ]);
+is_deeply(removeduplicates([ qw(Aa BB cC) ], 1), [ qw(aa bb cc) ]);
+is_deeply(removeduplicates([ qw(aA BB Aa Cc aa) ], 1), [ qw(aa bb cc) ]);
+is_deeply(removeduplicates([ qw(aA AA bB Bb CC cc) ], 1), [ qw(aa bb cc) ]);
+is_deeply(removeduplicates([ qw(AA bB Aa cc Bb CC) ], 1), [ qw(aa bb cc) ]);
