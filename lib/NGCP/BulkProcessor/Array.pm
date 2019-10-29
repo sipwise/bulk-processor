@@ -3,6 +3,8 @@ use strict;
 
 ## no critic
 
+use List::Util qw(any);
+
 use NGCP::BulkProcessor::Table;
 
 require Exporter;
@@ -115,28 +117,18 @@ sub reversearray {
 }
 
 sub contains {
+    my ($item, $array_ptr, $case_insensitive) = @_;
 
-  my ($item,$array_ptr,$case_insensitive) = @_;
-  my $result = 0;
-  if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
-    if ($case_insensitive) {
-      foreach my $element (@$array_ptr) {
-        if (lc($element) eq lc($item)) {
-          $result = 1;
-          last;
+    my $result = 0;
+    if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
+        if ($case_insensitive) {
+            $result = any { lc eq lc $item } @{$array_ptr};
+        } else {
+            $result = any { $_ eq $item } @{$array_ptr};
         }
-      }
-    } else {
-      foreach my $element (@$array_ptr) {
-        if ($element eq $item) {
-          $result = 1;
-          last;
-        }
-      }
     }
-  }
-  return $result;
 
+    return int $result;
 }
 
 sub arrayeq {
