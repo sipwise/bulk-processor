@@ -1,7 +1,10 @@
+#!/usr/bin/perl
+
 use strict;
 use warnings;
 
 use Module::Build qw();
+
 my $builder = Module::Build->new(
     dist_name       => 'NGCP::BulkProcessor',
     dist_abstract     => 'Framework for parallel/distributed processing of record blocks',
