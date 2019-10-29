@@ -1,3 +1,5 @@
+#!/usr/bin/perl
+
 use Module::Build qw();
 my $builder = Module::Build->new(
     dist_name       => 'NGCP::BulkProcessor',
