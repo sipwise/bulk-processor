@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5000a189_a9a2912e",
+        "filename": "lib/NGCP/BulkProcessor/Array.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 48,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-10-31T14:42:15Z",
+      "side": 1,
+      "message": "well, downside is you now iterate 2 times. can be remarkable with large lists.\n\nbut more relevant afaics it will also convert to lowercase (instead of removing duplicates in acase-insensitive way).",
+      "revId": "47ea077867134d375356ba444d52cec4d4a23dd0",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
+    }
+  ]
+}
