@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "01a0f8c8_c70805ff",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 705,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-10-31T14:46:33Z",
+      "side": 1,
+      "message": "it\u0027s 17yr old code, but iirc there was the intention avoid the time*() functions to ensure it yields same result disregarding the system locale or timezone. or even if time*() are eg overloaded with the fake-time aproach.",
+      "range": {
+        "startLine": 705,
+        "startChar": 19,
+        "endLine": 705,
+        "endChar": 28
+      },
+      "revId": "e6ebcc15c5fd99d5787a2ebde276998bf287f021",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
+    }
+  ]
+}
