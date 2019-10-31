@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "e8ff9bf4_02862846",
+        "filename": "lib/NGCP/BulkProcessor/Array.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 125,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-10-31T14:49:35Z",
+      "side": 1,
+      "message": "what about grep, slower?",
+      "range": {
+        "startLine": 125,
+        "startChar": 22,
+        "endLine": 125,
+        "endChar": 25
+      },
+      "revId": "f55e184b1aa9a73f5db69c2fa6bae580a4fd3c79",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
+    }
+  ]
+}
