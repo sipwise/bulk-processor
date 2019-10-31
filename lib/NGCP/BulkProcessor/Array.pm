@@ -57,26 +57,18 @@ sub removeduplicates {
 }
 
 sub itemcount {
+    my ($item, $array_ptr, $case_insensitive) = @_;
 
-  my ($item,$array_ptr,$case_insensitive) = @_;
-  my $itemcount = 0;
-  if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
-    if ($case_insensitive) {
-      foreach my $element (@$array_ptr) {
-        if (lc($element) eq lc($item)) {
-          $itemcount += 1;
+    if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
+        if ($case_insensitive) {
+            my $lc_item = lc $item;
+            return scalar grep { lc eq $lc_item } @{$array_ptr};
+        } else {
+            return scalar grep { $_ eq $item } @{$array_ptr};
         }
-      }
-    } else {
-      foreach my $element (@$array_ptr) {
-        if ($element eq $item) {
-          $itemcount += 1;
-        }
-      }
     }
-  }
-  return $itemcount;
 
+    return 0;
 }
 
 sub grouparray {
