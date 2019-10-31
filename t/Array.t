@@ -16,7 +16,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 25;
+use Test::More tests => 33;
 
 require_ok('NGCP::BulkProcessor::Array');
 
@@ -25,6 +25,7 @@ NGCP::BulkProcessor::Array->import(qw(
     mergearrays
     reversearray
     removeduplicates
+    itemcount
 ));
 
 # Container functions
@@ -57,3 +58,13 @@ is_deeply(removeduplicates([ qw(Aa BB cC) ], 1), [ qw(aa bb cc) ]);
 is_deeply(removeduplicates([ qw(aA BB Aa Cc aa) ], 1), [ qw(aa bb cc) ]);
 is_deeply(removeduplicates([ qw(aA AA bB Bb CC cc) ], 1), [ qw(aa bb cc) ]);
 is_deeply(removeduplicates([ qw(AA bB Aa cc Bb CC) ], 1), [ qw(aa bb cc) ]);
+
+is(itemcount(), 0);
+is(itemcount(undef, []), 0);
+is(itemcount('foo', [ qw(aa bb cc aa zz aa aa) ]), 0);
+is(itemcount('AA', [ qw(aa bb cc aa zz aa aa) ]), 0);
+is(itemcount('aa', [ qw(aa bb cc aa zz aa aa) ]), 4);
+
+is(itemcount('foo', [ qw(aa bb cc aa zz aa aa) ], 1), 0);
+is(itemcount('AA', [ qw(aA bb cc Aa zz AA aa) ], 1), 4);
+is(itemcount('aa', [ qw(aa bb cc aa zz aa aa) ], 1), 4);
