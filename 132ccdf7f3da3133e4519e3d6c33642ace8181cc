@@ -16,6 +16,24 @@
       "revId": "132ccdf7f3da3133e4519e3d6c33642ace8181cc",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "1892f571_43e9f11b",
+        "filename": "lib/NGCP/BulkProcessor/Array.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 31,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2019-10-31T15:27:09Z",
+      "side": 1,
+      "message": "that should be significantly more performant as perl can just do internally memcpy(add_to_result, array+0, array+last_ptr)\nso if the elements memory allocation in the source array is within preallocated memory block (or re-fragmented internally as elements added to the array), then the speed is close to O(1), instead of guaranteed O(n) in case of foreach.",
+      "parentUuid": "e221e16d_c2355cb0",
+      "revId": "132ccdf7f3da3133e4519e3d6c33642ace8181cc",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
     }
   ]
 }
