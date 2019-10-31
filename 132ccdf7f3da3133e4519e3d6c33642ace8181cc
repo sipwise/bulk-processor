@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "e221e16d_c2355cb0",
+        "filename": "lib/NGCP/BulkProcessor/Array.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 31,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-10-31T14:51:38Z",
+      "side": 1,
+      "message": "would be courious of the speed difference",
+      "revId": "132ccdf7f3da3133e4519e3d6c33642ace8181cc",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
+    }
+  ]
+}
