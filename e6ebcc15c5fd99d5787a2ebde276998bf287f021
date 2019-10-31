@@ -70,6 +70,30 @@
       "revId": "e6ebcc15c5fd99d5787a2ebde276998bf287f021",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d3e6a21e_c98eb475",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 705,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2019-10-31T16:49:34Z",
+      "side": 1,
+      "message": "I was considering splitting some of the functions here into different modules (new or existing), as there are several clearly delineated groups, like time-related, unit-conversion, parsing, etc. But probably in a different patchset. So I\u0027m fine leaving the rewritten function here, the work has already been done anyway, and it can always be removed later. :)",
+      "parentUuid": "496a782b_55af845d",
+      "range": {
+        "startLine": 705,
+        "startChar": 19,
+        "endLine": 705,
+        "endChar": 28
+      },
+      "revId": "e6ebcc15c5fd99d5787a2ebde276998bf287f021",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
     }
   ]
 }
