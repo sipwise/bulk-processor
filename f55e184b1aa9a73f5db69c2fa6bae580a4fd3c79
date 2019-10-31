@@ -46,6 +46,29 @@
       "revId": "f55e184b1aa9a73f5db69c2fa6bae580a4fd3c79",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "f0fe4baa_f30fd76c",
+        "filename": "lib/NGCP/BulkProcessor/Array.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 125,
+      "author": {
+        "id": 1000008
+      },
+      "writtenOn": "2019-10-31T16:34:27Z",
+      "side": 1,
+      "message": "Could be made even quicker by doing the lc($item) only once :)",
+      "range": {
+        "startLine": 125,
+        "startChar": 34,
+        "endLine": 125,
+        "endChar": 42
+      },
+      "revId": "f55e184b1aa9a73f5db69c2fa6bae580a4fd3c79",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
