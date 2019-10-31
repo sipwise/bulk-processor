@@ -148,7 +148,7 @@ sub arrayeq {
   } else {
     $ubound2 = -1;
   }
-  my $result = 1;
+
   if ($ubound1 != $ubound2) {
     return 0;
   } else {
