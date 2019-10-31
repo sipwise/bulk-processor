@@ -46,6 +46,30 @@
       "revId": "e6ebcc15c5fd99d5787a2ebde276998bf287f021",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "496a782b_55af845d",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 705,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-10-31T16:35:40Z",
+      "side": 1,
+      "message": "many parts here were copied together in a rush; iirc a Calendar.pm was initiated then; maybe worth to add it there?",
+      "parentUuid": "61734245_7a49717e",
+      "range": {
+        "startLine": 705,
+        "startChar": 19,
+        "endLine": 705,
+        "endChar": 28
+      },
+      "revId": "e6ebcc15c5fd99d5787a2ebde276998bf287f021",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
     }
   ]
 }
