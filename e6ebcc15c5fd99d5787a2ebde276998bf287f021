@@ -22,6 +22,30 @@
       "revId": "e6ebcc15c5fd99d5787a2ebde276998bf287f021",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "61734245_7a49717e",
+        "filename": "lib/NGCP/BulkProcessor/Utils.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 705,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2019-10-31T16:30:54Z",
+      "side": 1,
+      "message": "Ok so there\u0027s no current users. Another option would be to remove the function? But not sure whether you intend to use it in the future or something.",
+      "parentUuid": "01a0f8c8_c70805ff",
+      "range": {
+        "startLine": 705,
+        "startChar": 19,
+        "endLine": 705,
+        "endChar": 28
+      },
+      "revId": "e6ebcc15c5fd99d5787a2ebde276998bf287f021",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
     }
   ]
 }
