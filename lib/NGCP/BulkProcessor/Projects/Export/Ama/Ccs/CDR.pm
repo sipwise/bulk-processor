@@ -120,7 +120,7 @@ my $rowcount : shared = 0;
 
 sub reset_export_status {
 
-    my ($from,$to) = @_;
+    my ($from,$to,$call_ids) = @_;
 
     my $result = 1;
     my $context = { tid => threadid(), warning_count => 0, error_count => 0, };
@@ -128,7 +128,7 @@ sub reset_export_status {
     my $updated;
     eval {
         $updated = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::update_export_status($context->{export_status_id},
-            $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::UNEXPORTED,$from,$to);
+            $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::UNEXPORTED,$from,$to,$call_ids);
     };
     if ($@) {
         if ($skip_errors) {

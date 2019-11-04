@@ -79,6 +79,7 @@ my @TASK_OPTS = ();
 my $tasks = [];
 my $from = undef,
 my $to = undef;
+my $call_ids = [];
 
 my $cleanup_task_opt = 'cleanup';
 push(@TASK_OPTS,$cleanup_task_opt);
@@ -115,9 +116,11 @@ sub init {
         "force" => \$force,
         "from=s" => \$from,
         "to=s" => \$to,
+        "call-id=s" => $call_ids,
     ); # or scripterror('error in command line arguments',getlogger(getscriptpath()));
 
     $tasks = removeduplicates($tasks,1);
+    $call_ids = removeduplicates($call_ids);
 
     my $result = load_config($configfile);
     init_log();
@@ -264,10 +267,13 @@ sub reset_export_status_task {
     my ($messages) = @_;
     my ($result) = (0);
     eval {
-        ($result) = reset_export_status($from,$to);
+        ($result) = reset_export_status($from,$to,$call_ids);
     };
     my $err = $@;
     my $fromto = 'from ' . ($from ? $from : '-') . ' to ' . ($to ? $to : '-');
+    if (defined $call_ids and (scalar @$call_ids) > 0) {
+        $fromto = ", call-id(s)\n" . join("\n",@$call_ids);
+    }
     if ($err or !$result) {
         push(@$messages,"reset export status $fromto INCOMPLETE");
     } else {
