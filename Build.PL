@@ -21,12 +21,6 @@ my $builder = Module::Build->new(
             },
             runtime => {
                 requires => {
-                    # Needed by Excel::Reader::XLSX
-                    'Archive::Zip'                          => 0,
-                    'OLE::Storage_Lite'                     => 0,
-                    'XML::LibXML::Reader'                   => 0,
-
-                    # Needed by NGCP::BulkProcessor
                     'Config::Any'                           => 0,
                     'DBD::CSV'                              => '0.26',
                     'DBD::SQLite'                           => '1.29',
@@ -45,7 +39,7 @@ my $builder = Module::Build->new(
                     'Digest::MD5'                           => 0,
                     'Email::MIME'                           => 0,
                     'Email::MIME::Attachment::Stripper'     => 0,
-                    #'Excel::Reader::XLSX'                   => 0,
+                    'Excel::Reader::XLSX'                   => 0,
                     'Gearman::Client'                       => 0,
                     'Gearman::Task'                         => 0,
                     'Gearman::Worker'                       => 0,
@@ -90,7 +84,7 @@ my $builder = Module::Build->new(
             },
         },
     },
-    add_to_cleanup => ['NGCP-BulkProcessor-*', 'Excel-Reader-*'],
+    add_to_cleanup => [ 'NGCP-BulkProcessor-*' ],
 );
 $builder->add_build_element('pl');
 $builder->add_build_element('cfg');

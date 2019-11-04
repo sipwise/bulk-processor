@@ -15,21 +15,6 @@ Build-Depends:
 Standards-Version: 3.9.8
 Homepage: https://www.sipwise.com/
 
-Package: libexcel-reader-xlsx-perl
-Architecture: all
-Replaces:
- ngcp-bulk-processor,
-Depends:
- ${misc:Depends},
- ${perl:Depends},
- libarchive-zip-perl,
- libole-storage-lite-perl,
- libxml-libxml-perl,
-Description: module to parse Excel spreadsheets in xlsx format
- The Excel::Reader::XLSX module is used to parse an Excel file in
- the 2007+ XLSX format. The XLSX format is the Office Open XML (OOXML)
- format used by Excel 2007 and later.
-
 Package: libngcp-bulkprocessor-perl
 Architecture: all
 Replaces:
