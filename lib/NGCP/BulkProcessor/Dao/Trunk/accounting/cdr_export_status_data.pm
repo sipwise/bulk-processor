@@ -173,22 +173,32 @@ sub upsert_row {
 
 sub update_export_status {
 
-    my ($status_id,$export_status,$start_time_from,$start_time_to) = @_;
+    my ($status_id,$export_status,$start_time_from,$start_time_to,$call_ids) = @_;
 
     check_table();
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'UPDATE ' . $table . ' SET ' . $db->columnidentifier('export_status') . ' = ?' .
-        ' WHERE ' . $db->columnidentifier('status_id') . ' = ? AND ' . $db->columnidentifier('export_status') . ' != ?';
+    my $stmt = 'UPDATE ' . $table . ' s JOIN accounting.cdr c on s.cdr_id = c.id SET s.export_status = ?' .
+        ' WHERE s.status_id = ? AND s.export_status != ?';
     my @params = ($export_status,$status_id,$export_status);
     if (defined $start_time_from) {
-        $stmt .= ' AND ' . $db->columnidentifier('cdr_start_time') . ' >= UNIX_TIMESTAMP(?)';
+        $stmt .= ' AND s.cdr_start_time >= UNIX_TIMESTAMP(?)';
         push(@params,$start_time_from);
     }
     if (defined $start_time_to) {
-        $stmt .= ' AND ' . $db->columnidentifier('cdr_start_time') . ' < UNIX_TIMESTAMP(?)';
+        $stmt .= ' AND s.cdr_start_time < UNIX_TIMESTAMP(?)';
         push(@params,$start_time_to);
+    }
+    if (defined $call_ids and (scalar @$call_ids) > 0) {
+        my @terms = ();
+        foreach my $callid (@$call_ids) {
+            my $call_id = NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::get_callidprefix($callid);
+            $call_id =~ s/%/\\%/g;
+            push(@terms,'c.call_id LIKE ?');
+            push(@params,$call_id . '%');
+        }
+        $stmt .= ' AND (' . join(" OR ", @terms) . ')';
     }
 
     my $count;
