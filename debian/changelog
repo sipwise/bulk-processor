@@ -1,3 +1,12 @@
+ngcp-bulk-processor (7.5.1.6+0~mr7.5.1.6) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [1c268d5] TT#69853 support resetting .ama export status by call-id(s)
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 04 Nov 2019 13:28:45 +0100
+
 ngcp-bulk-processor (7.5.1.5+0~mr7.5.1.5) unstable; urgency=medium
 
   [ Rene Krenn ]
