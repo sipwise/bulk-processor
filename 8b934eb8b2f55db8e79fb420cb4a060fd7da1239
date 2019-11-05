@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "df9a4dd4_46f86f95",
+        "filename": "debian/control",
+        "patchSetId": 1
+      },
+      "lineNbr": 56,
+      "author": {
+        "id": 1000002
+      },
+      "writtenOn": "2019-11-05T13:18:52Z",
+      "side": 0,
+      "message": "Here it is!",
+      "range": {
+        "startLine": 56,
+        "startChar": 0,
+        "endLine": 56,
+        "endChar": 27
+      },
+      "revId": "8b934eb8b2f55db8e79fb420cb4a060fd7da1239",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
