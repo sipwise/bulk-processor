@@ -22,6 +22,30 @@
       "revId": "8b934eb8b2f55db8e79fb420cb4a060fd7da1239",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "aa4f63e6_9f5a281d",
+        "filename": "debian/control",
+        "patchSetId": 1
+      },
+      "lineNbr": 56,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-11-05T13:26:28Z",
+      "side": 0,
+      "message": "well but it\u0027s defined in here, which is what gulliem is about to remove. if i understand correctly, there will be a dedicated repo for it. but cant see that repo yet.",
+      "parentUuid": "df9a4dd4_46f86f95",
+      "range": {
+        "startLine": 56,
+        "startChar": 0,
+        "endLine": 56,
+        "endChar": 27
+      },
+      "revId": "8b934eb8b2f55db8e79fb420cb4a060fd7da1239",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
