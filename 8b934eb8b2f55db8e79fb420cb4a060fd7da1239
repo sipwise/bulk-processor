@@ -46,6 +46,30 @@
       "revId": "8b934eb8b2f55db8e79fb420cb4a060fd7da1239",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "bed062e8_7648645a",
+        "filename": "debian/control",
+        "patchSetId": 1
+      },
+      "lineNbr": 56,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2019-11-05T13:41:49Z",
+      "side": 0,
+      "message": "This is being packaged as a backport like we do for many other packages we take from Debian which are not present yet in the releases we are basing on NGCP.\n\nSee https://gerrit.mgm.sipwise.com/#/c/repos-scripts/+/34887/. So yeah, there\u0027s no missing dependencies here. :)",
+      "parentUuid": "aa4f63e6_9f5a281d",
+      "range": {
+        "startLine": 56,
+        "startChar": 0,
+        "endLine": 56,
+        "endChar": 27
+      },
+      "revId": "8b934eb8b2f55db8e79fb420cb4a060fd7da1239",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
