@@ -153,7 +153,7 @@ sub _create_cftimeset {
     $req->content(JSON::to_json({
         name => "cf_time_set_".$t,
         subscriber_id => $subscriber->{id},
-        times => \@times,
+        times => $times,
     }));
     $res = $ua->request($req);
     is($res->code, 201, "create test cftimeset");
