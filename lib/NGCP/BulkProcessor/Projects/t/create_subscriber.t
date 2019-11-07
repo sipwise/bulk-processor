@@ -259,13 +259,15 @@ sub _create_subscriber {
 sub _update_subscriber {
 
     my ($subscriber,@further_opts) = @_;
+    my $content = {
+        %{$subscriber},
+        @further_opts
+    };
+
     $req = HTTP::Request->new('PUT', $uri.'/api/subscribers/'.$subscriber->{id});
     $req->header('Content-Type' => 'application/json');
     $req->header('Prefer' => 'return=representation');
-    $req->content(JSON::to_json({
-        %$subscriber,
-        @further_opts,
-    }));
+    $req->content(JSON::to_json($content));
     $res = $ua->request($req);
     is($res->code, 200, "update test subscriber");
     $subscriber = JSON::from_json($res->decoded_content);
