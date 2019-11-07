@@ -342,13 +342,13 @@ sub mapeq {
       if ($case_insensitive) {
         for my $key (keys %$map_prt2) {
             last unless exists $cmp{$key};
-            last unless $map_prt1->{$key} eq $map_prt2->{$key};
+            last unless lc($map_prt1->{$key}) eq lc($map_prt2->{$key});
             delete $cmp{$key};
         }
       } else {
         for my $key (keys %$map_prt2) {
             last unless exists $cmp{$key};
-            last unless lc($map_prt1->{$key}) eq lc($map_prt2->{$key});
+            last unless $map_prt1->{$key} eq $map_prt2->{$key};
             delete $cmp{$key};
         }
       }
