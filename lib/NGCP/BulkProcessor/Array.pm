@@ -316,33 +316,27 @@ sub _hash_size {
 
 
 sub mapeq {
-  my ($map_prt1,$map_prt2,$case_insensitive) = @_;
-    my $key_count1 = _hash_size($map_prt1);
-    my $key_count2 = _hash_size($map_prt2);
+    my ($map_ref1, $map_ref2, $case_insensitive) = @_;
+    my $key_count1 = _hash_size($map_ref1);
+    my $key_count2 = _hash_size($map_ref2);
 
-  if ($key_count1 != $key_count2) {
-    return 0; #print "they don't have the same number of keys\n";
-  } else {
-      my %cmp = map { $_ => 1 } keys %$map_prt1;
-      if ($case_insensitive) {
-        for my $key (keys %$map_prt2) {
-            last unless exists $cmp{$key};
-            last unless lc($map_prt1->{$key}) eq lc($map_prt2->{$key});
-            delete $cmp{$key};
+    if ($key_count1 != $key_count2) {
+        return 0;
+    }
+
+    if ($case_insensitive) {
+        for my $key (keys %{$map_ref2}) {
+            return 0 unless exists $map_ref1->{$key};
+            return 0 unless lc $map_ref1->{$key} eq lc $map_ref2->{$key};
         }
-      } else {
-        for my $key (keys %$map_prt2) {
-            last unless exists $cmp{$key};
-            last unless $map_prt1->{$key} eq $map_prt2->{$key};
-            delete $cmp{$key};
+    } else {
+        for my $key (keys %{$map_ref2}) {
+            return 0 unless exists $map_ref1->{$key};
+            return 0 unless $map_ref1->{$key} eq $map_ref2->{$key};
         }
-      }
-      if (%cmp) {
-          return 0; #print "they don't have the same keys or values\n";
-      } else {
-          return 1; #print "they have the same keys or values\n";
-      }
-  }
+    }
+
+    return 1;
 }
 
 1;
