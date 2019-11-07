@@ -617,7 +617,7 @@ sub _convert_xlsbin2csv {
 
     xls2csvinfo('reading ' . $SourceFilename . ' as ' . $SourceCharset,getlogger(__PACKAGE__));
 
-    my $XLS = new IO::File;
+    my $XLS = IO::File->new();
     if (not $XLS->open('<' . $SourceFilename)) {
         fileerror('cannot open file ' . $SourceFilename . ': ' . $!,getlogger(__PACKAGE__));
         return 0;
@@ -754,7 +754,7 @@ sub _convert_xlsxbin2csv {
     xls2csvinfo('start converting ' . $SourceFilename . ' (worksheet ' . $worksheet . ') to ' . $DestFilename . ' ...',getlogger(__PACKAGE__));
 
 
-    my $XLS = new IO::File;
+    my $XLS = IO::File->new();
     if (not $XLS->open('<' . $SourceFilename)) {
         fileerror('cannot open file ' . $SourceFilename . ': ' . $!,getlogger(__PACKAGE__));
         return 0;
