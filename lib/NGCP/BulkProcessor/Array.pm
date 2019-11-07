@@ -125,21 +125,21 @@ sub contains {
     return int $result;
 }
 
-sub arrayeq {
+sub _array_last {
+    my $array_ref = shift;
 
+    if (defined $array_ref and ref $array_ref eq 'ARRAY') {
+        return $#{$array_ref};
+    } else {
+        return;
+    }
+}
+
+sub arrayeq {
   my ($array_ptr1,$array_ptr2,$case_insensitive) = @_;
-  my $ubound1;
-  my $ubound2;
-  if (defined $array_ptr1 and ref $array_ptr1 eq 'ARRAY') {
-    $ubound1 = (scalar @$array_ptr1) - 1;
-  } else {
-    $ubound1 = -1;
-  }
-  if (defined $array_ptr2 and ref $array_ptr2 eq 'ARRAY') {
-    $ubound2 = (scalar @$array_ptr2) - 1;
-  } else {
-    $ubound2 = -1;
-  }
+
+    my $ubound1 = _array_last($array_ptr1) // -1;
+    my $ubound2 = _array_last($array_ptr2) // -1;
 
   if ($ubound1 != $ubound2) {
     return 0;
@@ -166,18 +166,10 @@ sub arrayeq {
 sub seteq {
 
   my ($array_ptr1,$array_ptr2,$case_insensitive) = @_;
-  my $ubound1;
-  my $ubound2;
-  if (defined $array_ptr1 and ref $array_ptr1 eq 'ARRAY') {
-    $ubound1 = (scalar @$array_ptr1) - 1;
-  } else {
-    $ubound1 = -1;
-  }
-  if (defined $array_ptr2 and ref $array_ptr2 eq 'ARRAY') {
-    $ubound2 = (scalar @$array_ptr2) - 1;
-  } else {
-    $ubound2 = -1;
-  }
+
+    my $ubound1 = _array_last($array_ptr1) // -1;
+    my $ubound2 = _array_last($array_ptr2) // -1;
+
   # every element of array1 must be existent in array2 ...
   for (my $i = 0; $i <= $ubound1; $i += 1) {
     if (not contains($array_ptr1->[$i],$array_ptr2,$case_insensitive)) {
@@ -198,12 +190,9 @@ sub seteq {
 sub setcontains {
 
   my ($array_ptr1,$array_ptr2,$case_insensitive) = @_;
-  my $ubound1;
-  if (defined $array_ptr1 and ref $array_ptr1 eq 'ARRAY') {
-    $ubound1 = (scalar @$array_ptr1) - 1;
-  } else {
-    $ubound1 = -1;
-  }
+
+    my $ubound1 = _array_last($array_ptr1) // -1;
+
   # every element of array1 must be existent in array2:
   for (my $i = 0; $i <= $ubound1; $i += 1) {
     if (not contains($array_ptr1->[$i],$array_ptr2,$case_insensitive)) {
@@ -218,18 +207,12 @@ sub setcontains {
 sub filter {
 
   my ($array_ptr1,$array_ptr2,$case_insensitive) = @_;
-  my $ubound1;
-  my $ubound2;
-  if (defined $array_ptr1 and ref $array_ptr1 eq 'ARRAY') {
-    $ubound1 = (scalar @$array_ptr1) - 1;
-  } else {
-    return [];
-  }
-  if (defined $array_ptr2 and ref $array_ptr2 eq 'ARRAY') {
-    $ubound2 = (scalar @$array_ptr2) - 1;
-  } else {
-    return $array_ptr1;
-  }
+    my $ubound1 = _array_last($array_ptr1);
+    my $ubound2 = _array_last($array_ptr2);
+
+    return [] if not defined $ubound1;
+    return $array_ptr1 if not defined $ubound2;
+
   my @result = ();
   # every element of array1 must be existent in array2 ...
   for (my $i = 0; $i <= $ubound1; $i += 1) {
