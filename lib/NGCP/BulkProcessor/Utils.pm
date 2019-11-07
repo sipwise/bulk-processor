@@ -397,7 +397,7 @@ sub wrap_text {
 
 sub create_guid {
 
-  my $ug = new Data::UUID;
+  my $ug = Data::UUID->new();
   my $uuid = $ug->create();
   return $ug->to_string( $uuid );
 

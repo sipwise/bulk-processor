@@ -74,7 +74,7 @@ sub itemcount {
 sub grouparray {
 
   my ($array_ptr,$case_insensitive) = @_;
-  my $result = new NGCP::BulkProcessor::Table();
+  my $result = NGCP::BulkProcessor::Table->new();
   my $reducedarray = removeduplicates($array_ptr,$case_insensitive);
   my $sort_occurencecount_desc;
   if ($case_insensitive) {
