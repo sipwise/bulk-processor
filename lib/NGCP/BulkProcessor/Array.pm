@@ -304,20 +304,22 @@ sub array_to_map {
 
 }
 
+sub _hash_size {
+    my $hash_ref = shift;
+
+    if (defined $hash_ref and ref $hash_ref eq 'HASH') {
+        return scalar keys %{$hash_ref};
+    } else {
+        return 0;
+    }
+}
+
+
 sub mapeq {
   my ($map_prt1,$map_prt2,$case_insensitive) = @_;
-  my $key_count1;
-  my $key_count2;
-  if (defined $map_prt1 and ref $map_prt1 eq 'HASH') {
-    $key_count1 = (scalar keys %$map_prt1);
-  } else {
-    $key_count1 = 0;
-  }
-  if (defined $map_prt2 and ref $map_prt2 eq 'HASH') {
-    $key_count2 = (scalar keys %$map_prt2);
-  } else {
-    $key_count2 = 0;
-  }
+    my $key_count1 = _hash_size($map_prt1);
+    my $key_count2 = _hash_size($map_prt2);
+
   if ($key_count1 != $key_count2) {
     return 0; #print "they don't have the same number of keys\n";
   } else {
