@@ -141,9 +141,8 @@ sub arrayeq {
     my $ubound1 = _array_last($array_ptr1) // -1;
     my $ubound2 = _array_last($array_ptr2) // -1;
 
-  if ($ubound1 != $ubound2) {
-    return 0;
-  } else {
+    return 0 if $ubound1 != $ubound2;
+
     if ($case_insensitive) {
       for (my $i = 0; $i <= $ubound1; $i += 1) {
         if (lc($array_ptr1->[$i]) ne lc($array_ptr2->[$i])) {
@@ -157,7 +156,6 @@ sub arrayeq {
         }
       }
     }
-  }
 
   return 1;
 
