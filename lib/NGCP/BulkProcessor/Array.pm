@@ -144,13 +144,13 @@ sub arrayeq {
     return 0 if $ubound1 != $ubound2;
 
     if ($case_insensitive) {
-      for (my $i = 0; $i <= $ubound1; $i += 1) {
+      foreach my $i (0 .. $ubound1) {
         if (lc($array_ptr1->[$i]) ne lc($array_ptr2->[$i])) {
           return 0;
         }
       }
     } else {
-      for (my $i = 0; $i <= $ubound1; $i += 1) {
+      foreach my $i (0 .. $ubound1) {
         if ($array_ptr1->[$i] ne $array_ptr2->[$i]) {
           return 0;
         }
@@ -169,13 +169,13 @@ sub seteq {
     my $ubound2 = _array_last($array_ptr2) // -1;
 
   # every element of array1 must be existent in array2 ...
-  for (my $i = 0; $i <= $ubound1; $i += 1) {
+  foreach my $i (0 .. $ubound1) {
     if (not contains($array_ptr1->[$i],$array_ptr2,$case_insensitive)) {
       return 0;
     }
   }
   # ... and every element of array2 must be existent in array1
-  for (my $i = 0; $i <= $ubound2; $i += 1) {
+  foreach my $i (0 .. $ubound2) {
     if (not contains($array_ptr2->[$i],$array_ptr1,$case_insensitive)) {
       return 0;
     }
@@ -192,7 +192,7 @@ sub setcontains {
     my $ubound1 = _array_last($array_ptr1) // -1;
 
   # every element of array1 must be existent in array2:
-  for (my $i = 0; $i <= $ubound1; $i += 1) {
+  foreach my $i (0 .. $ubound1) {
     if (not contains($array_ptr1->[$i],$array_ptr2,$case_insensitive)) {
       return 0;
     }
@@ -213,7 +213,7 @@ sub filter {
 
   my @result = ();
   # every element of array1 must be existent in array2 ...
-  for (my $i = 0; $i <= $ubound1; $i += 1) {
+  foreach my $i (0 .. $ubound1) {
     if (contains($array_ptr1->[$i],$array_ptr2,$case_insensitive)) {
       push @result,$array_ptr1->[$i];
     }
