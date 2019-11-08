@@ -3,7 +3,7 @@ use strict;
 
 ## no critic
 
-use List::Util qw(any uniq);
+use List::Util qw(any none uniq);
 
 use NGCP::BulkProcessor::Table;
 
@@ -256,7 +256,7 @@ sub array_to_map {
             $get_value_code = sub { return shift; };
         }
         $mode = lc $mode;
-        if (not ($mode eq 'group' or $mode eq 'first' or $mode eq 'last')) {
+        if (none { $mode eq $_ } qw(group first last)) {
             $mode = 'group';
         }
         foreach my $item (@{$array_ptr}) {
