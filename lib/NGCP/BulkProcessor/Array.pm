@@ -161,8 +161,18 @@ sub setcontains {
     my $ubound1 = _array_last($array_ptr1) // -1;
 
     # every element of array1 must be existent in array2:
-    foreach my $i (0 .. $ubound1) {
-        return 0 if not contains($array_ptr1->[$i], $array_ptr2, $case_insensitive);
+    if ($case_insensitive) {
+        my %set2 = map { lc() => 1 } @{$array_ptr2};
+
+        foreach my $i (0 .. $ubound1) {
+            return 0 if not exists $set2{lc $array_ptr1->[$i]};
+        }
+    } else {
+        my %set2 = map { $_ => 1 } @{$array_ptr2};
+
+        foreach my $i (0 .. $ubound1) {
+            return 0 if not exists $set2{$array_ptr1->[$i]};
+        }
     }
 
     return 1;
