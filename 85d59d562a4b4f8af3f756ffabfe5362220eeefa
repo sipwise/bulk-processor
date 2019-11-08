@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "71f760f9_4200c2aa",
+        "filename": "lib/NGCP/BulkProcessor/Projects/Export/Ama/Ccs/process.pl",
+        "patchSetId": 3
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 1000008
+      },
+      "writtenOn": "2019-11-08T18:37:35Z",
+      "side": 1,
+      "message": "Unrelated to this review, but should these be taken out?",
+      "revId": "85d59d562a4b4f8af3f756ffabfe5362220eeefa",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
