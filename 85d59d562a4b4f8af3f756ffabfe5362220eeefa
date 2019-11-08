@@ -16,6 +16,24 @@
       "revId": "85d59d562a4b4f8af3f756ffabfe5362220eeefa",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "a24996d9_607139fb",
+        "filename": "lib/NGCP/BulkProcessor/Projects/Export/Ama/Ccs/process.pl",
+        "patchSetId": 3
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2019-11-08T18:44:12Z",
+      "side": 1,
+      "message": "Yeah, although that might make jenkins very unhappy, so it might require another fixing session. :)",
+      "parentUuid": "71f760f9_4200c2aa",
+      "revId": "85d59d562a4b4f8af3f756ffabfe5362220eeefa",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
