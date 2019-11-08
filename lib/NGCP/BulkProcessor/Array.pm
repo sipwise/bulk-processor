@@ -264,8 +264,8 @@ sub array_to_map {
     my $map = {};
     my @keys = ();
     my @values = ();
-    if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
-      if (defined $get_key_code and ref $get_key_code eq 'CODE') {
+    if (defined $array_ptr and ref $array_ptr eq 'ARRAY' and
+        defined $get_key_code and ref $get_key_code eq 'CODE') {
         if (not (defined $get_value_code and ref $get_value_code eq 'CODE')) {
           $get_value_code = sub { return shift; };
         }
@@ -275,9 +275,12 @@ sub array_to_map {
         }
         foreach my $item (@$array_ptr) {
           my $key = &$get_key_code($item);
-          if (defined $key) {
+
+          next unless defined $key;
+
             my $value = &$get_value_code($item);
-            if (defined $value) {
+            next unless defined $value;
+
               if (not exists $map->{$key}) {
                   if ($mode eq 'group') {
                       $map->{$key} = [ $value ];
@@ -293,10 +296,7 @@ sub array_to_map {
                   }
               }
               push(@values,$value);
-            }
-          }
         }
-      }
     }
     return ($map,\@keys,\@values);
 
