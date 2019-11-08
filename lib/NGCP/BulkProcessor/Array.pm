@@ -18,8 +18,8 @@ our @EXPORT_OK = qw(
     contains
     arrayeq
     mapeq
-    seteq
     setcontains
+    seteq
     filter
     getroundrobinitem
     getrandomitem
@@ -155,24 +155,6 @@ sub arrayeq {
     return 1;
 }
 
-sub seteq {
-    my ($array_ptr1, $array_ptr2, $case_insensitive) = @_;
-
-    my $ubound1 = _array_last($array_ptr1) // -1;
-    my $ubound2 = _array_last($array_ptr2) // -1;
-
-    # every element of array1 must be existent in array2 ...
-    foreach my $i (0 .. $ubound1) {
-        return 0 if not contains($array_ptr1->[$i], $array_ptr2, $case_insensitive);
-    }
-    # ... and every element of array2 must be existent in array1
-    foreach my $i (0 .. $ubound2) {
-        return 0 if not contains($array_ptr2->[$i], $array_ptr1, $case_insensitive);
-    }
-
-    return 1;
-}
-
 sub setcontains {
     my ($array_ptr1, $array_ptr2, $case_insensitive) = @_;
 
@@ -182,6 +164,17 @@ sub setcontains {
     foreach my $i (0 .. $ubound1) {
         return 0 if not contains($array_ptr1->[$i], $array_ptr2, $case_insensitive);
     }
+
+    return 1;
+}
+
+sub seteq {
+    my ($array_ptr1, $array_ptr2, $case_insensitive) = @_;
+
+    # every element of array1 must be existent in array2 ...
+    return 0 if not setcontains($array_ptr1, $array_ptr2, $case_insensitive);
+    # ... and every element of array2 must be existent in array1
+    return 0 if not setcontains($array_ptr2, $array_ptr1, $case_insensitive);
 
     return 1;
 }
