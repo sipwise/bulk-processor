@@ -369,7 +369,7 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        if (contains(get_u2u_header($context,$parent_cdrs->[0]),\@ivr_u2u_headers)) {
+                        if (contains(get_u2u_header($context,$parent_cdrs->[0]),\@ivr_u2u_headers,1)) {
                             $scenario->{code} = $BLIND_TRANSFER;
                         } else {
                             $scenario->{code} = $BLIND_TRANSFER_NO_IVR;
@@ -390,7 +390,7 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        if (contains(get_u2u_header($context,$parent_cdrs->[0]),\@ivr_u2u_headers)) {
+                        if (contains(get_u2u_header($context,$parent_cdrs->[0]),\@ivr_u2u_headers,1)) {
                             $scenario->{code} = $NO_TRANSFER;
                         } else {
                             $scenario->{code} = $NO_TRANSFER_NO_IVR;
@@ -412,7 +412,7 @@ sub _export_cdrs_init_context {
                         and ($scenario->{ccs_subscriber}->{primary_alias} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberidisprimary($scenario->{ccs_subscriber}->{id},1)->[0])
                         and (not defined $primary_alias_pattern or $scenario->{ccs_subscriber}->{primary_alias}->{username} =~ $primary_alias_pattern)
                         ) {
-                        if (contains(get_u2u_header($context,$parent_cdrs->[1]),\@ivr_u2u_headers)) {
+                        if (contains(get_u2u_header($context,$parent_cdrs->[1]),\@ivr_u2u_headers,1)) {
                             $scenario->{code} = $ATTN_TRANSFER;
                         } else {
                             $scenario->{code} = $ATTN_TRANSFER_NO_IVR;
