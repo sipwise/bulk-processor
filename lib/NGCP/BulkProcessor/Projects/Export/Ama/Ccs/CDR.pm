@@ -348,7 +348,7 @@ sub _export_cdrs_init_context {
                     if (exists $context->{correlated_cdrs_map}->{$cdr->{id}}) {
                         @correlated_cdrs = @{$context->{correlated_cdrs_map}->{$cdr->{id}}};
                     } else {
-                        @correlated_cdrs = @{_find_child_cdrs($context,$cdr->{id})};
+                        @correlated_cdrs = grep { length($_->{call_id} =~ s/^\s+|\s+$//gr) > 0; } @{_find_child_cdrs($context,$cdr->{id})};
                     }
                     $cdr->{_correlated_cdrs} = \@correlated_cdrs;
                     push(@scenario_cdrs,@correlated_cdrs);
