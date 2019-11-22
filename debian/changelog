@@ -1,3 +1,13 @@
+ngcp-bulk-processor (7.5.1.7+0~mr7.5.1.7) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [de5c8a2] TT#70464 amaexporter case-insensitive match for u2u value
+  * [b8cead6] TT#70604 ama: ignore cdr_group records with emtpy callid
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 22 Nov 2019 11:53:02 +0100
+
 ngcp-bulk-processor (7.5.1.6+0~mr7.5.1.6) unstable; urgency=medium
 
   [ Rene Krenn ]
