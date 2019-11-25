@@ -1,3 +1,57 @@
+ngcp-bulk-processor (8.1.1.0+0~mr8.1.1.0) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * [565f539] TT#69150 Switch to use IO::Prompt::Tiny instead of ad-hoc code
+  * [548fa1a] TT#69200 Use List::Util max() and min() instead of ad-hoc code
+  * [3b125ec] TT#69200 Sort perl build system dependencies
+  * [e7fb543] TT#69200 Switch to use CPAN::Meta::Spec metadata
+  * [080258c] TT#69200 Updete perl build system dependencies
+  * [561e36d] TT#69200 Use sprintf instead of ad-hoc code to 0 fill digits
+  * [72d7000] TT#69200 Use Time::Seconds instead of ad-hoc code to pretty print time offsets
+  * [018eafb] TT#69200 Use Time::Piece instead of ad-hoc code to print dates and times
+  * [e6ebcc1] TT#69200 Use Time::Piece and Time::Local to add up months
+  * [7857a1c] TT#69200 Susbstantially simplify and generalize kbytes2gigs()
+  * [c88a6b2] TT#69200 Add initial unit tests for NGCP::BulkProcessor::Array
+  * [0991288] TT#69200 Pass the entire list to push in mergearrays()
+  * [fdc64d6] TT#69200 Use reverse in reversearray() instead of an ad-hoc implementation
+  * [54704e0] TT#69200 Reimplement contains() based on List::Util's any()
+  * [9485368] TT#69200 Reimplement removeduplicates() based of List::Util's uniq
+  * [1172027] TT#69200 Remove unused variable in arrayeq()
+  * [5d38bd2] TT#69200 Reimplement itemcount() based on grep()
+  * [0bb15f4] TT#69950 Unbundle Excel::Reader::XLSX modules
+  * [34a51e0] TT#69200 Set exexutable bits for programs
+  * [9cca145] TT#69200 Use correct variable in _create_cftimeset() sub
+  * [dbd7ac7] TT#69200 Move hash argument to content method into a variable
+  * [803bacf] TT#69200 Use strict and warnings
+  * [85d59d5] TT#69200 Set shebang for perl scripts
+  * [bcbe99c] TT#69200 Fix mapeq() to match correctly according to caseinsensitive argument
+  * [dfaeb89] TT#69200 Add more unit tests for NGCP::BulkProcessor::Array
+  * [456d120] TT#69200 Do not use indirect method syntax
+  * [9800b99] TT#69200 Refactor getting last array index into a new sub
+  * [d167d55] TT#69200 Refactor getting the size of a hash
+  * [22a0d69] TT#69200 Rewrite mapeq() to not need an intermediate hash
+  * [64d4ec3] TT#69200 Switch to an early return in arrayeq()  to reduce nesting level
+  * [2b13bb6] TT#69200 Switch from C-style for loops to range ones
+  * [a551ce2] TT#69200 Reduce nesting levels in array_to_map()
+  * [f592196] TT#69200 Fix coding style
+  * [c5522cd] TT#69200 Use none() instead of comparin $mode with each value
+  * [24b954f] TT#69200 Rerwite seteq() based off setcontains()
+  * [520e67e] TT#69200 Rewrite setcontains() to use a hash instead of contains()
+
+  [ Rene Krenn ]
+  * [51edb2e] TT#67109 TT#63655 move projects, dbschema for mergemigration tool
+  * [04d6c7f] Revert "TT#69150 Switch to use IO::Prompt::Tiny instead of ad-hoc code"
+  * [dd3ad89] TT#67109 TT#63655 remove debug limit
+  * [116f88b] TT#63528 CCS importer: clear CFU prefs for subs with "1:1" routing type
+  * [1b96d89] TT#67109 TT#63655 migrate voipnumbers.listtimestamp
+  * [8b934eb] TT#69853 support resetting .ama export status by call-id(s)
+  * [518ab9a] TT#70464 amaexporter case-insensitive match for u2u value
+  * [1b0e1e3] TT#70604 ama: ignore cdr_group records with emtpy callid
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 25 Nov 2019 14:51:52 +0100
+
 ngcp-bulk-processor (8.1.0.0+0~mr8.1.0.0) unstable; urgency=medium
 
   * New release.
