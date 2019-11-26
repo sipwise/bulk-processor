@@ -92,6 +92,11 @@ use NGCP::BulkProcessor::Projects::Migration::UPCAT::Preferences qw(
     get_subscriber_preference
     clear_subscriber_preferences
     delete_subscriber_preference
+
+    set_contract_preference
+    get_contract_preference
+    clear_contract_preferences
+    delete_contract_preference
 );
 #set_allowed_ips_preferences
 #cleanup_aig_sequence_ids
@@ -560,6 +565,13 @@ sub _update_contract {
             contract_id => $context->{contract}->{id},
         );
 
+        my @allowed_clis = ();
+        push(@allowed_clis,{ id => set_contract_preference($context,
+             $context->{contract}->{id},
+             $context->{attributes}->{allowed_clis},
+             "*"), value => "*"});
+        $context->{contract_preferences}->{allowed_clis} = \@allowed_clis;
+
         _info($context,"contract id $context->{contract}->{id} created",1);
     }
     return 1;
@@ -608,7 +620,7 @@ sub _update_subscriber {
             );
         }
 
-        $context->{preferences}->{cli} = { id => set_subscriber_preference($context,
+        $context->{usr_preferences}->{cli} = { id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{cli},
             $number->{number}), value => $number->{number} };
@@ -632,7 +644,7 @@ sub _update_subscriber {
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{allowed_clis},
             $number->{number}), value => $number->{number}});
-        $context->{preferences}->{allowed_clis} = \@allowed_clis;
+        $context->{usr_preferences}->{allowed_clis} = \@allowed_clis;
 
         NGCP::BulkProcessor::Dao::Trunk::billing::voip_numbers::release_subscriber_numbers($context->{db},
             $context->{bill_subscriber}->{id},{ 'NOT IN' => $context->{voip_numbers}->{primary}->{id} });
@@ -651,19 +663,19 @@ sub _update_subscriber {
             $context->{voicemail_user},
         );
 
-        $context->{preferences}->{account_id} = { id => set_subscriber_preference($context,
+        $context->{usr_preferences}->{account_id} = { id => set_subscriber_preference($context,
             $context->{prov_subscriber}->{id},
             $context->{attributes}->{account_id},
             $context->{contract}->{id}), value => $context->{contract}->{id} };
 
         if (length($number->{ac}) > 0) {
-            $context->{preferences}->{ac} = { id => set_subscriber_preference($context,
+            $context->{usr_preferences}->{ac} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{ac},
                 $number->{ac}), value => $number->{ac} };
         }
         if (length($number->{cc}) > 0) {
-            $context->{preferences}->{cc} = { id => set_subscriber_preference($context,
+            $context->{usr_preferences}->{cc} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{cc},
                 $number->{cc}), value => $number->{cc} };
@@ -682,18 +694,18 @@ sub _update_mta_preferences {
     my $result = 1;
 
         if (defined $context->{ncos_level}) {
-            $context->{preferences}->{ncos_id} = { id => set_subscriber_preference($context,
+            $context->{usr_preferences}->{ncos_id} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{ncos_id},
                 $context->{ncos_level}->{id}), value => $context->{ncos_level}->{id} };
             _info($context,"ncos_id preference set to $context->{ncos_level}->{id} - $context->{ncos_level}->{level}",1);
         }
 
-        if (defined $context->{preferences}->{gpp}) {
+        if (defined $context->{usr_preferences}->{gpp}) {
             my $gpp_idx = 0;
-            foreach my $gpp_val (@{$context->{preferences}->{gpp}}) {
+            foreach my $gpp_val (@{$context->{usr_preferences}->{gpp}}) {
                 my $gpp_attr = 'gpp' . $gpp_idx;
-                $context->{preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
+                $context->{usr_preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
                     $context->{prov_subscriber}->{id},
                     $context->{attributes}->{$gpp_attr},
                     $gpp_attr), value => $gpp_attr };
@@ -770,7 +782,7 @@ sub _create_aliases {
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{allowed_clis},
                 $number->{number});
-            push(@{$context->{preferences}->{allowed_clis}},{ id => set_subscriber_preference($context,
+            push(@{$context->{usr_preferences}->{allowed_clis}},{ id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{allowed_clis},
                 $number->{number}), value => $number->{number}});
@@ -1009,9 +1021,9 @@ sub _provision_mta_susbcriber_init_context {
     $context->{voicemail_user}->{mailbox} = $context->{numbers}->{primary}->{number};
     $context->{voicemail_user}->{password} = sprintf("%04d", int(rand 10000));
 
-    $context->{preferences} = {};
+    $context->{usr_preferences} = {};
 
-    $context->{preferences}->{gpp} = [
+    $context->{usr_preferences}->{gpp} = [
         $first->{"_len"},
         $first->{"_cpe_mta_mac_address"},
         $first->{"_cpe_model"},
@@ -1603,14 +1615,16 @@ sub _provision_ccs_susbcriber_init_context {
     }
     $context->{callforwards} = \%cfsimple;
 
-    #$context->{preferences} = {};
+    #$context->{usr_preferences} = {};
 
-    #$context->{preferences}->{gpp} = [
+    #$context->{usr_preferences}->{gpp} = [
     #    $first->{"_len"},
     #    $first->{"_cpe_mta_mac_address"},
     #    $first->{"_cpe_model"},
     #    $first->{"_cpe_vendor"},
     #];
+
+    $context->{contract_preferences} = {};
 
     return $result;
 
@@ -1667,26 +1681,26 @@ sub _update_ccs_preferences {
 
     my $result = 1;
 
-    $context->{preferences}->{extended_dialing_mode} = { id => set_subscriber_preference($context,
+    $context->{usr_preferences}->{extended_dialing_mode} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
         $context->{attributes}->{extended_dialing_mode},
         'extended_send_dialed'), value => 'extended_send_dialed' };
 
-    $context->{preferences}->{e164_to_ruri} = { id => set_subscriber_preference($context,
+    $context->{usr_preferences}->{e164_to_ruri} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
         $context->{attributes}->{e164_to_ruri},
         '1'), value => '1' };
 
-    $context->{preferences}->{serial_forking_by_q_value} = { id => set_subscriber_preference($context,
+    $context->{usr_preferences}->{serial_forking_by_q_value} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
         $context->{attributes}->{serial_forking_by_q_value},
         '1'), value => '1' };
 
-    #if (defined $context->{preferences}->{gpp}) {
+    #if (defined $context->{usr_preferences}->{gpp}) {
     #    my $gpp_idx = 0;
-    #    foreach my $gpp_val (@{$context->{preferences}->{gpp}}) {
+    #    foreach my $gpp_val (@{$context->{usr_preferences}->{gpp}}) {
     #        my $gpp_attr = 'gpp' . $gpp_idx;
-    #        $context->{preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
+    #        $context->{usr_preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
     #            $context->{prov_subscriber}->{id},
     #            $context->{attributes}->{$gpp_attr},
     #            $gpp_attr), value => $gpp_attr };
@@ -1695,29 +1709,29 @@ sub _update_ccs_preferences {
     #    }
     #}
 
-    $context->{preferences}->{cloud_pbx} = { id => set_subscriber_preference($context,
+    $context->{usr_preferences}->{cloud_pbx} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
         $context->{attributes}->{cloud_pbx},
         '1'), value => '1' };
 
-    $context->{preferences}->{cloud_pbx_base_cli} = { id => set_subscriber_preference($context,
+    $context->{usr_preferences}->{cloud_pbx_base_cli} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
         $context->{attributes}->{cloud_pbx_base_cli},
         $context->{numbers}->{primary}->{number}), value => $context->{numbers}->{primary}->{number} };
 
-    $context->{preferences}->{cloud_pbx_hunt_policy} = { id => set_subscriber_preference($context,
+    $context->{usr_preferences}->{cloud_pbx_hunt_policy} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
         $context->{attributes}->{cloud_pbx_hunt_policy},
         'serial'), value => 'serial' };
 
     #contract_sound_set = 25
 
-    $context->{preferences}->{music_on_hold} = { id => set_subscriber_preference($context,
+    $context->{usr_preferences}->{music_on_hold} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
         $context->{attributes}->{music_on_hold},
         '1'), value => '1' };
 
-    $context->{preferences}->{shared_buddylist_visibility} = { id => set_subscriber_preference($context,
+    $context->{usr_preferences}->{shared_buddylist_visibility} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
         $context->{attributes}->{shared_buddylist_visibility},
         '1'), value => '1' };
@@ -1781,13 +1795,13 @@ sub _set_callforwards {
                 #time_set_id
             });
 
-            $context->{preferences}->{$type} = { id => set_subscriber_preference($context,
+            $context->{usr_preferences}->{$type} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{$type},
                 $cf_mapping_id), value => $cf_mapping_id };
 
             if (defined $context->{ringtimeout}) {
-                $context->{preferences}->{ringtimeout} = { id => set_subscriber_preference($context,
+                $context->{usr_preferences}->{ringtimeout} = { id => set_subscriber_preference($context,
                     $context->{prov_subscriber}->{id},
                     $context->{attributes}->{ringtimeout},
                     $context->{ringtimeout}), value => $context->{ringtimeout} };
@@ -1806,35 +1820,6 @@ sub _set_callforwards {
     return $result;
 
 }
-
-#sub _terminate_contract {
-#    my ($context,$contract_id) = @_;
-#
-#    my $result = 0;
-#    my $contract_path = NGCP::BulkProcessor::RestRequests::Trunk::Customers::get_item_path($contract_id);
-#    eval {
-#        my $customer;
-#        if ($dry) {
-#            $customer = NGCP::BulkProcessor::RestRequests::Trunk::Customers::get_item($contract_id);
-#        } else {
-#            $customer = NGCP::BulkProcessor::RestRequests::Trunk::Customers::update_item($contract_id,{
-#                status => $NGCP::BulkProcessor::RestRequests::Trunk::Customers::TERMINATED_STATE,
-#            });
-#        }
-#        $result = (defined $customer ? 1 : 0);
-#    };
-#    if ($@ or not $result) {
-#        if ($skip_errors) {
-#            _warn($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ': could not ' . ($dry ? 'fetch' : 'terminate') . ' old contract ' . $contract_path);
-#        } else {
-#            _error($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ': could not ' . ($dry ? 'fetch' : 'terminate') . ' old contract ' . $contract_path);
-#        }
-#    } else {
-#        _info($context,"($context->{rownum}) " . 'subscriber ' . $context->{cli} . ': old contract ' . $contract_path . ($dry ? ' fetched' : ' terminated'));
-#    }
-#    return $result;
-#
-#}
 
 sub _error {
 
