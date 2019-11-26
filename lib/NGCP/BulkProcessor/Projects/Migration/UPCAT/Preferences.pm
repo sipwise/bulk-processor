@@ -34,6 +34,7 @@ use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
 use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_contract_preferences qw();
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_xa_db
@@ -54,13 +55,20 @@ our @EXPORT_OK = qw(
     set_subscriber_preference
     get_subscriber_preference
 
+    clear_contract_preferences
+    delete_contract_preference
+    set_contract_preference
+    get_contract_preference
+
 );
 
 my %get_preference_sub_names = (
     voip_usr_preferences => 'findby_subscriberid_attributeid',
+    voip_contract_preferences => 'findby_contractid_attributeid',
 );
 my %preference_id_cols = (
     voip_usr_preferences => 'subscriber_id',
+    voip_contract_preferences => 'contract_id',
 );
 
 sub clear_subscriber_preferences {
@@ -78,6 +86,23 @@ sub set_subscriber_preference {
 sub get_subscriber_preference {
     my ($context,$subscriber_id,$attribute) = @_;
     return _get_preference($context,'voip_usr_preferences',$subscriber_id,$attribute);
+}
+
+sub clear_contract_preferences {
+    my ($context,$contract_id,$attribute,$except_value) = @_;
+    return _clear_preferences($context,'voip_contract_preferences',$contract_id,$attribute,$except_value);
+}
+sub delete_contract_preference {
+    my ($context,$contract_id,$attribute,$value) = @_;
+    return _delete_preference($context,'voip_contract_preferences',$contract_id,$attribute,$value);
+}
+sub set_contract_preference {
+    my ($context,$contract_id,$attribute,$value) = @_;
+    return _set_preference($context,'voip_contract_preferences',$contract_id,$attribute,$value);
+}
+sub get_contract_preference {
+    my ($context,$contract_id,$attribute) = @_;
+    return _get_preference($context,'voip_contract_preferences',$contract_id,$attribute);
 }
 
 sub _clear_preferences {
