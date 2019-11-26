@@ -1130,18 +1130,13 @@ sub _provision_ccs_susbcriber {
         if ((scalar @$existing_billing_voip_subscribers) == 0) {
 
             if (not $update_mode) {
-                #if ($imported_subscriber->{delta} eq
-                #    $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::deleted_delta) {
-                #    _info($context,$context->{prov_subscriber}->{username} . ': is deleted, and no active subscriber found');
-                #} else {
-                    _update_ccs_contact($context);
-                    _update_contract($context);
-                    _update_subscriber($context);
-                    _create_aliases($context);
-                    _update_ccs_preferences($context);
-                    _set_registrations($context);
-                    _set_callforwards($context);
-                #}
+                _update_ccs_contact($context);
+                _update_contract($context);
+                _update_subscriber($context);
+                _create_aliases($context);
+                _update_ccs_preferences($context);
+                _set_registrations($context);
+                _set_callforwards($context);
             } else {
                 _warn($context,$context->{prov_subscriber}->{username} . ': no active billing subscribers found for updating, skipping');
             }
@@ -1568,7 +1563,7 @@ sub _provision_ccs_susbcriber_init_context {
     push(@callforwards,{
         type => 'cfu',
         destination => $first->{target_number},
-    }) if $first->{routing_type} eq '1:1';
+    }) if exists $first->{target_number}; #$first->{routing_type} eq '1:1';
     if ((scalar @callforwards) > 0) {
         my %vmcf = ();
         my %maxpriority = ();
