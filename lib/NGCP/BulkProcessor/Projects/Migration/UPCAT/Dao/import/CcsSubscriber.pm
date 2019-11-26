@@ -65,11 +65,11 @@ my $get_db = \&get_import_db;
 our @fieldnames = (
     "service_number",
     "switch_number",
-    "icm",
-    "routing_type",
+    #"icm",
+    #"routing_type",
     "customer",
-    "target_number",
-    "comment",
+    #"target_number",
+    #"comment",
 
     'rownum',
 );
