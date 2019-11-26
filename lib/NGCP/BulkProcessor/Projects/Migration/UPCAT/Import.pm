@@ -5,8 +5,6 @@ use strict;
 
 use threads::shared qw();
 
-use Encode qw();
-
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::Settings qw(
     $provision_mta_subscriber_rownum_start
     $import_multithreading
@@ -45,6 +43,9 @@ use NGCP::BulkProcessor::LogError qw(
 #use NGCP::BulkProcessor::Projects::Migration::UPCAT::FileProcessors::CSVFile qw();
 use NGCP::BulkProcessor::FileProcessors::CSVFileSimple qw();
 use NGCP::BulkProcessor::FileProcessors::XslxFileSimple qw();
+
+use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber qw();
+use NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber qw();
 
 use NGCP::BulkProcessor::Projects::Migration::UPCAT::ProjectConnectorPool qw(
     get_import_db
@@ -235,6 +236,10 @@ sub _insert_mta_subscriber_rows {
 }
 
 
+
+
+
+
 sub import_ccs_subscriber {
 
     my ($file) = @_;
@@ -245,7 +250,7 @@ sub import_ccs_subscriber {
     # ..none..
 
     # prepare parse:
-    my $importer = NGCP::BulkProcessor::FileProcessors::XslxFileSimple->new(); #$user_password_import_numofthreads);
+    my $importer = NGCP::BulkProcessor::FileProcessors::CSVFileSimple->new(); #$user_password_import_numofthreads);
 
     my $upsert = _import_ccs_subscriber_reset_delta();
 
@@ -264,7 +269,6 @@ sub import_ccs_subscriber {
                 next if (scalar @$row) == 0 or (scalar @$row) == 1;
                 $row = [ map { local $_ = $_; trim($_); $_; } @$row ]; #Encode::encode('utf8',Encode::decode('cp1252',$_));
                 my $record = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber->new($row);
-                next unless _import_ccs_subscriber_check_cancelled($context,$record);
                 $record->{rownum} = $rownum;
                 my %r = %$record; my @row_ext = @r{@NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::fieldnames};
                 if ($context->{upsert}) {
@@ -322,16 +326,6 @@ sub import_ccs_subscriber {
 
 }
 
-sub _import_ccs_subscriber_check_cancelled {
-    my ($context,$subscriber) = @_;
-    my $comment = Encode::decode('utf8',$subscriber->{comment}) if defined $subscriber->{comment}; #mark as utf-8
-    if (defined $comment and $subscriber->{comment} =~ /k(\x{00dc}|\x{00fc})ndig/i) {
-        _warn($context,"$subscriber->{customer} $subscriber->{service_number} $subscriber->{comment}, skipping");
-        return 0;
-    }
-    return 1;
-}
-
 sub _import_ccs_subscriber_reset_delta {
     my $upsert = 0;
     if (NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::CcsSubscriber::countby_service_number() > 0) {
@@ -365,8 +359,6 @@ sub _insert_ccs_subscriber_rows {
         die($err);
     }
 }
-
-
 
 
 
