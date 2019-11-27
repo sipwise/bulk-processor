@@ -1556,7 +1556,7 @@ sub _provision_ccs_susbcriber_init_context {
         push(@trusted_sources,{
             src_ip => $ip,
             protocol => $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources::PROTOCOL_ANY,
-            #from_pattern => 'sip:.+' . quotemeta($context->{domain}->{domain}),
+            from_pattern => ('sip:' . quotemeta($first->{sip_username}) . '@' . quotemeta($context->{domain}->{domain})),
         });
     }
     $context->{registrations} = \@registrations;
