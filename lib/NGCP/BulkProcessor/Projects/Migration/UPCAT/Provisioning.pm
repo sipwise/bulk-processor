@@ -701,7 +701,7 @@ sub _update_mta_preferences {
                 $context->{usr_preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
                     $context->{prov_subscriber}->{id},
                     $context->{attributes}->{$gpp_attr},
-                    $gpp_attr), value => $gpp_attr };
+                    $gpp_attr), value => $gpp_val };
                 _info($context,"$gpp_attr preference set to $gpp_val",1);
                 $gpp_idx++;
             }
@@ -1374,6 +1374,19 @@ sub _provision_ccs_subscribers_checks {
         processing_info(threadid(),"ringtimeout attribute found",getlogger(__PACKAGE__));
     }
 
+    foreach my $gpp_idx (0..9) {
+        my $gpp_attr = $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::GPPx_ATTRIBUTE . $gpp_idx;
+        eval {
+            $context->{attributes}->{$gpp_attr} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_attribute($gpp_attr);
+        };
+        if ($@ or not defined $context->{attributes}->{$gpp_attr}) {
+            rowprocessingerror(threadid(),"cannot find $gpp_attr attribute",getlogger(__PACKAGE__));
+            $result = 0; #even in skip-error mode..
+        } else {
+            processing_info(threadid(),"$gpp_attr attribute found",getlogger(__PACKAGE__));
+        }
+    }
+
     return $result;
 }
 
@@ -1608,14 +1621,12 @@ sub _provision_ccs_susbcriber_init_context {
     }
     $context->{callforwards} = \%cfsimple;
 
-    #$context->{usr_preferences} = {};
+    $context->{usr_preferences} = {};
 
-    #$context->{usr_preferences}->{gpp} = [
-    #    $first->{"_len"},
-    #    $first->{"_cpe_mta_mac_address"},
-    #    $first->{"_cpe_model"},
-    #    $first->{"_cpe_vendor"},
-    #];
+    $context->{usr_preferences}->{gpp} = [
+        undef,
+        _get_encoded_username($first->{sip_username} . '@' . $context->{domain}->{domain}),
+    ];
 
     $context->{contract_preferences} = {};
 
@@ -1647,20 +1658,6 @@ sub _update_ccs_contact {
         $context->{contract}->{contact}->{id} = $existing_contact->{id};
         $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
 
-        #my $existing_contracts = NGCP::BulkProcessor::Dao::Trunk::billing::contracts::findby_contactid($existing_contact->{id});
-        #if ((scalar @$existing_contracts) > 0) {
-        #    my $existing_contract = $existing_contracts->[0];
-        #    if ((scalar @$existing_contracts) > 1) {
-        #        _warn($context,(scalar @$existing_contracts) . " existing contracts found, using first contact id $existing_contract->{id}");
-        #    } else {
-        #        _info($context,"existing contract id $existing_contact->{id} found",1);
-        #    }
-        #    $context->{contract}->{id} = $existing_contract->{id};
-        #    $context->{bill_subscriber}->{contract_id} = $context->{contract}->{id};
-        #    $context->{prov_subscriber}->{account_id} = $context->{contract}->{id};
-        #} else {
-        #    _warn($context,"no existing contract of contact id $existing_contact->{id} found, will be created");
-        #}
     }
     $context->{contract}->{contact_id} = $context->{contract}->{contact}->{id};
 
@@ -1689,18 +1686,19 @@ sub _update_ccs_preferences {
         $context->{attributes}->{serial_forking_by_q_value},
         '1'), value => '1' };
 
-    #if (defined $context->{usr_preferences}->{gpp}) {
-    #    my $gpp_idx = 0;
-    #    foreach my $gpp_val (@{$context->{usr_preferences}->{gpp}}) {
-    #        my $gpp_attr = 'gpp' . $gpp_idx;
-    #        $context->{usr_preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
-    #            $context->{prov_subscriber}->{id},
-    #            $context->{attributes}->{$gpp_attr},
-    #            $gpp_attr), value => $gpp_attr };
-    #        _info($context,"$gpp_attr preference set to $gpp_val",1);
-    #        $gpp_idx++;
-    #    }
-    #}
+    if (defined $context->{usr_preferences}->{gpp}) {
+        my $gpp_idx = 0;
+        foreach my $gpp_val (@{$context->{usr_preferences}->{gpp}}) {
+            my $gpp_attr = 'gpp' . $gpp_idx;
+            $gpp_idx++;
+            next unless defined $gpp_val;
+            $context->{usr_preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
+                $context->{prov_subscriber}->{id},
+                $context->{attributes}->{$gpp_attr},
+                $gpp_attr), value => $gpp_val };
+            _info($context,"$gpp_attr preference set to $gpp_val",1);
+        }
+    }
 
     $context->{usr_preferences}->{cloud_pbx} = { id => set_subscriber_preference($context,
         $context->{prov_subscriber}->{id},
@@ -1824,6 +1822,23 @@ sub _set_callforwards {
         }
     }
     return $result;
+
+}
+
+sub _get_encoded_username {
+
+    my ($ud) = @_;
+
+    my $packed = pack('CCC C a*', 0, 0x45, 0x80, length($ud), $ud);
+
+    my $checksum = 0;
+    for my $c (map {ord $_} split(//, $packed)) {
+        $checksum ^= $c;
+    }
+
+    $packed .= pack('C', $checksum);
+
+    return uc(unpack('H*', $packed));
 
 }
 
