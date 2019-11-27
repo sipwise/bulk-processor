@@ -1,0 +1,8 @@
+Verified+1: Jenkins Jenkins
+Code-Review+2: Rene Krenn <rkrenn@sipwise.com>
+Code-Review+1: Andrii Pogrebennyk <apogrebennyk@sipwise.com>
+Submitted-by: Rene Krenn <rkrenn@sipwise.com>
+Submitted-at: Wed, 27 Nov 2019 12:10:01 +0100
+Reviewed-on: http://gerrit.mgm.sipwise.com/c/bulk-processor/+/35660
+Project: bulk-processor
+Branch: refs/heads/master
