@@ -1,3 +1,17 @@
+ngcp-bulk-processor (7.5.2.3+0~mr7.5.2.3) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [b1b86b3] TT#69125 mr1.0.3 source db schema
+  * [61c82ad] TT#71361 ccs tool: new .csv format
+  * [be59946] TT#71362 CCS tool - disable CFU creation
+  * [16e86e8] TT#71363 contract_preferences, ccs prov tool "*" allowed cli
+  * [e7d2e54] TT#71365 ccs prov tool: set trustedsource from_pattern
+  * [1c121cd] TT#71364 ccs prov tool: write encoded sipuri for gpp1
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 27 Nov 2019 16:05:07 +0100
+
 ngcp-bulk-processor (7.5.2.2+0~mr7.5.2.2) unstable; urgency=medium
 
   [ Rene Krenn ]
