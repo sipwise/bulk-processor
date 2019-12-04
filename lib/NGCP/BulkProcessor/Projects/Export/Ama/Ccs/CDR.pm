@@ -24,6 +24,8 @@ use NGCP::BulkProcessor::Projects::Export::Ama::Ccs::Settings qw(
     $ama_outgoing_trunk_group_number
     $ama_originating_digits_cdr_field
     $ama_terminating_digits_cdr_field
+    $offnet_anonymous_fallback
+    $anonymous_originating_digits
 
     @ivr_u2u_headers
     $primary_alias_pattern
@@ -319,6 +321,7 @@ sub _find_child_cdrs {
     my ($context,$id) = @_;
     my @correlated_cdrs = ();
     foreach my $correlated_group_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group::findby_cdrid($context->{db},$id)}) {
+        next unless $correlated_group_cdr->{call_id};
         foreach my $correlated_cdr (@{NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callid($context->{db},$correlated_group_cdr->{call_id})}) {
             push(@correlated_cdrs,$correlated_cdr);
         }
@@ -348,7 +351,7 @@ sub _export_cdrs_init_context {
                     if (exists $context->{correlated_cdrs_map}->{$cdr->{id}}) {
                         @correlated_cdrs = @{$context->{correlated_cdrs_map}->{$cdr->{id}}};
                     } else {
-                        @correlated_cdrs = grep { length($_->{call_id} =~ s/^\s+|\s+$//gr) > 0; } @{_find_child_cdrs($context,$cdr->{id})};
+                        @correlated_cdrs = @{_find_child_cdrs($context,$cdr->{id})};
                     }
                     $cdr->{_correlated_cdrs} = \@correlated_cdrs;
                     push(@scenario_cdrs,@correlated_cdrs);
@@ -461,9 +464,9 @@ sub _export_cdrs_init_context {
     }
 
     if ($scenario->{code} == $BLIND_TRANSFER_NO_IVR) {
-        my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
-        my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
-        my $switch_number = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
+        my $originating = _get_originating($parent_cdrs->[0]);
+        my $terminating = _get_terminating($parent_cdrs->[1]);
+        my $switch_number = _get_terminating($parent_cdrs->[0]);
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $parent_cdrs->[1]->{duration},
@@ -479,9 +482,9 @@ sub _export_cdrs_init_context {
             },
         });
     } elsif ($scenario->{code} == $BLIND_TRANSFER) {
-        my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
-        my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
-        my $switch_number = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
+        my $originating = _get_originating($parent_cdrs->[0]);
+        my $terminating = _get_terminating($parent_cdrs->[1]);
+        my $switch_number = _get_terminating($parent_cdrs->[0]);
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
             duration => abs($parent_cdrs->[0]->{start_time} - $parent_cdrs->[1]->{init_time}),
@@ -510,8 +513,8 @@ sub _export_cdrs_init_context {
             },
         });
     } elsif ($scenario->{code} == $NO_TRANSFER_NO_IVR) {
-        my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
-        my $terminating = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
+        my $originating = _get_originating($parent_cdrs->[0]);
+        my $terminating = _get_terminating($parent_cdrs->[0]);
         my $switch_number = $terminating;
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
@@ -528,8 +531,8 @@ sub _export_cdrs_init_context {
             },
         });
     } elsif ($scenario->{code} == $NO_TRANSFER) {
-        my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
-        my $terminating = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
+        my $originating = _get_originating($parent_cdrs->[0]);
+        my $terminating = _get_terminating($parent_cdrs->[0]);
         my $switch_number = $terminating;
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[0]->{start_time}, #?
@@ -560,9 +563,9 @@ sub _export_cdrs_init_context {
         });
     } elsif ($scenario->{code} == $ATTN_TRANSFER_NO_IVR) {
         my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
-        my $originating = $correlated_cdr->{$ama_originating_digits_cdr_field};
-        my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
-        my $switch_number = $correlated_cdr->{$ama_terminating_digits_cdr_field};
+        my $originating = _get_originating($correlated_cdr);
+        my $terminating = _get_terminating($parent_cdrs->[1]);
+        my $switch_number = _get_terminating($correlated_cdr);
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $correlated_cdr->{duration} - abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{start_time}),
@@ -579,9 +582,9 @@ sub _export_cdrs_init_context {
         });
     } elsif ($scenario->{code} == $ATTN_TRANSFER) {
         my $correlated_cdr = $parent_cdrs->[1]->{_correlated_cdrs}->[0];
-        my $originating = $correlated_cdr->{$ama_originating_digits_cdr_field};
-        my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
-        my $switch_number = $correlated_cdr->{$ama_terminating_digits_cdr_field};
+        my $originating = _get_originating($correlated_cdr);
+        my $terminating = _get_terminating($parent_cdrs->[1]);
+        my $switch_number = _get_terminating($correlated_cdr);
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => abs($correlated_cdr->{start_time} - $parent_cdrs->[1]->{init_time}),
@@ -610,9 +613,9 @@ sub _export_cdrs_init_context {
             },
         });
     } elsif ($scenario->{code} == $CFU) {
-        my $originating = $parent_cdrs->[0]->{$ama_originating_digits_cdr_field};
-        my $terminating = $parent_cdrs->[1]->{$ama_terminating_digits_cdr_field};
-        my $switch_number = $parent_cdrs->[0]->{$ama_terminating_digits_cdr_field};
+        my $originating = _get_originating($parent_cdrs->[0]);
+        my $terminating = _get_terminating($parent_cdrs->[1]);
+        my $switch_number = _get_terminating($parent_cdrs->[0]);
         push(@{$scenario->{ama}},{
             start_time => $parent_cdrs->[1]->{start_time}, #?
             duration => $parent_cdrs->[1]->{duration},
@@ -631,6 +634,28 @@ sub _export_cdrs_init_context {
 
     return $result;
 
+}
+
+sub _get_originating {
+    my $cdr = shift;
+    my $src_user;
+    if ($offnet_anonymous_fallback
+        and $cdr->{source_user_id} eq "0"
+        and $cdr->{$ama_originating_digits_cdr_field} =~ /anonymous/i
+        and $cdr->{source_user} =~ /^[+ 0-9]+$/) {
+        $src_user = $cdr->{source_user};
+    } else {
+        $src_user = $cdr->{$ama_originating_digits_cdr_field};
+    }
+    if ($src_user =~ /anonymous/i) {
+        $src_user = $anonymous_originating_digits;
+    }
+    return $src_user;
+}
+
+sub _get_terminating {
+    my $cdr = shift;
+    return $cdr->{$ama_terminating_digits_cdr_field};
 }
 
 sub _rewrite_switch_number {
