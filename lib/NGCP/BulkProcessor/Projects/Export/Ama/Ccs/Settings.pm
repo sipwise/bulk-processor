@@ -60,6 +60,8 @@ our @EXPORT_OK = qw(
     $ama_outgoing_trunk_group_number
     $ama_originating_digits_cdr_field
     $ama_terminating_digits_cdr_field
+    $offnet_anonymous_fallback
+    $anonymous_originating_digits
 
     @ivr_u2u_headers
     $primary_alias_pattern
@@ -101,6 +103,9 @@ our $ama_incoming_trunk_group_number;
 our $ama_outgoing_trunk_group_number;
 our $ama_originating_digits_cdr_field;
 our $ama_terminating_digits_cdr_field;
+
+our $offnet_anonymous_fallback = 1; #see rate-o-mat
+our $anonymous_originating_digits = '0';
 
 #our $ivr_duration_limit = 5;
 our @ivr_u2u_headers = ();
@@ -152,6 +157,7 @@ sub update_settings {
         unless (contains($ama_terminating_digits_cdr_field,[qw(destination_user destination_user_out destination_user_dialed destination_user_in)])) {
             configurationerror($configfile,'unknown ama_terminating_digits_cdr_field',getlogger(__PACKAGE__));
         }
+        $anonymous_originating_digits = $data->{anonymous_originating_digits} if exists $data->{anonymous_originating_digits};
 
         #$ivr_duration_limit = $data->{ivr_duration_limit} if exists $data->{ivr_duration_limit};
         @ivr_u2u_headers = split_tuple($data->{ivr_u2u_headers}) if exists $data->{ivr_u2u_headers};
