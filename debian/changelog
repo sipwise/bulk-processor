@@ -1,3 +1,12 @@
+ngcp-bulk-processor (7.5.1.9+0~mr7.5.1.9) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [7b360c4] TT#71856 ama: use u2u header of corellated cdr
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 04 Dec 2019 12:05:39 +0100
+
 ngcp-bulk-processor (7.5.1.8+0~mr7.5.1.8) unstable; urgency=medium
 
   [ Rene Krenn ]
