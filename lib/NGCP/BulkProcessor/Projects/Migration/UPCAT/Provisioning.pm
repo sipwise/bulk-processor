@@ -1695,7 +1695,7 @@ sub _update_ccs_preferences {
             $context->{usr_preferences}->{$gpp_attr} = { id => set_subscriber_preference($context,
                 $context->{prov_subscriber}->{id},
                 $context->{attributes}->{$gpp_attr},
-                $gpp_attr), value => $gpp_val };
+                $gpp_val), value => $gpp_val };
             _info($context,"$gpp_attr preference set to $gpp_val",1);
         }
     }
