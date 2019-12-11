@@ -26,7 +26,9 @@ Description: module to parse Excel spreadsheets in xlsx format
 Package: libngcp-bulkprocessor-perl
 Architecture: all
 Replaces:
- ngcp-bulk-processor,
+ ngcp-bulk-processor (<< 7.3),
+Breaks:
+ ngcp-bulk-processor (<< 7.3),
 Depends:
  ${misc:Depends},
  ${perl:Depends},
@@ -81,7 +83,7 @@ Architecture: all
 Section: oldlibs
 Depends:
  libexcel-reader-xlsx-perl,
- libngcp-bulkprocessor-perl,
+ libngcp-bulkprocessor-perl (= ${source:Version}),
 Description: transitional dummy package
  This package has been split into libexcel-reader-xlsx-perl and
  libngcp-bulkprocessor-perl. It can be safely removed once it is not
