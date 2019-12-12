@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "defe94fe_cb650b9c",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2019-12-12T09:48:18Z",
+      "side": 1,
+      "message": "nit: s/tunning/tuning/",
+      "revId": "42bb0492b34427e8491d9cb2f05ff7cad1211904",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
+    }
+  ]
+}
