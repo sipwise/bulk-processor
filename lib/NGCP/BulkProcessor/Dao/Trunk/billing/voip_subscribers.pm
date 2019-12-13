@@ -224,36 +224,19 @@ sub find_minmaxid {
 
 }
 
-sub find_random {
+sub _get_find_random_stmt {
 
-    my ($xa_db,$excluding_id,$states,$reseller_id,$min_id,$max_id,$load_recursive) = @_;
-
-    if (not defined $min_id or not defined $max_id) {
-        ($min_id,$max_id) = find_minmaxid($xa_db,$states,$reseller_id);
-    }
-
-    check_table();
-    my $db = &$get_db();
-    $xa_db //= $db;
+    my ($db,$rand,$above,$excluding_id,$states,$reseller_id) = @_;
     my $table = $db->tableidentifier($tablename);
-
-    die("less than 2 subscriber to randomize") if ($max_id - $min_id) < 2;
-    my $rand = $min_id + int(rand($max_id - $min_id) + 0.5);
-    if (defined $excluding_id) {
-        while ($rand == $excluding_id) {
-            $rand = $min_id + int(rand($max_id - $min_id) + 0.5);
-        }
-    }
-    my $stmt = 'SELECT r1.* FROM ' . $table . ' AS r1' .
-      ' JOIN (SELECT ? AS id) AS r2';
+    my $stmt = 'SELECT r1.* FROM ' . $table . ' AS r1';
     my @params = ();
-    push(@params,$rand);
     if ($reseller_id) {
         $stmt .= ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contracts::gettablename()) . ' AS contract ON r1.contract_id = contract.id' .
         ' INNER JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::billing::contacts::gettablename()) . ' AS contact ON contract.contact_id = contact.id';
     }
-    $stmt .= ' WHERE r1.id >= r2.id'; # AND r1.id <= ?';
-    #push(@params,$max_id);
+    $stmt .= ' WHERE r1.id >= ?' if $above;
+    $stmt .= ' WHERE r1.id <= ?' unless $above;
+    push(@params,$rand);
 
     if (defined $states and 'HASH' eq ref $states) {
         foreach my $in (keys %$states) {
@@ -278,12 +261,34 @@ sub find_random {
             push(@params,$reseller_id);
         }
     }
-    $stmt .= ' ORDER BY r1.id ASC LIMIT 1';
+    $stmt .= ' ORDER BY r1.id ASC' if $above;
+    $stmt .= ' ORDER BY r1.id DESC' unless $above;
+    $stmt .= ' LIMIT 1';
 
-    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+    return ($stmt,@params);
+}
+
+sub find_random {
+
+    my ($xa_db,$excluding_id,$states,$reseller_id,$min_id,$max_id,$load_recursive) = @_;
+
+    if (not defined $min_id or not defined $max_id) {
+        ($min_id,$max_id) = find_minmaxid($xa_db,$states,$reseller_id);
+    }
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+
+    die("less than 2 subscriber to randomize") if ($max_id - $min_id) < 1;
+    my $rand = $min_id + int(rand($max_id - $min_id) + 0.5);
+
+    my $rows;
+    $rows = $xa_db->db_get_all_arrayref(_get_find_random_stmt($db,$rand,1,$excluding_id,$states,$reseller_id));
+    $rows = $xa_db->db_get_all_arrayref(_get_find_random_stmt($db,$rand,0,$excluding_id,$states,$reseller_id)) unless scalar @$rows;
 
     my $result = buildrecords_fromrows($rows,$load_recursive)->[0];
-    die($stmt,join("-",@params)) unless $result;
+    #die($stmt,join("-",@params)) unless $result;
 
     return $result;
 
