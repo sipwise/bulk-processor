@@ -22,6 +22,30 @@
       "revId": "71d805440ad533d384aa149cfd8eddb04f79fb3e",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "0e5b6e59_3596771f",
+        "filename": "lib/NGCP/BulkProcessor/Dao/Trunk/billing/voip_subscribers.pm",
+        "patchSetId": 2
+      },
+      "lineNbr": 239,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2019-12-13T15:13:51Z",
+      "side": 1,
+      "message": "second line \u003c\u003d could be changed to a \u003c, yes.\n\nthe idea is:\n1. randomize an integer between min and max id\u0027s of availabe subscriber records.\n2. try to find a record with this id in a relaxed way, ie. also accept the next higher id\n3. if 2. did not return a result (because randomized number was close to maxid or is preserved by excluding_id), accpet the next lower id.\n\nstep 3. is new now, to guarantee it always finds an item.\nshould be kept symmetric (so step step 2. and 3. above could be swapped).",
+      "parentUuid": "27ba71f1_27914834",
+      "range": {
+        "startLine": 237,
+        "startChar": 0,
+        "endLine": 239,
+        "endChar": 24
+      },
+      "revId": "71d805440ad533d384aa149cfd8eddb04f79fb3e",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
