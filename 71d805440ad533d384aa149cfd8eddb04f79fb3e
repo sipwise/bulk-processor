@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "27ba71f1_27914834",
+        "filename": "lib/NGCP/BulkProcessor/Dao/Trunk/billing/voip_subscribers.pm",
+        "patchSetId": 2
+      },
+      "lineNbr": 239,
+      "author": {
+        "id": 1000008
+      },
+      "writtenOn": "2019-12-13T14:42:29Z",
+      "side": 1,
+      "message": "Is there a chance that both invocations end up returning the same entry here? Or am I reading it wrong?",
+      "range": {
+        "startLine": 237,
+        "startChar": 0,
+        "endLine": 239,
+        "endChar": 24
+      },
+      "revId": "71d805440ad533d384aa149cfd8eddb04f79fb3e",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
