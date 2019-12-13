@@ -46,6 +46,30 @@
       "revId": "71d805440ad533d384aa149cfd8eddb04f79fb3e",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "44f5192e_a4b88169",
+        "filename": "lib/NGCP/BulkProcessor/Dao/Trunk/billing/voip_subscribers.pm",
+        "patchSetId": 2
+      },
+      "lineNbr": 239,
+      "author": {
+        "id": 1000008
+      },
+      "writtenOn": "2019-12-13T15:15:06Z",
+      "side": 1,
+      "message": "Ah ok, I missed the \u0027unless\u0027 clause (off screen). That explains.",
+      "parentUuid": "0e5b6e59_3596771f",
+      "range": {
+        "startLine": 237,
+        "startChar": 0,
+        "endLine": 239,
+        "endChar": 24
+      },
+      "revId": "71d805440ad533d384aa149cfd8eddb04f79fb3e",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
