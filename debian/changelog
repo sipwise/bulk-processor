@@ -1,3 +1,60 @@
+ngcp-bulk-processor (8.0.3.0+0~mr8.0.3.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [289b134] TT#63528 CCS importer: clear CFU prefs for subs with "1:1" routing type
+  * [acb0e37] TT#67109 TT#63655 migrate voipnumbers.listtimestamp
+  * [6ff0179] TT#69853 support resetting .ama export status by call-id(s)
+  * [8aca02c] TT#70464 amaexporter case-insensitive match for u2u value
+  * [dce9ca3] TT#70604 ama: ignore cdr_group records with emtpy callid
+  * [441f640] TT#69125 mr1.0.3 source db schema
+  * [1637cdc] TT#71361 ccs tool: new .csv format
+  * [8059025] TT#71362 CCS tool - disable CFU creation
+  * [a38ed7e] TT#71363 contract_preferences, ccs prov tool "*" allowed cli
+  * [d33d6a0] TT#71365 ccs prov tool: set trustedsource from_pattern
+  * [c20ed06] TT#71364 ccs prov tool: write encoded sipuri for gpp1
+  * [965d7ca] TT#71856 ama: use u2u header of corellated cdr
+  * [a620c7c] TT#71812 ama: handle anonymous caller
+  * [89dc52e] TT#71107 ccs prov tool: fix writing gpp1
+
+  [ Guillem Jover ]
+  * [233bed0] TT#53701 Improve dependencies for obsolete transitional package
+  * [8e7a10b] TT#69200 Sort perl build system dependencies
+  * [c9c8d63] TT#69200 Switch to use CPAN::Meta::Spec metadata
+  * [43971fd] TT#69200 Updete perl build system dependencies
+  * [71cc1bb] TT#69200 Use sprintf instead of ad-hoc code to 0 fill digits
+  * [edb7e96] TT#69200 Use Time::Seconds instead of ad-hoc code to pretty print time offsets
+  * [85b32a4] TT#69200 Use Time::Piece instead of ad-hoc code to print dates and times
+  * [c9f0809] TT#69200 Use Time::Piece and Time::Local to add up months
+  * [c0e21bb] TT#69200 Susbstantially simplify and generalize kbytes2gigs()
+  * [cf8c5bd] TT#69200 Add initial unit tests for NGCP::BulkProcessor::Array
+  * [43e5dff] TT#69200 Pass the entire list to push in mergearrays()
+  * [c03816b] TT#69200 Use reverse in reversearray() instead of an ad-hoc implementation
+  * [012caf6] TT#69200 Reimplement contains() based on List::Util's any()
+  * [46a9f79] TT#69200 Reimplement removeduplicates() based of List::Util's uniq
+  * [151b33e] TT#69200 Remove unused variable in arrayeq()
+  * [c70872d] TT#69200 Reimplement itemcount() based on grep()
+  * [cec1c25] TT#69950 Unbundle Excel::Reader::XLSX modules
+  * [c839ce1] TT#69200 Set exexutable bits for programs
+  * [70e8180] TT#69200 Use correct variable in _create_cftimeset() sub
+  * [78b9278] TT#69200 Move hash argument to content method into a variable
+  * [0863194] TT#69200 Use strict and warnings
+  * [7575bb9] TT#69200 Set shebang for perl scripts
+  * [c314482] TT#69200 Fix mapeq() to match correctly according to caseinsensitive argument
+  * [8ab3b39] TT#69200 Add more unit tests for NGCP::BulkProcessor::Array
+  * [0e8af2b] TT#69200 Do not use indirect method syntax
+  * [bc0afa1] TT#69200 Refactor getting last array index into a new sub
+  * [88dac78] TT#69200 Refactor getting the size of a hash
+  * [e2338f8] TT#69200 Rewrite mapeq() to not need an intermediate hash
+  * [476a293] TT#69200 Switch to an early return in arrayeq()  to reduce nesting level
+  * [4020891] TT#69200 Switch from C-style for loops to range ones
+  * [697b40d] TT#69200 Reduce nesting levels in array_to_map()
+  * [d636189] TT#69200 Fix coding style
+  * [fff45d0] TT#69200 Use none() instead of comparin $mode with each value
+  * [5148b79] TT#69200 Rerwite seteq() based off setcontains()
+  * [14ce3f1] TT#69200 Rewrite setcontains() to use a hash instead of contains()
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 13 Jan 2020 15:15:37 +0100
+
 ngcp-bulk-processor (8.0.2.0+0~mr8.0.2.0) unstable; urgency=medium
 
   [ Guillem Jover ]
