@@ -1,3 +1,10 @@
+ngcp-bulk-processor (8.0.2.2+0~mr8.0.2.2) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [ffd58b6] Revert "TT#69950 Unbundle Excel::Reader::XLSX modules"
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 14 Jan 2020 16:54:57 +0100
+
 ngcp-bulk-processor (8.0.2.1+0~mr8.0.2.1) unstable; urgency=medium
 
   [ Rene Krenn ]
