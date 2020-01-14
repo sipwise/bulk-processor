@@ -1,0 +1,10 @@
+Code-Review+1: Oleksandr Lutai <alutay@sipwise.com>
+Code-Review+1: Manuel Montecelo <mmontecelo@sipwise.com>
+Code-Review+1: Rene Krenn <rkrenn@sipwise.com>
+Code-Review+2: Guillem Jover <gjover@sipwise.com>
+Verified+1: Jenkins Jenkins
+Submitted-by: Rene Krenn <rkrenn@sipwise.com>
+Submitted-at: Tue, 14 Jan 2020 14:47:33 +0100
+Reviewed-on: http://gerrit.mgm.sipwise.com/c/bulk-processor/+/36855
+Project: bulk-processor
+Branch: refs/heads/mr8.0
