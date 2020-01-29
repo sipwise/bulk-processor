@@ -112,12 +112,12 @@ sub sort_array {
 
 sub sort_by_config_ids {
 
-    my ($array_ptr,$sortings,$sortingconfigurations) = @_;
+    my ($array_ptr, $sorting_ids_ref, $sortingconfigurations) = @_;
     if (defined $array_ptr and ref $array_ptr eq 'ARRAY') {
-        if (defined $sortings and ref $sortings eq 'ARRAY') {
+        if (defined $sorting_ids_ref and ref $sorting_ids_ref eq 'ARRAY') {
             if (defined $sortingconfigurations and
                 ref $sortingconfigurations eq 'HASH') {
-                my @sorting_ids = @$sortings;
+                my @sorting_ids = @{$sorting_ids_ref};
                 if ((scalar @sorting_ids) > 0) {
                     my $sorter = NGCP::BulkProcessor::DSSorter->new();
                     foreach my $sorting_id (@sorting_ids) {
