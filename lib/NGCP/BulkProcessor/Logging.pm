@@ -38,7 +38,9 @@ our @EXPORT_OK = qw(
     attachmentdownloaderinfo
 
     fieldnamesaquired
+    fieldnamesacquired
     primarykeycolsaquired
+    primarykeycolsacquired
     tableinfoscleared
     tabletransferstarted
     tableprocessingstarted
@@ -337,7 +339,10 @@ sub xls2csvinfo {
 
 }
 
-sub fieldnamesaquired {
+# Backwards compatibility alias.
+*fieldnamesaquired = \&fieldnamesacquired;
+
+sub fieldnamesacquired {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
@@ -346,7 +351,10 @@ sub fieldnamesaquired {
 
 }
 
-sub primarykeycolsaquired {
+# Backwards compatibility alias.
+*primarykeycolsaquired = \&primarykeycolsacquired;
+
+sub primarykeycolsacquired {
 
     my ($db,$tablename,$keycols,$logger) = @_;
     if (defined $logger) {
