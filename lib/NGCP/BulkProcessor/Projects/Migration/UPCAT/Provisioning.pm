@@ -269,7 +269,7 @@ sub _provision_mta_susbcriber {
             _update_mta_preferences($context);
             #_set_registrations($context);
             #_set_callforwards($context);
-            #todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking wether to integrate it
+            #todo: additional prefs, AllowedIPs, NCOS, Callforwards. still thinking whether to integrate it
             #in this main provisioning loop, or align it in separate run-modes, according to the files given.
 
         } else {

@@ -171,7 +171,7 @@ sub main() {
 
             } else {
                 $result = 0;
-                scripterror("unknow task option '" . $task . "', must be one of " . join(', ',@TASK_OPTS),getlogger(getscriptpath()));
+                scripterror("unknown task option '" . $task . "', must be one of " . join(', ',@TASK_OPTS),getlogger(getscriptpath()));
                 last;
             }
         }

@@ -38,7 +38,7 @@ ngcp-bulk-processor (8.2.0.0+0~mr8.2.0.0) unstable; urgency=medium
   * [1172027] TT#69200 Remove unused variable in arrayeq()
   * [5d38bd2] TT#69200 Reimplement itemcount() based on grep()
   * [0bb15f4] TT#69950 Unbundle Excel::Reader::XLSX modules
-  * [34a51e0] TT#69200 Set exexutable bits for programs
+  * [34a51e0] TT#69200 Set executable bits for programs
   * [9cca145] TT#69200 Use correct variable in _create_cftimeset() sub
   * [dbd7ac7] TT#69200 Move hash argument to content method into a variable
   * [803bacf] TT#69200 Use strict and warnings
@@ -65,7 +65,7 @@ ngcp-bulk-processor (8.2.0.0+0~mr8.2.0.0) unstable; urgency=medium
   * [1b96d89] TT#67109 TT#63655 migrate voipnumbers.listtimestamp
   * [8b934eb] TT#69853 support resetting .ama export status by call-id(s)
   * [518ab9a] TT#70464 amaexporter case-insensitive match for u2u value
-  * [1b0e1e3] TT#70604 ama: ignore cdr_group records with emtpy callid
+  * [1b0e1e3] TT#70604 ama: ignore cdr_group records with empty callid
 
   [ Sipwise Jenkins Builder ]
 
@@ -133,7 +133,7 @@ ngcp-bulk-processor (7.4.0.0+0~mr7.4.0.0) unstable; urgency=medium
   * [ecec9bd] TT#56500 ama exporter: switch_number rewrite options
   * [9e6210d] TT#56502 TT#56501 ama exporter: align sw3number
   * [5538c56] TT#57201 ama export: option for fixed terminating number in 6001 records
-  * [1bfb457] TT#57568 ama exporter: option to duplciate output files
+  * [1bfb457] TT#57568 ama exporter: option to duplicate output files
 
   [ Sipwise Jenkins Builder ]
 
@@ -209,7 +209,7 @@ ngcp-bulk-processor (6.4.0.0+0~mr6.4.0.0) unstable; urgency=medium
 ngcp-bulk-processor (6.3.0.0+0~mr6.3.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
-  * [f8f1e28] TT#30671 TT#33351 balance free cash restauration tool
+  * [f8f1e28] TT#30671 TT#33351 balance free cash restoration tool
 
   [ Alexander Lutay ]
   * [e5d8151] TT#33911 Perform 'wrap-and-sort -sat'
