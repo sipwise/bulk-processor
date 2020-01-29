@@ -102,7 +102,7 @@ sub set_allowed_ips_preferences {
         _info($context,"allowed ips group for subscriber $sip_username exists, ipnets deleted",1);
     } else {
         $allowed_ip_group_id = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_aig_sequence::increment($context->{db});
-        _info($context,"new allowed ips group id for subscriber $sip_username aquired",1);
+        _info($context,"new allowed ips group id for subscriber $sip_username acquired",1);
     }
 
     my $allowed_ips_grp_ipnet_ids = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_allowed_ip_groups::insert_rows($context->{db},$allowed_ip_group_id,$allowed_ips);
