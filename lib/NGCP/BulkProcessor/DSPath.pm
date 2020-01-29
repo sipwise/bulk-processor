@@ -36,7 +36,7 @@ sub new {
 			},
             not_a_coderef_or_method => $callbacks->{not_a_coderef_or_method} // sub {
 				my ($data, $key, $index, $value, $rest) = @_;
-				die "tried to retrieve from a non-existant coderef or method: $key in $data";
+				die "tried to retrieve from a non-existent coderef or method: $key in $data";
 			}
 		},
 	};
