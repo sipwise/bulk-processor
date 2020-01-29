@@ -338,7 +338,7 @@ sub _db_disconnect {
 
     }
 
-    # further disconect code follows in child classes....
+    # further disconnect code follows in child classes....
 
 }
 
@@ -660,8 +660,8 @@ sub db_get_all_arrayref {
 
 }
 
-# get a reference to a hash containing a hashreference for each row, like DBI's
-# fetchall_hashref() does.
+# get a reference to a hash containing a hash reference for each row, like
+# DBI's fetchall_hashref() does.
 sub db_get_all_hashref {
 
     my $self = shift;
@@ -804,7 +804,7 @@ sub DESTROY {
     # of the entire current context, at the moment it starts.
     # due to this, if the thread is finished, perl gc will invoke destructors
     # on the thread's scope elements, that potentially contains connectors from
-    # the main tread. it will actually attempt destroy them (disconect, etc.)
+    # the main tread. it will actually attempt destroy them (disconnect, etc.)
     # this is a problem with destructors that change object state like this one
     #
     # to avoid this, we perform destruction tasks only if the destructing tid
