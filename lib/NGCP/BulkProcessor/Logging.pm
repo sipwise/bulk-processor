@@ -346,7 +346,7 @@ sub fieldnamesacquired {
 
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
-        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'fieldnames aquired and OK: [' . $db->connectidentifier() . '].' . $tablename);
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'fieldnames acquired and OK: [' . $db->connectidentifier() . '].' . $tablename);
     }
 
 }
@@ -358,7 +358,7 @@ sub primarykeycolsacquired {
 
     my ($db,$tablename,$keycols,$logger) = @_;
     if (defined $logger) {
-        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'primary key columns aquired for [' . $db->connectidentifier() . '].' . $tablename . ': ' . ((defined $keycols and scalar @$keycols > 0) ? join(', ',@$keycols) : '<no primary key columns>'));
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'primary key columns acquired for [' . $db->connectidentifier() . '].' . $tablename . ': ' . ((defined $keycols and scalar @$keycols > 0) ? join(', ',@$keycols) : '<no primary key columns>'));
     }
 
 }
