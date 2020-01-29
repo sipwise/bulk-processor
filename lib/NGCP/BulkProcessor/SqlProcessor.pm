@@ -19,8 +19,8 @@ use NGCP::BulkProcessor::Globals qw(
 
 use NGCP::BulkProcessor::Logging qw(
     getlogger
-    fieldnamesaquired
-    primarykeycolsaquired
+    fieldnamesacquired
+    primarykeycolsacquired
     tableinfoscleared
 
     tablefixed
@@ -334,7 +334,7 @@ sub checktableinfo {
             or setcontains($table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class},$fieldnames,1)) {
             #fieldnames are case insensitive in general
             $table_fieldnames_cached->{$tid}->{$connectidentifier}->{$class} = { fieldnames => $fieldnames, ok => 1, };
-            fieldnamesaquired($db,$tablename,getlogger(__PACKAGE__));
+            fieldnamesacquired($db,$tablename,getlogger(__PACKAGE__));
         } else {
             # otherwise we log a failure (exit? - see Logging Module)
             #$table_fieldnames_cached->{$connectidentifier}->{$tablename} = {}; #$fieldnames;
@@ -361,7 +361,7 @@ sub checktableinfo {
         # query the database for primary keys of the table if we don't have them cached yet:
         #$table_primarykeys->{$tid}->{$connectidentifier}->{$class} = shared_clone($db->getprimarykeycols($class));
         $table_primarykeys->{$tid}->{$connectidentifier}->{$class} = $db->getprimarykeycols($tablename);
-        primarykeycolsaquired($db,$tablename,$table_primarykeys->{$tid}->{$connectidentifier}->{$class},getlogger(__PACKAGE__));
+        primarykeycolsacquired($db,$tablename,$table_primarykeys->{$tid}->{$connectidentifier}->{$class},getlogger(__PACKAGE__));
     }
 
     if (not exists $table_target_indexes->{$tid}) {
