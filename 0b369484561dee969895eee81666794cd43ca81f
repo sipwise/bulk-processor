@@ -22,6 +22,30 @@
       "revId": "0b369484561dee969895eee81666794cd43ca81f",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "beaf6303_7ecebfb5",
+        "filename": "lib/NGCP/BulkProcessor/DSSorter.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 120,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2020-01-30T10:18:45Z",
+      "side": 1,
+      "message": "allthough allowed, i also personally discourage to reuse a variable name with different types.\nconfliciting situations with slicing can result.",
+      "parentUuid": "2ec2d484_26523bed",
+      "range": {
+        "startLine": 120,
+        "startChar": 15,
+        "endLine": 120,
+        "endChar": 50
+      },
+      "revId": "0b369484561dee969895eee81666794cd43ca81f",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
     }
   ]
 }
