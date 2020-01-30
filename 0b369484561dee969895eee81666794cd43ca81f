@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "2ec2d484_26523bed",
+        "filename": "lib/NGCP/BulkProcessor/DSSorter.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 120,
+      "author": {
+        "id": 1000001
+      },
+      "writtenOn": "2020-01-30T09:49:17Z",
+      "side": 1,
+      "message": "A \u003d A looks wired now.\n\nIMHO do NOT mix English spelling fixes with code changes.",
+      "range": {
+        "startLine": 120,
+        "startChar": 15,
+        "endLine": 120,
+        "endChar": 50
+      },
+      "revId": "0b369484561dee969895eee81666794cd43ca81f",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": true
+    }
+  ]
+}
