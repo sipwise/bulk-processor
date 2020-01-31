@@ -19,6 +19,23 @@
     },
     {
       "key": {
+        "uuid": "16700ed2_ff025b02",
+        "filename": "debian/changelog",
+        "patchSetId": 1
+      },
+      "lineNbr": 41,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2020-01-31T09:35:49Z",
+      "side": 1,
+      "message": "Also here (c/p from other review):\n\nModifying debian/changelog in such a way is wrong IMO, for once its content reflects what has been committed as such, but more important: it breaks our automated toolchain, since gbp looks at the last modification of the file and only considers changes since then.",
+      "revId": "0b369484561dee969895eee81666794cd43ca81f",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "2ec2d484_26523bed",
         "filename": "lib/NGCP/BulkProcessor/DSSorter.pm",
         "patchSetId": 1
