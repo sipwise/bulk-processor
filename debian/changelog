@@ -1,3 +1,22 @@
+ngcp-bulk-processor (7.5.3.1+0~mr7.5.3.1) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [023c0c3] TT#70604 ama: ignore cdr_group records with emtpy callid
+  * [85da933] TT#69125 mr1.0.3 source db schema
+  * [2fa3b42] TT#71361 ccs tool: new .csv format
+  * [6709400] TT#71362 CCS tool - disable CFU creation
+  * [a5c2c20] TT#71363 contract_preferences, ccs prov tool "*" allowed cli
+  * [8cb0a30] TT#71365 ccs prov tool: set trustedsource from_pattern
+  * [2534162] TT#71364 ccs prov tool: write encoded sipuri for gpp1
+  * [45920c3] TT#71856 ama: use u2u header of corellated cdr
+  * [410f0b8] TT#71812 ama: handle anonymous caller
+  * [2fd3cc5] TT#71107 ccs prov tool: fix writing gpp1
+
+  [ Guillem Jover ]
+  * [2f82cf8] TT#53701 Improve dependencies for obsolete transitional package
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 10 Feb 2020 16:31:11 +0100
+
 ngcp-bulk-processor (7.5.3.0+0~mr7.5.3.0) unstable; urgency=medium
 
   [ Guillem Jover ]
