@@ -16,6 +16,24 @@
       "revId": "3fad814adae671254b1db1b57097d080dc44e2cd",
       "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "d5d332f1_87373f0a",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2020-02-20T17:05:16Z",
+      "side": 1,
+      "message": "ack. wanted to avoid eternalizing a customer name.",
+      "parentUuid": "874fb23b_59e4ef54",
+      "revId": "3fad814adae671254b1db1b57097d080dc44e2cd",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
     }
   ]
 }
