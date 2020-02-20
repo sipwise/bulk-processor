@@ -442,9 +442,9 @@ sub _export_cdrs_init_context {
                         ) {
                         $scenario->{code} = $CFU;
                         $result = 1;
-                    } #elsif (...
-                    #
-                    #}
+                    } else {
+                        _info($context,"unknown cdr scenario - cdr ids " . join(', ', map { $_->{id}; } @scenario_cdrs),1);
+                    }
 
                     foreach my $cdr (@scenario_cdrs) {
                         if ($result) {
