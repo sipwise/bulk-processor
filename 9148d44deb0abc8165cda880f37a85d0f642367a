@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "e37c2fcc_0b829fdd",
+        "filename": "lib/NGCP/BulkProcessor/Projects/Export/Ama/Ccs/CDR.pm",
+        "patchSetId": 1
+      },
+      "lineNbr": 446,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2020-02-20T15:55:38Z",
+      "side": 1,
+      "message": "Not for this review, but it would be way more clear to have this be a new _debug() function instead of overloading _info with a non-obvious boolean value (perl core missing the type here sucks :).",
+      "range": {
+        "startLine": 446,
+        "startChar": 119,
+        "endLine": 446,
+        "endChar": 120
+      },
+      "revId": "9148d44deb0abc8165cda880f37a85d0f642367a",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
