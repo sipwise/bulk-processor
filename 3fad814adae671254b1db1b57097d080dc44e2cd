@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "874fb23b_59e4ef54",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2020-02-20T16:33:16Z",
+      "side": 1,
+      "message": "It looks like the Migration/UPCAT is being moved too, or is that part of the ama exporter? Otherwise either splitting the commits or mentioning it in the commit message would be nice. :)",
+      "revId": "3fad814adae671254b1db1b57097d080dc44e2cd",
+      "serverId": "85315e57-5f03-49c3-83f8-201ae2313a75",
+      "unresolved": false
+    }
+  ]
+}
