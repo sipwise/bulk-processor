@@ -23,6 +23,7 @@ use NGCP::BulkProcessor::SqlRecord qw();
 use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_usr_preferences qw();
 use NGCP::BulkProcessor::Dao::mr341::kamailio::voicemail_users qw();
+use NGCP::BulkProcessor::Dao::mr341::kamailio::locations qw();
 use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_cf_destination_sets qw();
@@ -139,6 +140,7 @@ sub source_buildrecords_fromrows {
             $record->{voip_usr_preferences} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_usr_preferences::source_findby_subscriberid($source_dbs,$record->{id});
 
             $record->{voicemail_users} = NGCP::BulkProcessor::Dao::mr341::kamailio::voicemail_users::source_findby_customerid($source_dbs,$record->{uuid});
+            $record->{registrations} = NGCP::BulkProcessor::Dao::mr341::kamailio::location::source_findby_username_domain($source_dbs,$record->{username});
 
             $record->{trusted_sources} = NGCP::BulkProcessor::Dao::mr341::provisioning::voip_trusted_sources::source_findby_subscriberid($source_dbs,$record->{id});
 
