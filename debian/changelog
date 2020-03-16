@@ -1,3 +1,16 @@
+ngcp-bulk-processor (8.3.1.0+0~mr8.3.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [9148d44] TT#76356 ama exporter: log unknown cdr scenario
+  * [d3123ff] TT#76358 move ama exporter
+
+  [ Guillem Jover ]
+  * [e9e6ad1] TT#71950 Fix typos
+  * [a494967] TT#71950 Fix typo in function argument name
+  * [55ed5d3] TT#71950 Fix typos in function names
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 16 Mar 2020 11:11:09 +0100
+
 ngcp-bulk-processor (8.3.0.0+0~mr8.3.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
