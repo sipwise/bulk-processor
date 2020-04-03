@@ -38,7 +38,7 @@ sub new {
     #$self->{numofthreads} = shift // $default_numofthreads;
     $self->{custom_formats} = shift;
     $self->{sheet_name} = shift // $default_sheet_name;
-    $self->{header_row} = shift // 0;
+    #$self->{header_row} = shift // 0;
     $self->{blocksize} = $blocksize;
 
     bless($self,$class);
