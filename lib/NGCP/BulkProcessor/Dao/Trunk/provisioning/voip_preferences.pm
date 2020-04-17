@@ -68,6 +68,8 @@ our @EXPORT_OK = qw(
     $SOUND_SET_ATTRIBUTE
     $CONTRACT_SOUND_SET_ATTRIBUTE
     $HEADER_RULE_SET_ATTRIBUTE
+
+    $BOOLEAN_DATA_TYPE
 );
 #$FORCE_OUTBOUND_CALLS_TO_PEER
 
@@ -143,6 +145,8 @@ our $EMERGENCY_MAPPING_CONTAINER_ID_ATTRIBUTE = 'emergency_mapping_container_id'
 our $SOUND_SET_ATTRIBUTE = 'sound_set';
 our $CONTRACT_SOUND_SET_ATTRIBUTE = 'contract_sound_set';
 our $HEADER_RULE_SET_ATTRIBUTE = 'header_rule_set';
+
+our $BOOLEAN_DATA_TYPE = 'boolean';
 
 sub new {
 
@@ -220,6 +224,14 @@ sub has_enum_default {
             and defined $enum->{value}) {
             return 1;
         }
+    }
+    return 0;
+}
+
+sub is_boolean {
+    my $self = shift;
+    if ($self->{data_type} eq $BOOLEAN_DATA_TYPE) {
+        return 1;
     }
     return 0;
 }
