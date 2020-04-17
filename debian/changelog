@@ -1,3 +1,10 @@
+ngcp-bulk-processor (8.1.1.5+0~mr8.1.1.5) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [d790c31] TT#79802 is_boolean() method for voippref
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 17 Apr 2020 10:27:58 +0200
+
 ngcp-bulk-processor (8.1.1.4+0~mr8.1.1.4) unstable; urgency=medium
 
   [ Rene Krenn ]
