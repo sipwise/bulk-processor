@@ -1,3 +1,13 @@
+ngcp-bulk-processor (8.2.2.1+0~mr8.2.2.1) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [a31670d] TT#76356 ama exporter: log unknown cdr scenario
+  * [b158b68] TT#76358 move ama exporter
+  * [0af1962] TT#78951 remove "header" constructor flag for XlsxSimpleFile reader
+  * [0758bc0] TT#79802 is_boolean() method for voippref
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 27 Apr 2020 21:24:44 +0200
+
 ngcp-bulk-processor (8.2.2.0+0~mr8.2.2.0) unstable; urgency=medium
 
   * New release.
