@@ -1,3 +1,11 @@
+ngcp-bulk-processor (8.1.1.6+0~mr8.1.1.6) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [5e7aff6] TT#81155 subscriber_profile_set DAO
+  * [091a4cc] TT#81154 subscriber_profile DAO
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 12 May 2020 19:42:34 +0200
+
 ngcp-bulk-processor (8.1.1.5+0~mr8.1.1.5) unstable; urgency=medium
 
   [ Rene Krenn ]
