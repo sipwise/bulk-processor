@@ -45,15 +45,15 @@ my $expected_fieldnames = [
 
     'uuid',
     'password',
-    'timezone',
+    #'timezone',
 
     'admin',
     'account_id',
     'webusername',
     'webpassword',
 
-    'autoconf_displayname',
-    'autoconf_group_id',
+    #'autoconf_displayname',
+    #'autoconf_group_id',
 
     'modify_timestamp',
     'create_timestamp',
