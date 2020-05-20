@@ -47,7 +47,7 @@ my $get_db = \&get_billing_db;
 my $expected_fieldnames = [
     'id',
     'customer_id',
-    'reseller_id',
+    #'reseller_id',
     'contact_id',
     'order_id',
     'status',
@@ -173,7 +173,7 @@ sub source_process_records {
         destroy_reader_dbs_code     => $destroy_reader_dbs_code,
         multithreading              => $multithreading,
         tableprocessing_threads     => $numofthreads,
-        'select'                    => 'SELECT c.*,r.name as reseller_name FROM ' . $table . ' c left join billing.resellers r on c.reseller_id = r.id WHERE c.status != "' . $TERMINATED_STATE . '"', # and id = 7185',
+        'select'                    => 'SELECT c.*,"UPC" as reseller_name FROM ' . $table . ' c WHERE status != "' . $TERMINATED_STATE . '"', # and id = 7185',
         'selectcount'               => 'SELECT COUNT(c.id) FROM ' . $table . ' c WHERE c.status != "' . $TERMINATED_STATE . '"', # and id = 7185',
     );
 }
@@ -187,7 +187,7 @@ sub source_findby_id {
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT c.*,r.name as reseller_name FROM ' . $table . ' c join billing.resellers r on c.reseller_id = r.id WHERE ' .
+    my $stmt = 'SELECT c.*,"UPC" as reseller_name FROM ' . $table . ' c WHERE ' .
             'c.id = ?';
 
     my @params = ($id);
