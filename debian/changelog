@@ -1,3 +1,13 @@
+ngcp-bulk-processor (8.3.2.1+0~mr8.3.2.1) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [d24799b] TT#78951 remove "header" constructor flag for XlsxSimpleFile reader
+  * [69142e3] TT#79802 is_boolean() method for voippref
+  * [f475235] TT#81155 subscriber_profile_set DAO
+  * [ba88bac] TT#81154 subscriber_profile DAO
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 30 Jun 2020 15:27:04 +0200
+
 ngcp-bulk-processor (8.3.2.0+0~mr8.3.2.0) unstable; urgency=medium
 
   * New release.
