@@ -146,7 +146,8 @@ sub upsert_row {
             cdr_start_time
         /};
 
-    if ($xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+    my $result;
+    if ($result = $xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
             $db->columnidentifier('cdr_id') . ', ' .
             $db->columnidentifier('status_id') . ', ' .
             $db->columnidentifier('export_status') . ', ' .
@@ -156,7 +157,9 @@ sub upsert_row {
             '?, ' .
             '?, ' .
             'NOW(), ' .
-            '?) ON DUPLICATE KEY UPDATE export_status = ?, exported_at = NOW()',
+            '?) ON DUPLICATE KEY UPDATE ' .
+            'export_status = ?, ' .
+            'exported_at = IF(export_status = "' . $UNEXPORTED . '",NOW(),exported_at)',
             $cdr_id,
             $status_id,
             $export_status,
@@ -164,10 +167,9 @@ sub upsert_row {
             $export_status,
         )) {
         rowupserted($db,$tablename,getlogger(__PACKAGE__));
-        return 1;
     }
 
-    return undef;
+    return $result; # 0 .. no change, 1 .. inserted, 2 .. updated
 
 }
 
