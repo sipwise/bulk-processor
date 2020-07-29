@@ -68,6 +68,8 @@ our @EXPORT_OK = qw(
     $SOUND_SET_ATTRIBUTE
     $CONTRACT_SOUND_SET_ATTRIBUTE
     $HEADER_RULE_SET_ATTRIBUTE
+    
+    $EMERGENCY_PREFIX_ATTRIBUTE
 
     $BOOLEAN_DATA_TYPE
 );
@@ -145,6 +147,8 @@ our $EMERGENCY_MAPPING_CONTAINER_ID_ATTRIBUTE = 'emergency_mapping_container_id'
 our $SOUND_SET_ATTRIBUTE = 'sound_set';
 our $CONTRACT_SOUND_SET_ATTRIBUTE = 'contract_sound_set';
 our $HEADER_RULE_SET_ATTRIBUTE = 'header_rule_set';
+
+our $EMERGENCY_PREFIX_ATTRIBUTE = 'emergency_prefix';
 
 our $BOOLEAN_DATA_TYPE = 'boolean';
 
