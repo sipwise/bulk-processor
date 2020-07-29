@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr103::billing::contracts;
+package NGCP::BulkProcessor::Dao::mr102::billing::contracts;
 use strict;
 
 use threads::shared;
@@ -24,7 +24,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
-use NGCP::BulkProcessor::Dao::mr103::billing::voip_subscribers qw();
+use NGCP::BulkProcessor::Dao::mr102::billing::voip_subscribers qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -136,7 +136,8 @@ sub source_process_records {
         $destroy_reader_dbs_code,
         $multithreading,
         $blocksize,
-        $numofthreads) = @params{qw/
+        $numofthreads,
+        $load_recursive) = @params{qw/
             source_dbs
             process_code
             read_code
@@ -147,6 +148,7 @@ sub source_process_records {
             multithreading
             blocksize
             numofthreads
+            load_recursive
         /};
 
     my $source_db = $source_dbs->{billing_db};
@@ -160,12 +162,12 @@ sub source_process_records {
         process_code                => sub {
                 my ($context,$rowblock,$row_offset) = @_;
                 #return &$process_code($context,buildrecords_fromrows_source($rowblock,$source_db,$load_recursive),$row_offset);
-                return &$process_code($context,$rowblock,$row_offset);
+                return $process_code->($context,$rowblock,$row_offset);
             },
         read_code                => sub {
                 my ($rowblock) = @_;
                 map { &$_()->ping(); } values %$source_dbs; #keep awake.
-                return source_buildrecords_fromrows($rowblock,$source_dbs);
+                return source_buildrecords_fromrows($rowblock,$source_dbs,$load_recursive);
             },
         static_context              => $static_context,
         blocksize                   => $blocksize,
@@ -174,14 +176,16 @@ sub source_process_records {
         destroy_reader_dbs_code     => $destroy_reader_dbs_code,
         multithreading              => $multithreading,
         tableprocessing_threads     => $numofthreads,
-        'select'                    => 'SELECT c.*,r.name as reseller_name FROM ' . $table . ' c left join billing.resellers r on c.reseller_id = r.id WHERE c.status != "' . $TERMINATED_STATE . '"', # and id = 7185',
-        'selectcount'               => 'SELECT COUNT(c.id) FROM ' . $table . ' c WHERE c.status != "' . $TERMINATED_STATE . '"', # and id = 7185',
+        'select'                    => 'SELECT c.*,r.name as reseller_name FROM ' . $table . ' c left join billing.resellers r on c.reseller_id = r.id', # and id = 7185',
+        'selectcount'               => 'SELECT COUNT(c.id) FROM ' . $table . ' c', # and id = 7185',
+        #'select'                    => 'SELECT c.*,r.name as reseller_name FROM ' . $table . ' c left join billing.resellers r on c.reseller_id = r.id WHERE c.status != "' . $TERMINATED_STATE . '"', # and id = 7185',
+        #'selectcount'               => 'SELECT COUNT(c.id) FROM ' . $table . ' c WHERE c.status != "' . $TERMINATED_STATE . '"', # and id = 7185',
     );
 }
 
 sub source_findby_id {
 
-    my ($source_dbs,$id) = @_;
+    my ($source_dbs,$id,$load_recursive) = @_;
 
     my $source_db = $source_dbs->{billing_db};
     check_table($source_db);
@@ -194,13 +198,13 @@ sub source_findby_id {
     my @params = ($id);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
-    return source_buildrecords_fromrows($rows,$source_dbs)->[0];
+    return source_buildrecords_fromrows($rows,$source_dbs,$load_recursive)->[0];
 
 }
 
 sub source_buildrecords_fromrows {
 
-    my ($rows,$source_dbs) = @_;
+    my ($rows,$source_dbs,$load_recursive) = @_;
 
     my @records : shared = ();
     my $record;
@@ -215,11 +219,15 @@ sub source_buildrecords_fromrows {
                 $record->{reseller_name} = $row->{reseller_name};
             }
 
-            #$record->{billing_mappings} = NGCP::BulkProcessor::Dao::mr103::billing::billing_mappings::source_findby_contractid($source_dbs,$record->{id});
-            #$record->{contact} = NGCP::BulkProcessor::Dao::mr103::billing::contacts::source_findby_id($source_dbs,$record->{contact_id});
-            #$record->{contract_balances} = NGCP::BulkProcessor::Dao::mr103::billing::contract_balances::source_findby_contractid($source_dbs,$record->{id});
+            #$record->{billing_mappings} = NGCP::BulkProcessor::Dao::mr102::billing::billing_mappings::source_findby_contractid($source_dbs,$record->{id});
+            #$record->{contact} = NGCP::BulkProcessor::Dao::mr102::billing::contacts::source_findby_id($source_dbs,$record->{contact_id});
+            #$record->{contract_balances} = NGCP::BulkProcessor::Dao::mr102::billing::contract_balances::source_findby_contractid($source_dbs,$record->{id});
             #if ($record->{reseller_id}) {
-                $record->{voip_subscribers} = NGCP::BulkProcessor::Dao::mr103::billing::voip_subscribers::source_findby_contractid($source_dbs,$record->{id});
+            if ($load_recursive
+                and (('CODE' eq ref $load_recursive->{'contracts.voip_subscribers'} and $load_recursive->{'contracts.voip_subscribers'}->($record))
+                     or (not ref $load_recursive->{'contracts.voip_subscribers'} and $load_recursive->{'contracts.voip_subscribers'}))) {
+                $record->{voip_subscribers} = NGCP::BulkProcessor::Dao::mr102::billing::voip_subscribers::source_findby_contractid($source_dbs,$record->{id},$load_recursive);
+            }
             #}
 
             #delete $record->{reseller_id};
