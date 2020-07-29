@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::mr103::provisioning::voip_preferences;
+package NGCP::BulkProcessor::Dao::mr102::provisioning::voip_preferences;
 use strict;
 
 ## no critic
@@ -21,9 +21,12 @@ our @EXPORT_OK = qw(
 
     $ALLOWED_IPS_GRP_ATTRIBUTE
     $MAN_ALLOWED_IPS_GRP_ATTRIBUTE
-    $NCOS_ID_ATTRIBUTE
+    $EMERG_AC_ATTRIBUTE
     
     @CF_ATTRIBUTES
+    
+    $BLOCK_OUT_MODE_ATTRIBUTE
+    $BLOCK_OUT_LIST_ATTRIBUTE
 );
 
 my $tablename = 'voip_preferences';
@@ -42,9 +45,12 @@ my $indexes = {};
 
 our $ALLOWED_IPS_GRP_ATTRIBUTE = 'allowed_ips_grp';
 our $MAN_ALLOWED_IPS_GRP_ATTRIBUTE = 'man_allowed_ips_grp';
-our $NCOS_ID_ATTRIBUTE = 'ncos_id';
+our $EMERG_AC_ATTRIBUTE = 'emerg_ac';
 
 our @CF_ATTRIBUTES = qw(cfu cft cfna cfb);
+
+our $BLOCK_OUT_MODE_ATTRIBUTE = 'block_out_mode';
+our $BLOCK_OUT_LIST_ATTRIBUTE = 'block_out_list';
 
 sub new {
 
