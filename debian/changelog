@@ -1,3 +1,14 @@
+ngcp-bulk-processor (9.0.1.0+0~mr9.0.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [e0d143e] TT#75901 cdr_status_data UPSERT should return 0 if already exported
+  * [5010a23] TT#87561 openser/ngcp mr1.0.2 dao db schema
+
+  [ Guillem Jover ]
+  * [6ae1d17] TT#88050 Remove obsolete transitional package ngcp-bulk-processor
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 31 Aug 2020 21:52:26 +0200
+
 ngcp-bulk-processor (9.0.0.0+0~mr9.0.0.0) unstable; urgency=medium
 
   * New release.
