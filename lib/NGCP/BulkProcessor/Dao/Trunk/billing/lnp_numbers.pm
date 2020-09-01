@@ -6,6 +6,7 @@ use strict;
 use NGCP::BulkProcessor::Logging qw(
     getlogger
     rowinserted
+    rowsdeleted
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
@@ -18,6 +19,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     update_record
     delete_record
     copy_row
+    insert_stmt
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -29,21 +31,31 @@ our @EXPORT_OK = qw(
     insert_row
     update_row
     delete_row
+    
+    delete_numbers
+    
+    getinsertstatement
 
     findby_lnpproviderid_number
     countby_lnpproviderid_number
+    
+    @fieldnames
 );
 
 my $tablename = 'lnp_numbers';
 my $get_db = \&get_billing_db;
 
-my $expected_fieldnames = [
+our @fieldnames = (
     'id',
     'number',
     'routing_number',
     'lnp_provider_id',
     'start',
     'end',
+);
+
+my $expected_fieldnames = [
+    @fieldnames
 ];
 
 my $indexes = {};
@@ -130,6 +142,43 @@ sub delete_row {
 
 }
 
+sub delete_numbers {
+
+    my ($xa_db,$numbers) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = '';
+    my @params = ();
+    if (defined $numbers and 'HASH' eq ref $numbers) {
+        foreach my $in (keys %$numbers) {
+            my @values = (defined $numbers->{$in} and 'ARRAY' eq ref $numbers->{$in} ? @{$numbers->{$in}} : ($numbers->{$in}));
+            $stmt .= ' AND ' if length($stmt);
+            $stmt .= $db->columnidentifier('number') . ' ' . $in . ' (' . substr(',?' x scalar @values,1) . ')';
+            push(@params,@values);
+        }
+    } elsif (defined $numbers and length($numbers) > 0) {
+        $stmt = $db->columnidentifier('number') . ' = ?';
+        push(@params,$numbers);
+    }
+    
+    $stmt = ' WHERE ' . $stmt if length($stmt);
+    $stmt = 'DELETE FROM ' . $table . $stmt;
+
+    my $count;
+    if ($count = $xa_db->db_do($stmt,@params)) {
+        rowsdeleted($db,$tablename,$count,$count,getlogger(__PACKAGE__));
+        return 1;
+    } else {
+        rowsdeleted($db,$tablename,0,0,getlogger(__PACKAGE__));
+        return 0;
+    }
+
+}
+
 sub insert_row {
 
     my $db = &$get_db();
@@ -182,6 +231,14 @@ sub buildrecords_fromrows {
     }
 
     return \@records;
+
+}
+
+sub getinsertstatement {
+
+    my ($insert_ignore) = @_;
+    check_table();
+    return insert_stmt($get_db,__PACKAGE__,$insert_ignore);
 
 }
 
