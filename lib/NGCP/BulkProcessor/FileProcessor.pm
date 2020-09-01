@@ -254,7 +254,13 @@ sub process {
                             foreach my $line (@lines) {
                                 $context->{linesread} += 1;
                                 my $row = &$extractfields_code($context,(ref $line ? $line : \$line));
-                                push(@rowblock,$row) if defined $row;
+                                if (exists $row->[0] and 'ARRAY' eq ref $row->[0]) {
+                                    foreach (@$row) {
+                                        push(@rowblock,$_) if defined $_;
+                                    }
+                                } else {
+                                    push(@rowblock,$row) if defined $row;
+                                }
                             }
                             my $realblocksize = scalar @rowblock;
                             if ($realblocksize > 0) {
@@ -404,7 +410,13 @@ sub _reader {
                     foreach my $line (@lines) {
                         $context->{linesread} += 1;
                         my $row = &$extractfields_code($context,(ref $line ? $line : \$line));
-                        push(@rowblock,shared_clone($row)) if defined $row;
+                        if (exists $row->[0] and 'ARRAY' eq ref $row->[0]) {
+                            foreach (@$row) {
+                                push(@rowblock,shared_clone($_)) if defined $_;
+                            }
+                        } else {
+                            push(@rowblock,shared_clone($row)) if defined $row;
+                        }
                         yield();
                     }
                     my $realblocksize = scalar @rowblock;
