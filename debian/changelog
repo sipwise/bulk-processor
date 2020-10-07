@@ -1,3 +1,19 @@
+ngcp-bulk-processor (8.1.1.7+0~mr8.1.1.7) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [c0492e0] TT#72650 cdr-generator: fix random subscriber selection
+  * [b4b5d25] TT#77954 merge tool: location records
+  * [fef1ab6] TT#75901 cdr_status_data UPSERT should return 0 if already exported
+  * [d583f2e] TT#87561 openser/ngcp mr1.0.2 dao db schema
+  * [ac0210e] TT#95953 define BLOCK_IN_CLIR and BLOCK_OUT_OVERRIDE_PIN attrs
+
+  [ Guillem Jover ]
+  * [3c88fea] TT#71950 Fix typos
+  * [03e9a26] TT#71950 Fix typo in function argument name
+  * [83a2e9d] TT#71950 Fix typos in function names
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 07 Oct 2020 03:05:54 +0200
+
 ngcp-bulk-processor (8.1.1.6+0~mr8.1.1.6) unstable; urgency=medium
 
   [ Rene Krenn ]
