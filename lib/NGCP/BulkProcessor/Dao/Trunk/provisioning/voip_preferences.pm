@@ -70,6 +70,10 @@ our @EXPORT_OK = qw(
     $HEADER_RULE_SET_ATTRIBUTE
     
     $EMERGENCY_PREFIX_ATTRIBUTE
+    
+    $BLOCK_IN_CLIR_ATTRIBUTE
+    $BLOCK_OUT_OVERRIDE_PIN_ATTRIBUTE
+    $ADM_BLOCK_OUT_OVERRIDE_PIN_ATTRIBUTE
 
     $BOOLEAN_DATA_TYPE
 );
@@ -149,6 +153,11 @@ our $CONTRACT_SOUND_SET_ATTRIBUTE = 'contract_sound_set';
 our $HEADER_RULE_SET_ATTRIBUTE = 'header_rule_set';
 
 our $EMERGENCY_PREFIX_ATTRIBUTE = 'emergency_prefix';
+
+our $BLOCK_IN_CLIR_ATTRIBUTE = 'block_in_clir';
+
+our $BLOCK_OUT_OVERRIDE_PIN_ATTRIBUTE = 'block_out_override_pin';
+our $ADM_BLOCK_OUT_OVERRIDE_PIN_ATTRIBUTE = 'adm_block_out_override_pin';
 
 our $BOOLEAN_DATA_TYPE = 'boolean';
 
