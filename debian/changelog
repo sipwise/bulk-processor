@@ -1,3 +1,59 @@
+ngcp-bulk-processor (7.5.7.0+0~mr7.5.7.0) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * [d728e0d] TT#69200 Sort perl build system dependencies
+  * [c741f02] TT#69200 Switch to use CPAN::Meta::Spec metadata
+  * [5e5092b] TT#69200 Updete perl build system dependencies
+  * [d871527] TT#69200 Use sprintf instead of ad-hoc code to 0 fill digits
+  * [0781a19] TT#69200 Use Time::Seconds instead of ad-hoc code to pretty print time offsets
+  * [279bd58] TT#69200 Use Time::Piece instead of ad-hoc code to print dates and times
+  * [ceec613] TT#69200 Use Time::Piece and Time::Local to add up months
+  * [275deb4] TT#69200 Susbstantially simplify and generalize kbytes2gigs()
+  * [9bcbb45] TT#69200 Add initial unit tests for NGCP::BulkProcessor::Array
+  * [b69a7ee] TT#69200 Pass the entire list to push in mergearrays()
+  * [30fc05c] TT#69200 Use reverse in reversearray() instead of an ad-hoc implementation
+  * [fb90e64] TT#69200 Reimplement contains() based on List::Util's any()
+  * [4c6a282] TT#69200 Reimplement removeduplicates() based of List::Util's uniq
+  * [88a372e] TT#69200 Remove unused variable in arrayeq()
+  * [f0ee2f0] TT#69200 Reimplement itemcount() based on grep()
+  * [2f8a4fa] TT#69950 Unbundle Excel::Reader::XLSX modules
+  * [87d1809] TT#69200 Set exexutable bits for programs
+  * [6d79438] TT#69200 Use correct variable in _create_cftimeset() sub
+  * [fadb26f] TT#69200 Move hash argument to content method into a variable
+  * [ddc797d] TT#69200 Use strict and warnings
+  * [931a21f] TT#69200 Set shebang for perl scripts
+  * [5996ed1] TT#69200 Fix mapeq() to match correctly according to caseinsensitive argument
+  * [177ad00] TT#69200 Add more unit tests for NGCP::BulkProcessor::Array
+  * [0d2aa2d] TT#69200 Do not use indirect method syntax
+  * [e77b3d7] TT#69200 Refactor getting last array index into a new sub
+  * [aafcff4] TT#69200 Refactor getting the size of a hash
+  * [0cb0a19] TT#69200 Rewrite mapeq() to not need an intermediate hash
+  * [4bfd641] TT#69200 Switch to an early return in arrayeq()  to reduce nesting level
+  * [9b4c532] TT#69200 Switch from C-style for loops to range ones
+  * [842ea9e] TT#69200 Reduce nesting levels in array_to_map()
+  * [d8ecfa4] TT#69200 Fix coding style
+  * [40d703c] TT#69200 Use none() instead of comparin $mode with each value
+  * [60a8559] TT#69200 Rerwite seteq() based off setcontains()
+  * [3fffe24] TT#69200 Rewrite setcontains() to use a hash instead of contains()
+  * [a0b0877] TT#71950 Fix typos
+  * [dba390b] TT#71950 Fix typo in function argument name
+  * [d25eeb4] TT#71950 Fix typos in function names
+
+  [ Rene Krenn ]
+  * [a7b19a5] TT#72650 cdr-generator: fix random subscriber selection
+  * [fce32ca] TT#76356 ama exporter: log unknown cdr scenario
+  * [fa2dc6f] TT#76358 move ama exporter
+  * [09411d7] TT#77954 merge tool: location records
+  * [9cd4f67] TT#78951 remove "header" constructor flag for XlsxSimpleFile reader
+  * [3403a2e] TT#79802 is_boolean() method for voippref
+  * [46810b1] TT#81155 subscriber_profile_set DAO
+  * [9a3ed16] TT#81154 subscriber_profile DAO
+  * [a86b9e5] TT#75901 cdr_status_data UPSERT should return 0 if already exported
+  * [e9dce90] TT#87561 openser/ngcp mr1.0.2 dao db schema
+  * [05e36f9] Revert "TT#69950 Unbundle Excel::Reader::XLSX modules"
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 16 Oct 2020 16:16:16 +0200
+
 ngcp-bulk-processor (7.5.6.0+0~mr7.5.6.0) unstable; urgency=medium
 
   * New release.
