@@ -23,8 +23,8 @@ use NGCP::BulkProcessor::SqlRecord qw();
 use NGCP::BulkProcessor::Dao::mr102::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::mr102::provisioning::voip_usr_preferences qw();
 use NGCP::BulkProcessor::Dao::mr102::openser::voicemail_users qw();
-use NGCP::BulkProcessor::Dao::mr102::provisioning::voip_fax_preferences qw();
-use NGCP::BulkProcessor::Dao::mr102::provisioning::voip_fax_destinations qw();
+#use NGCP::BulkProcessor::Dao::mr102::provisioning::voip_fax_preferences qw();
+#use NGCP::BulkProcessor::Dao::mr102::provisioning::voip_fax_destinations qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -137,8 +137,13 @@ sub source_buildrecords_fromrows {
 
             $record->{voicemail_users} = NGCP::BulkProcessor::Dao::mr102::openser::voicemail_users::source_findby_customerid($source_dbs,$record->{uuid});
 
-            $record->{voip_fax_preferences} = NGCP::BulkProcessor::Dao::mr102::provisioning::voip_fax_preferences::source_findby_subscriberid($source_dbs,$record->{id});
-            $record->{voip_fax_destinations} = NGCP::BulkProcessor::Dao::mr102::provisioning::voip_fax_destinations::source_findby_subscriberid($source_dbs,$record->{id});
+            #$record->{voip_fax_preferences} = NGCP::BulkProcessor::Dao::mr102::provisioning::voip_fax_preferences::source_findby_subscriberid($source_dbs,$record->{id});
+            #$record->{voip_fax_destinations} = NGCP::BulkProcessor::Dao::mr102::provisioning::voip_fax_destinations::source_findby_subscriberid($source_dbs,$record->{id});
+            
+            my %fax_preferences : shared = ();
+            $record->{voip_fax_preferences} = \%fax_preferences;
+            my @fax_destinations : shared = ();
+            $record->{voip_fax_destinations} = \@fax_destinations;
 
             #delete $record->{account_id};
             #delete $record->{autoconf_displayname};
