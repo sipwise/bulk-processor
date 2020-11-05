@@ -1,3 +1,12 @@
+ngcp-bulk-processor (7.5.5.3+0~mr7.5.5.3) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [faa3822] TT#95953 define BLOCK_IN_CLIR and BLOCK_OUT_OVERRIDE_PIN attrs
+  * [c947474] TT#87561 remove fax prefs from openser mr1.0.2 dao db schema
+  * [09083eb] TT#81770 magenta openser mig: comply mr103 and trunk db schema
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 05 Nov 2020 15:09:15 +0100
+
 ngcp-bulk-processor (7.5.5.2+0~mr7.5.5.2) unstable; urgency=medium
 
   [ Guillem Jover ]
