@@ -34,6 +34,8 @@ our @EXPORT_OK = qw(
     update_row
     insert_row
     upsert_row
+    
+    find_last_processed_cdrid
 
     update_export_status
 
@@ -75,6 +77,30 @@ sub new {
 
 }
 
+
+sub find_last_processed_cdrid {
+
+    my ($status_id) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT COALESCE(MAX(cdr_id),0) FROM ' . $table;
+    my @params = ();
+    my @terms = ();
+    if (defined $status_id) {
+        push(@terms,$db->columnidentifier('status_id') . ' = ?');
+        push(@params,$status_id);
+    }
+    if ((scalar @terms) > 0) {
+        $stmt .= ' WHERE ' . join(' AND ',@terms);
+    }
+
+    return $db->db_get_value($stmt,@params);
+
+}
+            
 sub update_row {
 
     my ($xa_db,$data) = @_;
