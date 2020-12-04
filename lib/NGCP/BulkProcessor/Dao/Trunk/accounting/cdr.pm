@@ -473,8 +473,11 @@ sub _get_export_stmt_part {
         if ('b' eq lc($static_context->{part})) {
             push @conds, $table . '.id > ' . $static_context->{last_processed_cdr_id};
         } elsif ('a' eq lc($static_context->{part}))  {
-            push @intjoins, 'LEFT JOIN ' . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::gettablename()) . ' AS __cesd ON __cesd.cdr_id = ' . $table . '.id AND __cesd.status_id = ' . $static_context->{export_status_id};
-            push @conds, $table . '.id <= ' . $static_context->{last_processed_cdr_id};
+            $stmt = "FROM " . $db->tableidentifier(NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::gettablename())
+                . ' AS __cesd FORCE INDEX (PRIMARY)';
+            unshift @intjoins, 'LEFT JOIN ' . $table . ' FORCE INDEX (PRIMARY) ON ' . $table . '.id = __cesd.cdr_id';
+            push @conds, '__cesd.cdr_id <= ' . $static_context->{last_processed_cdr_id};
+            push @conds, '__cesd.status_id = ' . $static_context->{export_status_id};
             push @conds, '__cesd.export_status = "' . $NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status_data::UNEXPORTED . '"';
         }
     }
