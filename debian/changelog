@@ -1,3 +1,10 @@
+ngcp-bulk-processor (8.1.1.9+0~mr8.1.1.9) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [49686ff] TT#104251 refactor paging queries for cdr tables
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 04 Dec 2020 10:58:18 +0100
+
 ngcp-bulk-processor (8.1.1.8+0~mr8.1.1.8) unstable; urgency=medium
 
   [ Rene Krenn ]
