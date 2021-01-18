@@ -47,6 +47,8 @@ our @EXPORT_OK = qw(
     faketimeerror
     dberror
     dbwarn
+    nosqlerror
+    nosqlwarn
     fieldnamesdiffer
     transferzerorowcount
     processzerorowcount
@@ -302,6 +304,34 @@ sub dbwarn {
 
     my ($db, $message, $logger) = @_;
     $message = _getsqlconnectorinstanceprefix($db) . _getsqlconnectidentifiermessage($db,$message);
+    if (defined $logger) {
+        $logger->warn($message);
+    }
+
+    #die();
+    warning($message, $logger);
+
+}
+
+
+sub nosqlerror {
+
+    my ($connector, $message, $logger) = @_;
+    $message = _getnosqlconnectorinstanceprefix($connector) . _getnosqlconnectidentifiermessage($connector,$message);
+    if (defined $logger) {
+        $logger->error($message);
+    }
+
+    terminate($message, $logger);
+    #terminatethreads();
+    #die();
+
+}
+
+sub nosqlwarn {
+
+    my ($connector, $message, $logger) = @_;
+    $message = _getnosqlconnectorinstanceprefix($connector) . _getnosqlconnectidentifiermessage($connector,$message);
     if (defined $logger) {
         $logger->warn($message);
     }
@@ -788,6 +818,31 @@ sub _getrestconnectorinstanceprefix {
 sub _getrestconnectidentifiermessage {
     my ($restapi,$message) = @_;
     my $result = $restapi->connectidentifier();
+    if (length($result) > 0) {
+    $result .= ' - ';
+    }
+    return $result . $message;
+}
+
+
+sub _getnosqlconnectorinstanceprefix {
+    my ($connector) = @_;
+    my $instancestring = $connector->instanceidentifier();
+    if (length($instancestring) > 0) {
+    if ($connector->{tid} != $root_threadid) {
+        return '[' . $connector->{tid} . '/' . $instancestring . '] ';
+    } else {
+        return '[' . $instancestring . '] ';
+    }
+    } elsif ($connector->{tid} != $root_threadid) {
+    return '[' . $connector->{tid} . '] ';
+    }
+    return '';
+}
+
+sub _getnosqlconnectidentifiermessage {
+    my ($connector,$message) = @_;
+    my $result = $connector->connectidentifier();
     if (length($result) > 0) {
     $result .= ' - ';
     }
