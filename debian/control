@@ -50,6 +50,7 @@ Depends:
  libmime-tools-perl,
  libnet-address-ip-local-perl,
  libphp-serialization-perl,
+ libredis-perl,
  libspreadsheet-parseexcel-perl,
  libstring-mkpasswd-perl,
  libsys-cpuaffinity-perl,
