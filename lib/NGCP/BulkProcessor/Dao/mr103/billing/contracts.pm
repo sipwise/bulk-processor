@@ -47,7 +47,7 @@ my $get_db = \&get_billing_db;
 my $expected_fieldnames = [
     'id',
     'customer_id',
-    #'reseller_id',
+    'reseller_id',
     'contact_id',
     'order_id',
     'status',
