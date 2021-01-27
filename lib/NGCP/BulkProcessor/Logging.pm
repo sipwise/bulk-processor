@@ -98,6 +98,12 @@ our @EXPORT_OK = qw(
     fetching_items
     processing_items
 
+    nosqlthreadingdebug
+    nosqlprocessingstarted
+    nosqlprocessingdone
+    fetching_entries
+    processing_entries
+    
     tablefixed
     servicedebug
     serviceinfo
@@ -777,6 +783,52 @@ sub restprocessingdone {
     my ($restapi,$path_query,$logger) = @_;
     if (defined $logger) {
         $logger->info('collection processing done: [' . $restapi->connectidentifier() . '] ' . $path_query);
+    }
+
+}
+
+
+sub nosqlthreadingdebug {
+
+    my ($message,$logger) = @_;
+    if (defined $logger) {
+        $logger->debug($message);
+    }
+
+}
+
+sub fetching_entries {
+
+    my ($store,$scan_pattern,$start,$blocksize,$logger) = @_;
+    if (defined $logger) {
+        $logger->info(_getnosqlconnectorinstanceprefix($store) . _getnosqlconnectidentifiermessage($store,'fetching ' . $scan_pattern . ' entries: ' . ($start + 1) . '-' . ($start + $blocksize)));
+    }
+
+}
+
+sub processing_entries {
+
+    my ($tid, $start, $blocksize, $logger) = @_;
+    if (defined $logger) {
+        $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing entries: ' . ($start + 1) . '-' . ($start + $blocksize));
+    }
+
+}
+
+sub nosqlprocessingstarted {
+
+    my ($store,$scan_pattern,$logger) = @_;
+    if (defined $logger) {
+        $logger->info('keystore processing started: [' . $store->connectidentifier() . '] ' . $scan_pattern);
+    }
+
+}
+
+sub restprocessingdone {
+
+    my ($store,$scan_pattern,$logger) = @_;
+    if (defined $logger) {
+        $logger->info('keystore processing done: [' . $store->connectidentifier() . '] ' . $scan_pattern);
     }
 
 }

@@ -79,6 +79,13 @@ sub ping {
 
 }
 
+sub get_defaultblockcount {
+    
+    my $self = shift;
+    notimplementederror((ref $self) . ': ' . (caller(0))[3] . ' not implemented',getlogger(__PACKAGE__));
+    
+}
+
 sub multithreading_supported {
 
     my $self = shift;
