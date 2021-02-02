@@ -41,6 +41,12 @@ use NGCP::BulkProcessor::Globals qw(
     $ngcprestapi_username
     $ngcprestapi_password
     $ngcprestapi_realm
+    
+    $location_databaseindex
+    $location_password
+    $location_host
+    $location_port
+    $location_sock
 
 );
 
@@ -56,6 +62,7 @@ use NGCP::BulkProcessor::SqlConnectors::MySQLDB;
 #use NGCP::BulkProcessor::SqlConnectors::CSVDB;
 #use NGCP::BulkProcessor::SqlConnectors::SQLServerDB;
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi;
+use NGCP::BulkProcessor::NoSqlConnectors::Redis;
 
 use NGCP::BulkProcessor::SqlProcessor qw(cleartableinfo);
 
@@ -87,12 +94,16 @@ our @EXPORT_OK = qw(
     xa_db_tableidentifier
 
     get_ngcp_restapi
+    
+    get_location_store
 
     destroy_dbs
+    destroy_stores
     get_connectorinstancename
     get_cluster_db
 
     ping_dbs
+    ping_stores
     ping
 );
 
@@ -108,6 +119,8 @@ my $kamailio_dbs = {};
 my $xa_dbs = {};
 
 my $ngcp_restapis = {};
+
+my $location_stores = {};
 
 sub get_accounting_db {
 
@@ -248,6 +261,23 @@ sub get_ngcp_restapi {
 
 }
 
+sub get_location_store {
+
+    my ($instance_name,$reconnect) = @_;
+    my $name = get_connectorinstancename($instance_name);
+    if (!defined $location_stores->{$name}) {
+        $location_stores->{$name} = NGCP::BulkProcessor::NoSqlConnectors::Redis->new($instance_name);
+        if (!defined $reconnect) {
+            $reconnect = 1;
+        }
+    }
+    if ($reconnect) {
+        $location_stores->{$name}->connect($location_databaseindex,$location_password,$location_host,$location_port,$location_sock);
+    }
+    return $location_stores->{$name};
+
+}
+
 
 sub get_connectorinstancename {
     my ($name) = @_;
@@ -264,6 +294,10 @@ sub ping_dbs {
     ping($provisioning_dbs);
     ping($kamailio_dbs);
     ping($xa_dbs);
+}
+
+sub ping_stores {
+    ping($location_stores);
 }
 
 sub ping {
@@ -313,6 +347,15 @@ sub destroy_dbs {
         delete $xa_dbs->{$name};
     }
 
+}
+
+sub destroy_stores {
+
+    foreach my $name (keys %$location_stores) {
+        undef $location_stores->{$name};
+        delete $location_stores->{$name};
+    }
+    
 }
 
 sub get_cluster_db { # oracle RAC and the like ...

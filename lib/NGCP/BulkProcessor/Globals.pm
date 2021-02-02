@@ -82,6 +82,12 @@ our @EXPORT_OK = qw(
     $xa_password
     $xa_host
     $xa_port
+    
+    $location_databaseindex
+    $location_password
+    $location_host
+    $location_port
+    $location_sock    
 
     $ngcprestapi_uri
     $ngcprestapi_username
@@ -198,7 +204,12 @@ our	$xa_password = '';
 our $xa_host = '127.0.0.1';
 our $xa_port = '3306';
 
-
+our $location_databaseindex = '20';
+our $location_password = undef;
+our $location_host = '127.0.0.1';
+our $location_port = '6379';
+our $location_sock = undef;
+    
 our $ngcprestapi_uri = 'https://127.0.0.1:443';
 our $ngcprestapi_username = 'administrator';
 our $ngcprestapi_password = 'administrator';
@@ -314,10 +325,7 @@ sub update_masterconfig {
 
         my $result = 1;
 
-        $ngcprestapi_uri = $data->{ngcprestapi_uri} if exists $data->{ngcprestapi_uri};
-        $ngcprestapi_username = $data->{ngcprestapi_username} if exists $data->{ngcprestapi_username};
-        $ngcprestapi_password = $data->{ngcprestapi_password} if exists $data->{ngcprestapi_password};
-        $ngcprestapi_realm = $data->{ngcprestapi_realm} if exists $data->{ngcprestapi_realm};
+
 
         $cpucount = $data->{cpucount} if exists $data->{cpucount};
         $enablemultithreading = $data->{enablemultithreading} if exists $data->{enablemultithreading};
@@ -438,6 +446,17 @@ sub _postprocess_masterconfig {
         $xa_username = $data->{xa_username} if exists $data->{xa_username};
         $xa_password = $data->{xa_password} if exists $data->{xa_password};
 
+        $ngcprestapi_uri = $data->{ngcprestapi_uri} if exists $data->{ngcprestapi_uri};
+        $ngcprestapi_username = $data->{ngcprestapi_username} if exists $data->{ngcprestapi_username};
+        $ngcprestapi_password = $data->{ngcprestapi_password} if exists $data->{ngcprestapi_password};
+        $ngcprestapi_realm = $data->{ngcprestapi_realm} if exists $data->{ngcprestapi_realm};
+        
+        $location_databaseindex = $data->{location_databaseindex} if exists $data->{location_databaseindex};
+        $location_password = $data->{location_password} if exists $data->{location_password};
+        $location_host = $data->{location_host} if exists $data->{location_host};
+        $location_port = $data->{location_port} if exists $data->{location_port};
+        $location_sock = $data->{location_sock} if exists $data->{location_sock};
+        
         return 1;
     }
     return 0;

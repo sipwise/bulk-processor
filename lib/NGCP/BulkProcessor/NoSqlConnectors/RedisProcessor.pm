@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::RedisProcessor;
+package NGCP::BulkProcessor::NoSqlConnectors::RedisProcessor;
 use strict;
 
 ## no critic
@@ -31,6 +31,8 @@ use NGCP::BulkProcessor::LogError qw(
 
 use NGCP::BulkProcessor::Utils qw(threadid);
 
+use NGCP::BulkProcessor::NoSqlConnectors::Redis qw(get_scan_args);
+
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
@@ -41,6 +43,8 @@ our @EXPORT_OK = qw(
 );
 
 my $nosqlprocessing_threadqueuelength = 10;
+
+my $reader_connection_name = 'reader';
 
 my $thread_sleep_secs = 0.1;
 
@@ -165,25 +169,31 @@ sub process_entries {
     my %params = @_;
     my ($get_store,
         $scan_pattern,
+        $type,
         $process_code,
         $static_context,
         $blocksize,
         $init_process_context_code,
         $uninit_process_context_code,
+        $destroy_reader_dbs_code,
         $multithreading,
         $nosqlprocessing_threads) = @params{qw/
             get_store
             scan_pattern
+            type
             process_code
             static_context
             blocksize
             init_process_context_code
             uninit_process_context_code
+            destroy_reader_dbs_code
             multithreading
             nosqlprocessing_threads
         /};
 
     if (ref $get_store eq 'CODE') {
+        
+        my $store = &$get_store($reader_connection_name,1);
 
         nosqlprocessingstarted(&$get_store(),$scan_pattern,getlogger(__PACKAGE__));
 
@@ -199,6 +209,13 @@ sub process_entries {
             my %errorstates :shared = ();
             my $queue = Thread::Queue->new();
 
+            nosqlthreadingdebug('shutting down connections ...',getlogger(__PACKAGE__));
+            
+            $store->disconnect();
+            my $default_connection = &$get_store(undef,0);
+            my $default_connection_reconnect = $default_connection->is_connected();
+            $default_connection->disconnect();
+            
             nosqlthreadingdebug('starting reader thread',getlogger(__PACKAGE__));
 
             $reader = threads->create(\&_reader,
@@ -207,7 +224,9 @@ sub process_entries {
                                             threadqueuelength    => $nosqlprocessing_threadqueuelength,
                                             get_store               => $get_store,
                                             scan_pattern            => $scan_pattern,
+                                            type                 => $type,
                                             blocksize            => $blocksize,
+                                            destroy_stores_code => $destroy_reader_dbs_code,
                                           });
 
             for (my $i = 0; $i < $nosqlprocessing_threads; $i++) {
@@ -220,6 +239,7 @@ sub process_entries {
                                                 process_code         => $process_code,
                                                 init_process_context_code => $init_process_context_code,
                                                 uninit_process_context_code => $uninit_process_context_code,
+                                                
                                               }));
                 if (!defined $processor) {
                     nosqlthreadingdebug('processor thread ' . ($i + 1) . ' of ' . $nosqlprocessing_threads . ' NOT started',getlogger(__PACKAGE__));
@@ -241,6 +261,12 @@ sub process_entries {
             }
 
             $errorstate = (_get_other_threads_state(\%errorstates,$tid) & ~$RUNNING);
+            
+            nosqlthreadingdebug('restoring connections ...',getlogger(__PACKAGE__));
+            
+            if ($default_connection_reconnect) {
+                $default_connection = &$get_store(undef,1);
+            }
 
         } else {
 
@@ -259,7 +285,7 @@ sub process_entries {
                 my $cursor = 0;
                 while (1) {
                     fetching_entries($store,$scan_pattern,$i,$blocksize,getlogger(__PACKAGE__));
-                    ($cursor, my $rowblock) = $store->scan($cursor,$scan_pattern,$blocksize);
+                    ($cursor, my $rowblock) = $store->scan($cursor,get_scan_args($scan_pattern,$blocksize,$type));
                     my $realblocksize = scalar @$rowblock;
                     processing_entries($tid,$i,$realblocksize,getlogger(__PACKAGE__));
                     $rowblock_result = &$process_code($context,$rowblock,$i);
@@ -284,7 +310,8 @@ sub process_entries {
                     &$uninit_process_context_code($context);
                 }
             };
-
+            $store->disconnect();
+            
         }
 
         if ($errorstate == $COMPLETED) {
@@ -299,7 +326,6 @@ sub process_entries {
     return 0;
 
 }
-
 
 sub _reader {
 
@@ -329,7 +355,7 @@ sub _reader {
         my $state = $RUNNING; #start at first
         while (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0) { #as long there is one running consumer and no defunct consumer
             fetching_entries($store,$context->{scan_pattern},$i,$blocksize,getlogger(__PACKAGE__));
-            ($cursor, my $rowblock) = $store->scan($cursor,$context->{scan_pattern},$blocksize);
+            ($cursor, my $rowblock) = $store->scan_shared($cursor,get_scan_args($context->{scan_pattern},$blocksize,$context->{type}));
             my $realblocksize = scalar @$rowblock;
             my %packet :shared = ();
             $packet{rows} = $rowblock;
@@ -355,14 +381,31 @@ sub _reader {
             ,getlogger(__PACKAGE__));
         }
     };
+    #nosqlthreadingdebug($@ ? '[' . $tid . '] reader thread error: ' . $@ : '[' . $tid . '] reader thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
+    #lock $context->{errorstates};
+    #if ($@) {
+    #    $context->{errorstates}->{$tid} = $ERROR;
+    #} else {
+    #    $context->{errorstates}->{$tid} = $COMPLETED;
+    #}
+    #return $context->{errorstates}->{$tid};
     nosqlthreadingdebug($@ ? '[' . $tid . '] reader thread error: ' . $@ : '[' . $tid . '] reader thread finished (' . $blockcount . ' blocks)',getlogger(__PACKAGE__));
+    # stop the consumer:
+    # $context->{queue}->enqueue(undef);
+    if (defined $store) {
+        # if thread cleanup has a problem...
+        $store->disconnect();
+    }
+    if (defined $context->{destroy_stores_code} and 'CODE' eq ref $context->{destroy_stores_code}) {
+        &{$context->{destroy_stores_code}}();
+    }
     lock $context->{errorstates};
     if ($@) {
         $context->{errorstates}->{$tid} = $ERROR;
     } else {
         $context->{errorstates}->{$tid} = $COMPLETED;
     }
-    return $context->{errorstates}->{$tid};
+    return $context->{errorstates}->{$tid};    
 }
 
 sub _process {
