@@ -49,6 +49,7 @@ our @EXPORT_OK = qw(
     dbwarn
     nosqlerror
     nosqlwarn
+    nosqlprocessingfailed
     fieldnamesdiffer
     transferzerorowcount
     processzerorowcount
@@ -73,7 +74,7 @@ our @EXPORT_OK = qw(
     fileprocessingwarn
 
     restprocessingfailed
-
+    
     emailwarn
     configurationwarn
     configurationerror
@@ -338,6 +339,18 @@ sub nosqlwarn {
 
     #die();
     warning($message, $logger);
+
+}
+
+
+sub nosqlprocessingfailed {
+
+    my ($store,$scan_pattern,$logger) = @_;
+    my $message = 'keystore processing failed: [' . $store->connectidentifier() . '] ' . $scan_pattern;
+    if (defined $logger) {
+        $logger->error($message);
+    }
+    terminate($message, $logger);
 
 }
 

@@ -1,0 +1,3 @@
+
+
+get_location_store
