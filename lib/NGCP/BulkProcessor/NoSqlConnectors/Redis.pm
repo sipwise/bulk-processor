@@ -24,7 +24,9 @@ use NGCP::BulkProcessor::NoSqlConnector qw(
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::NoSqlConnector);
-our @EXPORT_OK = qw();
+our @EXPORT_OK = qw(
+    get_scan_args
+);
 
 our $AUTOLOAD;
 
@@ -222,6 +224,27 @@ sub multithreading_supported {
     my $self = shift;
     return 1;
 
+}
+
+sub get_scan_args {
+    
+    my ($scan_pattern,$blocksize,$type) = @_;
+    my @result = ();
+    if ($scan_pattern) {
+        push(@result,'MATCH');
+        push(@result,$scan_pattern);
+    }
+    if ($blocksize) {
+        push(@result,'COUNT');
+        push(@result,$blocksize);
+    }
+    # As of version 6.0 you can use this option to ask SCAN to only return objects that match a given type:
+    #if ($type) {
+    #    push(@result,'TYPE'); 
+    #    push(@result,$type);
+    #}
+    return @result;
+    
 }
 
 1;
