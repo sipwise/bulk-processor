@@ -346,11 +346,16 @@ sub nosqlwarn {
 sub nosqlprocessingfailed {
 
     my ($store,$scan_pattern,$logger) = @_;
-    my $message = 'keystore processing failed: [' . $store->connectidentifier() . '] ' . $scan_pattern;
-    if (defined $logger) {
-        $logger->error($message);
+    my $msg = 'keystore processing failed: ';
+    my $connectidentifier = $store->connectidentifier();
+    if ($connectidentifier) {
+        $msg .= '[' . $connectidentifier . '] ';
     }
-    terminate($message, $logger);
+    $msg .= $scan_pattern;
+    if (defined $logger) {
+        $logger->error($msg);
+    }
+    terminate($msg, $logger);
 
 }
 
