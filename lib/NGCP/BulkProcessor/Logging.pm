@@ -823,7 +823,14 @@ sub nosqlprocessingstarted {
 
     my ($store,$scan_pattern,$logger) = @_;
     if (defined $logger) {
-        $logger->info('keystore processing started: [' . $store->connectidentifier() . '] ' . $scan_pattern);
+        my $msg = 'keystore processing started: ';
+        my $connectidentifier = $store->connectidentifier();
+        if ($connectidentifier) {
+            $msg .= '[' . $connectidentifier . '] ';
+        }
+        $msg .= $scan_pattern;
+        
+        $logger->info($msg);
     }
 
 }
@@ -832,7 +839,14 @@ sub nosqlprocessingdone {
 
     my ($store,$scan_pattern,$logger) = @_;
     if (defined $logger) {
-        $logger->info('keystore processing done: [' . $store->connectidentifier() . '] ' . $scan_pattern);
+        my $msg = 'keystore processing done: ';
+        my $connectidentifier = $store->connectidentifier();
+        if ($connectidentifier) {
+            $msg .= '[' . $connectidentifier . '] ';
+        }
+        $msg .= $scan_pattern;
+        
+        $logger->info($msg);
     }
 
 }

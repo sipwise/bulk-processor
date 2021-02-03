@@ -36,133 +36,20 @@ use NGCP::BulkProcessor::NoSqlConnectors::Redis qw(get_scan_args);
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-    init_entry
-    copy_value
+
     process_entries
 
 );
 
 my $nosqlprocessing_threadqueuelength = 10;
 
-my $reader_connection_name = 'reader';
+#my $reader_connection_name = 'reader';
 
 my $thread_sleep_secs = 0.1;
 
 my $RUNNING = 1;
 my $COMPLETED = 2;
 my $ERROR = 4;
-
-
-sub init_entry {
-
-    my ($entry,$fieldnames) = @_;
-    
-    if (defined $fieldnames) {
-        # if there are fieldnames defined, we make a member variable for each and set it to undef
-        foreach my $fieldname (@$fieldnames) {
-            $entry->{value}->{$fieldname} = undef;
-        }
-    }
-
-    return $entry;
-
-}
-
-sub copy_value {
-    my ($entry,$value,$fieldnames) = @_;
-    if (defined $entry) {
-        if (defined $value) {
-            if ($entry->{type} eq 'set') {
-                if (ref $value eq 'ARRAY') {
-                    %{$entry->{value}} = map { $_ => undef; } @$value;
-                } elsif (ref $value eq 'HASH') {
-                    %{$entry->{value}} = map { $_ => undef; } %$value;
-                } elsif (ref $value eq ref $entry) {
-                    die('redis type mismatch') if $entry->{type} ne $value->{type};
-                    %{$entry->{value}} = %{$value->{value}};
-                } else {
-                    $entry->{value} = { $value => undef, };
-                }
-            } elsif ($entry->{type} eq 'list') {
-                if (ref $value eq 'ARRAY') {
-                    @{$entry->{value}} = @$value;
-                } elsif (ref $value eq 'HASH') {
-                    @{$entry->{value}} = %$value;
-                } elsif (ref $value eq ref $entry) {
-                    die('redis type mismatch') if $entry->{type} ne $value->{type};
-                    @{$entry->{value}} = @{$value->{value}};
-                } else {
-                    $entry->{value} = [ $value, ];
-                }                
-            } elsif ($entry->{type} eq 'zset') {
-                my %value = ();
-                tie(%value, 'Tie::IxHash');
-                $entry->{value} = \%value;
-                if (ref $value eq 'ARRAY') {
-                    map { $entry->{value}->Push($_ => undef); } @$value;
-                } elsif (ref $value eq 'HASH') {
-                    map { $entry->{value}->Push($_ => undef); } %$value;
-                } elsif (ref $value eq ref $entry) {
-                    die('redis type mismatch') if $entry->{type} ne $value->{type};
-                    map { $entry->{value}->Push($_ => undef); } keys %{$value->{value}};
-                } else {
-                    $entry->{value}->Push($value => undef);
-                }
-            } elsif ($entry->{type} eq 'hash') {
-                my $i;
-                if (ref $value eq 'ARRAY') {
-                    $i = 0;
-                } elsif (ref $value eq 'HASH') {
-                    $i = -1;
-                } elsif (ref $value eq ref $entry) {
-                    die('redis type mismatch') if $entry->{type} ne $value->{type};
-                    $i = -2;
-                } else {
-                    $i = -3;
-                }
-                foreach my $fieldname (@$fieldnames) {
-                    if ($i >= 0) {
-                        $entry->{value}->{$fieldname} = $value->[$i];
-                        $i++;
-                    } elsif ($i == -1) {
-                        if (exists $value->{$fieldname}) {
-                            $entry->{value}->{$fieldname} = $value->{$fieldname};
-                        } elsif (exists $value->{uc($fieldname)}) {
-                            $entry->{value}->{$fieldname} = $value->{uc($fieldname)};
-                        } else {
-                            $entry->{value}->{$fieldname} = undef;
-                        }
-                    } elsif ($i == -2) {
-                        if (exists $value->{value}->{$fieldname}) {
-                            $entry->{value}->{$fieldname} = $value->{value}->{$fieldname};
-                        } elsif (exists $entry->{value}->{uc($fieldname)}) {
-                            $entry->{value}->{$fieldname} = $value->{value}->{uc($fieldname)};
-                        } else {
-                            $entry->{value}->{$fieldname} = undef;
-                        }                        
-                    } else {
-                        $entry->{value}->{$fieldname} = $value; #scalar
-                        last;
-                    }
-                }
-            } else { #($type eq 'string') {
-                if (ref $value eq 'ARRAY') {
-                    $entry->{value} = $value->[0];
-                } elsif (ref $value eq 'HASH') {
-                    my @keys = keys %$value; #Experimental shift on scalar is now forbidden at..
-                    $entry->{value} = $value->{shift @keys};
-                } elsif (ref $value eq ref $entry) {
-                    die('redis type mismatch') if $entry->{type} ne $value->{type};
-                    $entry->{value} = $value->{value};
-                } else {
-                    $entry->{value} = $value;
-                }                
-            }
-        }
-
-    }
-    return $entry;
-}
 
 sub process_entries {
 
@@ -175,7 +62,7 @@ sub process_entries {
         $blocksize,
         $init_process_context_code,
         $uninit_process_context_code,
-        $destroy_reader_dbs_code,
+        $destroy_reader_stores_code,
         $multithreading,
         $nosqlprocessing_threads) = @params{qw/
             get_store
@@ -186,16 +73,14 @@ sub process_entries {
             blocksize
             init_process_context_code
             uninit_process_context_code
-            destroy_reader_dbs_code
+            destroy_reader_stores_code
             multithreading
             nosqlprocessing_threads
         /};
 
     if (ref $get_store eq 'CODE') {
         
-        my $store = &$get_store($reader_connection_name,1);
-
-        nosqlprocessingstarted(&$get_store(),$scan_pattern,getlogger(__PACKAGE__));
+        nosqlprocessingstarted(&$get_store(undef,0),$scan_pattern,getlogger(__PACKAGE__));
 
         my $errorstate = $RUNNING;
         my $tid = threadid();
@@ -211,7 +96,7 @@ sub process_entries {
 
             nosqlthreadingdebug('shutting down connections ...',getlogger(__PACKAGE__));
             
-            $store->disconnect();
+            #$store->disconnect();
             my $default_connection = &$get_store(undef,0);
             my $default_connection_reconnect = $default_connection->is_connected();
             $default_connection->disconnect();
@@ -226,7 +111,7 @@ sub process_entries {
                                             scan_pattern            => $scan_pattern,
                                             type                 => $type,
                                             blocksize            => $blocksize,
-                                            destroy_stores_code => $destroy_reader_dbs_code,
+                                            destroy_stores_code => $destroy_reader_stores_code,
                                           });
 
             for (my $i = 0; $i < $nosqlprocessing_threads; $i++) {
@@ -315,10 +200,10 @@ sub process_entries {
         }
 
         if ($errorstate == $COMPLETED) {
-            nosqlprocessingdone(&$get_store(),$scan_pattern,getlogger(__PACKAGE__));
+            nosqlprocessingdone(&$get_store(undef,0),$scan_pattern,getlogger(__PACKAGE__));
             return 1;
         } else {
-            nosqlprocessingfailed(&$get_store(),$scan_pattern,getlogger(__PACKAGE__));
+            nosqlprocessingfailed(&$get_store(undef,0),$scan_pattern,getlogger(__PACKAGE__));
         }
 
     }
