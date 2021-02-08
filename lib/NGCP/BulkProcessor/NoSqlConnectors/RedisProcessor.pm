@@ -155,7 +155,7 @@ sub process_entries {
 
         } else {
 
-            my $store = &$get_store(); #$reader_connection_name);
+            my $store = &$get_store(undef,1); #$reader_connection_name);
             $blocksize //= $store->get_defaultblockcount();
 
             my $context = _create_process_context($static_context,{ tid => $tid });
