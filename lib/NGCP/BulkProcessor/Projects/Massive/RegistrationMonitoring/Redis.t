@@ -80,8 +80,13 @@ SKIP:
         process_code => sub {
             my ($context,$records,$row_offset) = @_;
             #die();
-            print @$records . " done\n";
-            return 0;
+            print join("\n", map {
+                my $key = $_->getkey();
+                $key =~ s/location\:usrdom\:\://;
+                $key =~ s/\:/;/;
+                $key;
+            } @$records);
+            return 1;
         },
         static_context => $static_context,
         blocksize => 10000,
