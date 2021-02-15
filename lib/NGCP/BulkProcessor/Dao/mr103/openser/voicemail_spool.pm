@@ -1,25 +1,27 @@
-package NGCP::BulkProcessor::Dao::mr103::provisioning::voip_dbaliases;
+package NGCP::BulkProcessor::Dao::mr103::openser::voicemail_spool;
 use strict;
 
 ## no critic
 
 use threads::shared;
 
+use Locale::Recode qw();
+
 use NGCP::BulkProcessor::Logging qw(
     getlogger
+
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_provisioning_db
+    get_kamailio_db
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
+
     copy_row
 );
 use NGCP::BulkProcessor::SqlRecord qw();
-
-use NGCP::BulkProcessor::Dao::mr103::openser::voicemail_spool qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -27,21 +29,28 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    source_findby_subscriberid
+    source_findby_mailboxuser
+    
 );
 
-my $tablename = 'voip_dbaliases';
-my $get_db = \&get_provisioning_db;
+my $tablename = 'voicemail_spool';
+my $get_db = \&get_kamailio_db;
 
 my $expected_fieldnames = [
-    'id',
-    'username',
-    'domain_id',
-    'subscriber_id',
+  'id',
+  'msgnum',
+  'dir',
+  'context',
+  'macrocontext',
+  'callerid',
+  'origtime',
+  'duration',
+  'mailboxuser',
+  'mailboxcontext',
+  'recording',
 ];
 
 my $indexes = {};
-
 
 sub new {
 
@@ -52,6 +61,27 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub buildrecords_fromrows {
+
+    my ($rows,$load_recursive) = @_;
+
+    my @records = ();
+    my $record;
+
+    if (defined $rows and ref $rows eq 'ARRAY') {
+        foreach my $row (@$rows) {
+            $record = __PACKAGE__->new($row);
+
+            # transformations go here ...
+
+            push @records,$record;
+        }
+    }
+
+    return \@records;
 
 }
 
@@ -70,7 +100,6 @@ sub check_table {
 
 }
 
-
 sub source_new {
 
     my $class = shift;
@@ -83,19 +112,18 @@ sub source_new {
 
 }
 
-sub source_findby_subscriberid {
+sub source_findby_mailboxuser {
 
-    my ($source_dbs,$subscriber_id) = @_;
+    my ($source_dbs,$mailboxuser) = @_;
 
-    my $source_db = $source_dbs->{provisioning_db};
+    my $source_db = $source_dbs->{openser_db};
     check_table($source_db);
     my $db = &$source_db();
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('subscriber_id') . ' = ?';
-    my @params = ($subscriber_id);
-
+            $db->columnidentifier('mailboxuser') . ' = ?';
+    my @params = ($mailboxuser);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return source_buildrecords_fromrows($rows,$source_dbs);
@@ -109,16 +137,17 @@ sub source_buildrecords_fromrows {
     my @records : shared = ();
     my $record;
 
+    my $recoder = Locale::Recode->new( from => 'ISO-8859-1', to => 'UTF-8' );
+
     if (defined $rows and ref $rows eq 'ARRAY') {
         foreach my $row (@$rows) {
-            $record = __PACKAGE__->source_new($source_dbs->{provisioning_db},$row);
+            $record = __PACKAGE__->source_new($source_dbs->{openser_db},$row);
 
             # transformations go here ...
-
-            $record->{voicemail_spool} = NGCP::BulkProcessor::Dao::mr103::openser::voicemail_spool::source_findby_mailboxuser($source_dbs,$record->{username});
-            #delete $record->{domain_id};
-            #delete $record->{subscriber_id};
-            #delete $record->{id};
+            foreach my $field (keys %$record) {
+                next if $field eq 'recording';
+                $record->{$field} = $recoder->recode($record->{$field}) if $record->{field};
+            }
 
             push @records,$record;
         }
@@ -127,5 +156,7 @@ sub source_buildrecords_fromrows {
     return \@records;
 
 }
+
+
 
 1;
