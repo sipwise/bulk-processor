@@ -1,3 +1,15 @@
+ngcp-bulk-processor (9.3.1.0+0~mr9.3.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [565cafd] TT#109163 fix contracts dao for mr1.0.3 schema
+  * [207a82b] TT#108604 introduce nosql abstraction and redis connector
+  * [c3bc57b] TT#108606 multithread consumer-producer pattern for Redis
+  * [e9e315f] TT#108605 redis "location" store schema #1
+  * [20b5920] TT#108605 redis "location" store schema #2
+  * [c2a2b7c] TT#110203 redis registration monitoring to SQLite PoC
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 15 Feb 2021 17:50:54 +0100
+
 ngcp-bulk-processor (9.3.0.0+0~mr9.3.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
