@@ -23,6 +23,8 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::mr103::openser::voicemail_spool qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -160,6 +162,7 @@ sub source_buildrecords_fromrows {
             foreach my $field (keys %$record) {
                 $record->{$field} = $recoder->recode($record->{$field}) if $record->{field};
             }
+            $record->{voicemail_spool} = NGCP::BulkProcessor::Dao::mr103::openser::voicemail_spool::source_findby_mailboxuser($source_dbs,$record->{mailbox});
 
             push @records,$record;
         }
