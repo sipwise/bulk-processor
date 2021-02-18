@@ -113,6 +113,7 @@ our @EXPORT_OK = qw(
     check_ipnet
     
     unshare
+    run
 );
 
 our $chmod_umask = 0777;
@@ -1056,6 +1057,28 @@ sub unshare {
         return \$obj;
     } else {
         die("unsharing $ref not supported\n");
+    }
+
+}
+
+sub run {
+
+    my (@commandandargs) = @_;
+
+    system(@commandandargs);
+
+    my $command = shift @commandandargs;
+
+    if ($? == -1) {
+        return (0,'failed to execute ' . $command . ': ' . $!);
+    } elsif ($? & 127) {
+        return (0,sprintf($command . ' died with signal %d, %s dump', ($? & 127), ($? & 128) ? 'with' : 'without'));
+    } else {
+        if ($? == 0) {
+            return (1,sprintf($command . ' exited with value %d', $? >> 8));
+        } else {
+            return (0,sprintf($command . ' exited with value %d', $? >> 8));
+        }
     }
 
 }
