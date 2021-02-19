@@ -1,3 +1,17 @@
+ngcp-bulk-processor (8.1.1.11+0~mr8.1.1.11) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [793ac20] TT#108604 introduce nosql abstraction and redis connector
+  * [7d4e8af] TT#108606 multithread consumer-producer pattern for Redis
+  * [51aa1d9] TT#108605 redis "location" store schema #1
+  * [0a561f8] TT#108605 redis "location" store schema #2
+  * [fbdccef] TT#110203 redis registration monitoring to SQLite PoC
+  * [e52e205] TT#111206 add mr1.0.3 openser.voicemail_spool DAO
+  * [2d76747] TT#111750 add trunk kamailio.voicemail_spool DAO
+  * [0e002c5] TT#111905 perl system() wrapper
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 19 Feb 2021 13:17:57 +0100
+
 ngcp-bulk-processor (8.1.1.10+0~mr8.1.1.10) unstable; urgency=medium
 
   [ Rene Krenn ]
