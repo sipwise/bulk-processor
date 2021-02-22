@@ -1,3 +1,10 @@
+ngcp-bulk-processor (8.1.1.12+0~mr8.1.1.12) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [f1eddd9] TT#111206 add reseller_id in mr103 contract DAO
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 22 Feb 2021 13:17:15 +0100
+
 ngcp-bulk-processor (8.1.1.11+0~mr8.1.1.11) unstable; urgency=medium
 
   [ Rene Krenn ]
