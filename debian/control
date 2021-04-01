@@ -84,6 +84,7 @@ Depends:
  libyaml-libyaml-perl,
 Suggests:
  libdbd-odbc-perl,
+ tdsodbc,
  libdbd-orable-perl,
  libdbd-pg-perl,
 Description: NGCP bulk processor framework perl modules
