@@ -160,7 +160,9 @@ sub _dbd_connect {
     if ($^O eq 'MSWin32') {
         $connection_string = 'DBI:ODBC:Driver={SQL Server};Server=' . $self->{host} . ',' . $self->{port};
     } else {
-        $connection_string = 'dbi:ODBC:driver=SQL Server Native Client 11.0;server=tcp:' . $self->{host} . ',' . $self->{port}; # . ';database=DB_TOWNE;MARS_Connection=yes;
+        #$connection_string = 'dbi:ODBC:driver=SQL Server Native Client 11.0;server=tcp:' . $self->{host} . ',' . $self->{port};
+        #$connection_string = 'dbi:ODBC:driver=ODBC Driver 17 for SQL Server;server=tcp:' . $self->{host} . ',' . $self->{port};
+        $connection_string = 'dbi:ODBC:driver={FreeTDS};server=' . $self->{host} . ',' . $self->{port};
     }
     if (length($databasename) > 0) {
         $connection_string .= ';database=' . $databasename;
