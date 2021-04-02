@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Redis::Trunk::location::usrdom;
+package NGCP::BulkProcessor::Redis::mr65::location::entry;
 use strict;
 
 ## no critic
@@ -16,57 +16,78 @@ use NGCP::BulkProcessor::NoSqlConnectors::RedisEntry qw(
     copy_value
 );
 
-use NGCP::BulkProcessor::Redis::Trunk::location::entry qw();
-
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::NoSqlConnectors::RedisEntry);
 our @EXPORT_OK = qw(
-    get_usrdom
-    get_usrdom_by_username_domain
+    get_entry
+    get_entry_by_ruid
     process_keys
 );
 
 my $get_store = \&get_location_store;
 
-my $table = '1:location:usrdom';
-my $type = $NGCP::BulkProcessor::NoSqlConnectors::RedisEntry::SET_TYPE;
+my $table = 'location:entry';
+my $type = $NGCP::BulkProcessor::NoSqlConnectors::RedisEntry::HASH_TYPE;
 my $get_key = sub {
-    my ($username,$domain) = @_;
-    my $result = $table . '::' . $username;
-    $result .= ':' . $domain if $domain;
-    return $result;
+    my ($ruid) = @_;
+    return $table . '::' . $ruid;
 };
+
+my $fieldnames = [
+    'instance',
+    'domain',
+    'cseq',
+    'partition',
+    'ruid',
+    'connection_id',
+    'username',
+    'keepalive',
+    'path',
+    'reg_id',
+    'contact',
+    'flags',
+    'received',
+    'callid',
+    'socket',
+    'cflags',
+    'expires',
+    'methods',
+    'user_agent',
+    'q',
+    'last_modified',
+    'server_id',
+];
 
 sub new {
 
     my $class = shift;
-    my $self = NGCP::BulkProcessor::NoSqlConnectors::RedisEntry->new($class,$type,shift);
+    my $self = NGCP::BulkProcessor::NoSqlConnectors::RedisEntry->new($class,$type,shift,$fieldnames);
 
-    copy_value($self,shift);
+    copy_value($self,shift,$fieldnames);
 
     return $self;
 
 }
 
-sub get_usrdom {
+sub get_entry {
 
     my ($key,$load_recursive) = @_;
     my $store = &$get_store();
     
-    if (length($key) and my @res = $store->smembers($key)) {
-        return builditems_fromrows($key,\@res,$load_recursive);
+    if (length($key) and my %res = $store->hgetall($key)) {
+        return builditems_fromrows($key,\%res,$load_recursive);
     }
     return undef;
 
 }
 
-sub get_usrdom_by_username_domain {
+sub get_entry_by_ruid {
 
-    my ($username,$domain,$load_recursive) = @_;
+    my ($ruid,$load_recursive) = @_;
     my $store = &$get_store();
     
-    if ($username and $domain and my @res = $store->smembers(my $key = &$get_key($username,$domain))) {
-        return builditems_fromrows($key,\@res,$load_recursive);
+    if ($ruid and my %res = $store->hgetall(my $key = &$get_key($ruid))) {
+        return builditems_fromrows($key,\%res,$load_recursive);
     }
     return undef;
 
@@ -77,42 +98,24 @@ sub builditems_fromrows {
     my ($keys,$rows,$load_recursive) = @_;
 
     my $item;
-    
-    if (defined $keys and ref $keys eq 'ARRAY') {
-        my @items = ();
-        foreach my $key (@$keys) {
-            $item = __PACKAGE__->new($key, $rows->[scalar @items]);
 
-            transformitem($item,$load_recursive);
+    if (defined $rows and ref $rows eq 'ARRAY') {
+        my @items = ();
+        foreach my $row (@$rows) {
+            $item = __PACKAGE__->new($keys->[scalar @items], $row);
+
+            # transformations go here ...
 
             push @items,$item;
 
         }
         return \@items;
-    } else {
+    } elsif (defined $rows and ref $rows eq 'HASH') {
         $item = __PACKAGE__->new($keys,$rows);
-        transformitem($item,$load_recursive);
         return $item;
     }
+    return undef;
 
-}
-
-sub transformitem {
-    my ($item,$load_recursive) = @_;
-
-    # transformations go here ...
-    if ($load_recursive) {
-        $load_recursive = {} unless ref $load_recursive;
-        my $field = "_entries";
-        if ($load_recursive->{$field}) {
-            my @entries = ();
-            foreach my $element (keys %{$item->getvalue()}) {
-                push(@entries,NGCP::BulkProcessor::Redis::Trunk::location::entry::get_entry($element,$load_recursive));
-            }
-            $item->{$field} = \@entries;
-        }
-    }
- 
 }
 
 sub process_keys {
@@ -143,7 +146,7 @@ sub process_keys {
         process_code => sub {
             my ($context,$rowblock,$row_offset) = @_;
             return &$process_code($context,builditems_fromrows(\@$rowblock,[
-                map { [ &$get_store()->smembers($_) ]; } @$rowblock
+                map { { &$get_store()->hgetall($_) }; } @$rowblock
             ],$load_recursive),$row_offset);
         },
         static_context                  => $static_context,
