@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Redis::Trunk::location::usrdom;
+package NGCP::BulkProcessor::Redis::mr755::location::usrdom;
 use strict;
 
 ## no critic
@@ -16,7 +16,7 @@ use NGCP::BulkProcessor::NoSqlConnectors::RedisEntry qw(
     copy_value
 );
 
-use NGCP::BulkProcessor::Redis::Trunk::location::entry qw();
+use NGCP::BulkProcessor::Redis::mr755::location::entry qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::NoSqlConnectors::RedisEntry);
@@ -107,7 +107,7 @@ sub transformitem {
         if ($load_recursive->{$field}) {
             my @entries = ();
             foreach my $element (keys %{$item->getvalue()}) {
-                push(@entries,NGCP::BulkProcessor::Redis::Trunk::location::entry::get_entry($element,$load_recursive));
+                push(@entries,NGCP::BulkProcessor::Redis::mr755::location::entry::get_entry($element,$load_recursive));
             }
             $item->{$field} = \@entries;
         }

@@ -14,7 +14,7 @@ use NGCP::BulkProcessor::Redis::Trunk::location::usrdom qw(
 
 );
 
-$NGCP::BulkProcessor::Globals::location_host = '192.168.0.146';
+$NGCP::BulkProcessor::Globals::location_host = '192.168.0.180';
 
 goto SKIP;
 {
@@ -82,7 +82,7 @@ SKIP:
             #die();
             print join("\n", map {
                 my $key = $_->getkey();
-                $key =~ s/location\:usrdom\:\://;
+                $key =~ s/1:location\:usrdom\:\://;
                 $key =~ s/\:/;/;
                 $key;
             } @$records);
