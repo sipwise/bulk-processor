@@ -715,11 +715,14 @@ sub update_record {
 
 sub insert_stmt {
 
-    my ($get_db,$class,$insert_ignore) = @_;
+    my ($get_db,$class,$insert_ignore,$exclude_identity_fieldnames) = @_;
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
     my $expected_fieldnames = $table_expected_fieldnames->{$tid}->{$connectidentifier}->{$class};
+    if ($exclude_identity_fieldnames) {
+        $expected_fieldnames = [ grep { not contains($_,$exclude_identity_fieldnames); } @$expected_fieldnames ];
+    }
     my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
     return 'INSERT ' . ($insert_ignore ? $db->insert_ignore_phrase() . ' ' : '') . 'INTO ' . $db->tableidentifier($tablename) . ' (' .
       join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @$expected_fieldnames) .
