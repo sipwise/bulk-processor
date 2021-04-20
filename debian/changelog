@@ -1,3 +1,15 @@
+ngcp-bulk-processor (9.4.1.0+0~mr9.4.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [9c90f79] TT#111206 add mr1.0.3 openser.voicemail_spool DAO
+  * [b1c9101] TT#111750 add trunk kamailio.voicemail_spool DAO
+  * [f9222f2] TT#111905 perl system() wrapper
+  * [fc85c81] TT#118050 SQLServer connectivity using tdsodbc
+  * [02cfe82] TT#118151 mr7.5.5 redis "location" db DAO
+  * [b4a70b1] TT#118050 skip NULL values for mssql INDENTITY columns
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 20 Apr 2021 11:55:35 +0200
+
 ngcp-bulk-processor (9.4.0.0+0~mr9.4.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
