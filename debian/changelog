@@ -1,3 +1,11 @@
+ngcp-bulk-processor (7.5.5.7+0~mr7.5.5.7) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [46b9917] TT#119459 allow NULL values for SQLServer IDENTITY columns
+  * [a0521d1] TT#119460 openser "location" DAO
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 22 Apr 2021 17:43:49 +0200
+
 ngcp-bulk-processor (7.5.5.6+0~mr7.5.5.6) unstable; urgency=medium
 
   [ Rene Krenn ]
