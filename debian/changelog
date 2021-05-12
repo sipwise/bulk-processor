@@ -1,3 +1,10 @@
+ngcp-bulk-processor (7.5.5.8+0~mr7.5.5.8) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [7cbbff0] TT#121785 provisioning::voip_subscribers::findby_id finder method
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 12 May 2021 13:30:46 +0200
+
 ngcp-bulk-processor (7.5.5.7+0~mr7.5.5.7) unstable; urgency=medium
 
   [ Rene Krenn ]
