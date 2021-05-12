@@ -29,6 +29,7 @@ our @EXPORT_OK = qw(
     update_row
 
     findby_uuid
+    findby_id
 );
 
 my $tablename = 'voip_subscribers';
@@ -83,6 +84,24 @@ sub findby_uuid {
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
             $db->columnidentifier('uuid') . ' = ?';
     my @params = ($uuid);
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub findby_id {
+
+    my ($xa_db,$id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
