@@ -40,7 +40,7 @@ my $texttable_collation = 'latin1_swedish_ci';
 my $default_texttable_engine = 'MyISAM'; #InnoDB'; # ... provide transactions y/n?
 
 #my $session_charset = 'latin1';
-my $session_charset = 'utf8mb4';
+our $session_charset = 'utf8mb4';
 
 my $LongReadLen = $LongReadLen_limit; #bytes
 my $LongTruncOk = 0;
@@ -216,7 +216,7 @@ sub db_connect {
     $self->{dbh} = $dbh;
 
     my $server_version = substr($self->db_get_all_hashref('SHOW VARIABLES LIKE \'version\'','Variable_name')->{version}->{Value},0,2);
-    if ($server_version ge '4.1') {
+    if (length($session_charset)) {
     #    $self->db_do('SET SESSION character_set_client = \'utf8\'');
     #    $self->db_do('SET SESSION character_set_connection = \'utf8\'');
     #    $self->db_do('SET SESSION character_set_results = \'utf8\'');
