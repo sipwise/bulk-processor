@@ -1,3 +1,10 @@
+ngcp-bulk-processor (7.5.5.10+0~mr7.5.5.10) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [8f2d492] TT#118151 fix mr7.5.5 redis "location" db DAO key versioning prefix
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 26 May 2021 16:38:06 +0200
+
 ngcp-bulk-processor (7.5.5.9+0~mr7.5.5.9) unstable; urgency=medium
 
   [ Rene Krenn ]
