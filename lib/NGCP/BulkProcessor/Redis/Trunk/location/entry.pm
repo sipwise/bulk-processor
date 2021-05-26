@@ -26,7 +26,7 @@ our @EXPORT_OK = qw(
 
 my $get_store = \&get_location_store;
 
-my $table = 'location:entry';
+my $table = '1:location:entry';
 my $type = $NGCP::BulkProcessor::NoSqlConnectors::RedisEntry::HASH_TYPE;
 my $get_key = sub {
     my ($ruid) = @_;
