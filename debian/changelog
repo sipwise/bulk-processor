@@ -1,3 +1,14 @@
+ngcp-bulk-processor (10.0.0.0+0~mr10.0.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [84f58f0] TT#119459 allow NULL values for SQLServer IDENTITY columns
+  * [72ab33d] TT#119460 openser "location" DAO
+  * [ef52bd8] TT#121785 provisioning::voip_subscribers::findby_id finder method
+  * [505341d] TT#123800 MySQL connector: allow to override session charset
+  * [8d96ddc] TT#118151 fix mr7.5.5 redis "location" db DAO key versioning prefix
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 14 Jun 2021 16:34:03 +0200
+
 ngcp-bulk-processor (9.5.0.0+0~mr9.5.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
