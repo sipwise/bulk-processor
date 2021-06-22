@@ -8,6 +8,7 @@ use NGCP::BulkProcessor::Globals qw(
     $system_version
     $system_instance_label
     $local_fqdn
+    $application_version
     $application_path
     $working_path
     $executable_path
@@ -172,6 +173,7 @@ sub _splashinfo {
 
     my ($configfile) = @_;
     configurationinfo($system_name . ' ' . $system_version . ' (' . $system_instance_label . ') [' . $local_fqdn . ']',getlogger(__PACKAGE__));
+    configurationinfo('application version: ' . $application_version,getlogger(__PACKAGE__));
     configurationinfo('application path: ' . $application_path,getlogger(__PACKAGE__));
     configurationinfo('working path: ' . $working_path,getlogger(__PACKAGE__));
     configurationinfo($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),getlogger(__PACKAGE__));
