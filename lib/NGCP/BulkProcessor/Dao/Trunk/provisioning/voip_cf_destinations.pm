@@ -27,7 +27,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-
+    findby_destinationsetid
     insert_row
 );
 
@@ -59,7 +59,22 @@ sub new {
 
 }
 
+sub findby_destinationsetid {
 
+    my ($destination_set_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('destination_set_id') . ' = ?';
+    my @params = ($destination_set_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
 
 sub insert_row {
 
