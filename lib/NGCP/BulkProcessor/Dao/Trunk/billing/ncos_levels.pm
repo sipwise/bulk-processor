@@ -25,6 +25,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
+    findby_id
     findby_resellerid
     findby_resellerid_level
     findby_resellername_level
@@ -58,6 +59,23 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_id {
+
+    my ($ncos_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($ncos_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 

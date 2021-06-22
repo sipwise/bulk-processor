@@ -27,6 +27,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
+    findby_id
     countby_subscriberid_type
     $CFB_TYPE
     $CFT_TYPE
@@ -68,6 +69,23 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_id {
+
+    my ($id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 
@@ -194,6 +212,7 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            $record->load_relation($load_recursive,'destinations','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_destinations::findby_destinationsetid',$record->{destination_set_id},$load_recursive);
 
             push @records,$record;
         }

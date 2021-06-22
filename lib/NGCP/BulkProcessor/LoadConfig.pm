@@ -5,7 +5,6 @@ use strict;
 
 use NGCP::BulkProcessor::Globals qw(
     $system_name
-    $system_version
     $system_instance_label
     $local_fqdn
     $application_version
@@ -30,7 +29,8 @@ use NGCP::BulkProcessor::LogError qw(
     configurationerror
 );
 
-use YAML::XS qw();
+use YAML qw();
+$YAML::UseCode = 1;
 use Config::Any qw();
 use NGCP::BulkProcessor::Utils qw(format_number trim);
 
@@ -172,7 +172,7 @@ sub _search_path {
 sub _splashinfo {
 
     my ($configfile) = @_;
-    configurationinfo($system_name . ' ' . $system_version . ' (' . $system_instance_label . ') [' . $local_fqdn . ']',getlogger(__PACKAGE__));
+    configurationinfo($system_name . (length($system_instance_label) ? ' (' . $system_instance_label . ')' : '') . ' [' . $local_fqdn . ']',getlogger(__PACKAGE__));
     configurationinfo('application version: ' . $application_version,getlogger(__PACKAGE__));
     configurationinfo('application path: ' . $application_path,getlogger(__PACKAGE__));
     configurationinfo('working path: ' . $working_path,getlogger(__PACKAGE__));
@@ -304,7 +304,7 @@ sub _parse_yaml_config {
 
     my $config = undef;
     eval {
-        $config = YAML::XS::LoadFile($file);
+        $config = YAML::LoadFile($file);
     };
     if ($@) {
         configurationerror($file,'parsing yaml format - error: ' . $@,getlogger(__PACKAGE__));

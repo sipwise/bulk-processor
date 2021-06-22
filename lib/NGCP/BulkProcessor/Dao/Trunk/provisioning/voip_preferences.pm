@@ -24,6 +24,7 @@ our @EXPORT_OK = qw(
 
     findby_attribute
     findall
+    findby_id
 
     $ALLOWED_CLIS_ATTRIBUTE
     $CLI_ATTRIBUTE
@@ -33,7 +34,6 @@ our @EXPORT_OK = qw(
 
     $NCOS_ID_ATTRIBUTE
     $ADM_NCOS_ID_ATTRIBUTE
-    $ADM_CF_NCOS_ID_ATTRIBUTE
 
     $GPPx_ATTRIBUTE
     %DPID_ATTRIBUTES
@@ -78,6 +78,7 @@ our @EXPORT_OK = qw(
     $BOOLEAN_DATA_TYPE
 );
 #$FORCE_OUTBOUND_CALLS_TO_PEER
+#$ADM_CF_NCOS_ID_ATTRIBUTE
 
 my $tablename = 'voip_preferences';
 my $get_db = \&get_provisioning_db;
@@ -113,7 +114,7 @@ our $ACCOUNT_ID_ATTRIBUTE = 'account_id';
 
 our $NCOS_ID_ATTRIBUTE = 'ncos_id';
 our $ADM_NCOS_ID_ATTRIBUTE = 'adm_ncos_id';
-our $ADM_CF_NCOS_ID_ATTRIBUTE = 'adm_ncos_id';
+#our $ADM_CF_NCOS_ID_ATTRIBUTE = 'adm_cf_ncos_id';
 our $GPPx_ATTRIBUTE = 'gpp';
 
 our %DPID_ATTRIBUTES = map { 'rewrite_' . $_ => $_; } @NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_rewrite_rule_sets::DPID_FIELDS;
@@ -132,7 +133,7 @@ our $CONCURRENT_MAX_TOTAL_ATTRIBUTE = 'concurrent_max_total';
 our $CONCURRENT_MAX_PER_ACCOUNT_ATTRIBUTE = 'concurrent_max_per_account';
 our $CLIR_ATTRIBUTE = 'clir';
 
-our @CF_ATTRIBUTES = qw(cfu cft cfna cfb); #skip sms for now
+our @CF_ATTRIBUTES = qw(cfu cft cfna cfb cfo cfr cfs);
 
 our $RINGTIMEOUT_ATTRIBUTE = 'ringtimeout';
 
@@ -184,6 +185,23 @@ sub findby_attribute {
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
             $db->columnidentifier('attribute') . ' = ?';
     my @params = ($attribute);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub findby_id {
+
+    my ($attribute_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($attribute_id);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];
