@@ -36,6 +36,7 @@ our @EXPORT_OK = qw(
 	$system_instance_label
 	$local_ip
 	$local_fqdn
+	$application_version
 	$application_path
 	$executable_path
 	$working_path
@@ -144,6 +145,7 @@ our $system_instance_label = 'some node';
 
 our $local_ip = get_ipaddress();
 our $local_fqdn = get_hostfqdn();
+our $application_version = $main::VERSION // $VERSION;
 our $application_path = get_applicationpath();
 our $executable_path = $FindBin::Bin . '/';
 #my $remotefilesystem = "MSWin32";
