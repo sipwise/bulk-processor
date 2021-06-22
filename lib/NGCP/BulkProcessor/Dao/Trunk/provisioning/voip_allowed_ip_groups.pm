@@ -58,6 +58,23 @@ sub new {
 
 }
 
+sub findby_group_id {
+    
+    my ($group_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('group_id') . ' = ?';
+    my @params = ($group_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
 sub insert_rows {
 
     my ($xa_db,$group_id,$ipnets) = @_;

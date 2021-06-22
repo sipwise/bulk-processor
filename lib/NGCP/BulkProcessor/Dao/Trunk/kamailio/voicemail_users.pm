@@ -25,6 +25,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
+    findby_customerid
     insert_row
 );
 
@@ -74,6 +75,23 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_customerid {
+
+    my ($uuid,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('customer_id') . ' = ?';
+    my @params = ($uuid);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
@@ -132,6 +150,7 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            $record->load_relation($load_recursive,'voicemail_spool','NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_spool::findby_mailboxuser',$record->{mailbox},$load_recursive);
 
             push @records,$record;
         }

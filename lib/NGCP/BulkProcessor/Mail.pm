@@ -12,7 +12,6 @@ use NGCP::BulkProcessor::Logging qw(
 use NGCP::BulkProcessor::Globals qw(
     $system_name
     $system_instance_label
-    $system_version
     $local_fqdn
     $mailfile_path
     $emailenable
@@ -49,7 +48,7 @@ our @EXPORT_OK = qw(
 
 my $wordwrapcolumns = 72; #linebreak/wrap columns
 
-our $signature = "--\n" . $system_name . ' ' . $system_version . ' (' . $system_instance_label . ")\n[" . $local_fqdn . ']'; # a nice email signature
+our $signature = "--\n" . $system_name . (length($system_instance_label) ? ' (' . $system_instance_label . ')' : '') . "\n[" . $local_fqdn . ']'; # a nice email signature
 
 my $msgextension = '.msg';
 

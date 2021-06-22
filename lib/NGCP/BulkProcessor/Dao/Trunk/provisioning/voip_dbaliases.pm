@@ -33,6 +33,7 @@ our @EXPORT_OK = qw(
     findby_domainid_username
     countby_subscriberidisprimary
     findby_subscriberidisprimary
+    findby_subscriberid
 );
 
 my $tablename = 'voip_dbaliases';
@@ -64,6 +65,22 @@ sub new {
 
 }
 
+sub findby_subscriberid {
+
+    my ($subscriber_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('subscriber_id') . ' = ?';
+    my @params = ($subscriber_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
 
 sub findby_subscriberid_username {
 
