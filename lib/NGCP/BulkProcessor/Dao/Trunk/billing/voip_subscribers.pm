@@ -34,6 +34,8 @@ our @EXPORT_OK = qw(
     update_row
     delete_row
 
+    findby_id
+    findby_contractid
     findby_domainid_username_states
     countby_status_resellerid
     process_records
@@ -78,6 +80,23 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_id {
+
+    my ($id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 
@@ -148,6 +167,23 @@ sub findby_domainid_username_states {
         push(@params,$states);
     }
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_contractid {
+
+    my ($contract_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contract_id') . ' = ?';
+    my @params = ($contract_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);
 
@@ -454,6 +490,9 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            $record->load_relation($load_recursive,'domain','NGCP::BulkProcessor::Dao::Trunk::billing::domains::findby_id',$record->{domain_id},$load_recursive);
+            $record->load_relation($load_recursive,'primary_number','NGCP::BulkProcessor::Dao::Trunk::billing::voip_numbers::findby_id',$record->{primary_number_id},$load_recursive);
+            $record->load_relation($load_recursive,'provisioning_voip_subscriber','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscribers::findby_uuid',undef,$record->{uuid},$load_recursive);
 
             push @records,$record;
         }

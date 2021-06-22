@@ -228,7 +228,14 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            $record->load_relation($load_recursive,'voip_dbaliases','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases::findby_subscriberid',$record->{id},$load_recursive);
+            $record->load_relation($load_recursive,'voip_usr_preferences','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_usr_preferences::findby_subscriberid',$record->{id},$load_recursive);
 
+            $record->load_relation($load_recursive,'voicemail_users','NGCP::BulkProcessor::Dao::Trunk::kamailio::voicemail_users::findby_customerid',$record->{uuid},$load_recursive);
+            
+            $record->load_relation($load_recursive,'voip_fax_preferences','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_fax_preferences::findby_subscriberid',$record->{id},$load_recursive);
+            $record->load_relation($load_recursive,'voip_fax_destinations','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_fax_destinations::findby_subscriberid',$record->{id},$load_recursive);
+            
             push @records,$record;
         }
     }

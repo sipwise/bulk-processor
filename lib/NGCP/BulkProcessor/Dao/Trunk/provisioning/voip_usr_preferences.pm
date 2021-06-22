@@ -22,6 +22,9 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+# required to use the constants:
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -35,6 +38,7 @@ our @EXPORT_OK = qw(
 
     findby_subscriberid_attributeid
     countby_subscriberid_attributeid_value
+    findby_subscriberid
 
     $TRUE
     $FALSE
@@ -67,6 +71,24 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_subscriberid {
+
+    my ($subscriber_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT v.*,a.attribute FROM ' . $table . ' v JOIN ' .
+            $db->tableidentifier('voip_preferences') . ' a ON v.attribute_id = a.id WHERE ' .
+            'v.subscriber_id = ?';
+    my @params = ($subscriber_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 
@@ -227,7 +249,19 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
-
+            $record->{_attribute} = $row->{attribute};
+            $record->load_relation($load_recursive,'attribute','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::findby_id',$record->{attribute_id},$load_recursive);
+            $record->{_attribute} //= $record->{attribute}->{attribute} if exists $record->{attribute};
+            if ($record->{_attribute}) {
+                $record->load_relation($load_recursive,'allowed_ips','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_allowed_ip_groups::findby_group_id',$record->{value},$load_recursive)
+                    if ($record->{_attribute} eq $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ALLOWED_IPS_GRP_ATTRIBUTE
+                        or $record->{_attribute} eq $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::MAN_ALLOWED_IPS_GRP_ATTRIBUTE);
+                $record->load_relation($load_recursive,'ncos','NGCP::BulkProcessor::Dao::Trunk::billing::ncos_levels::findby_id',$record->{value},$load_recursive)
+                    if ($record->{_attribute} eq $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::NCOS_ID_ATTRIBUTE
+                        or $record->{_attribute} eq $NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::ADM_NCOS_ID_ATTRIBUTE);
+                $record->load_relation($load_recursive,"cf_mapping",'NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings::findby_id',$record->{value},$load_recursive)
+                    if (grep { $record->{_attribute} eq $_; } @NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_preferences::CF_ATTRIBUTES);
+             }
             push @records,$record;
         }
     }

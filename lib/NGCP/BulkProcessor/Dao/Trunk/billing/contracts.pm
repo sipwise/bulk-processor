@@ -24,6 +24,7 @@ use NGCP::BulkProcessor::SqlRecord qw();
 
 #use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
+#use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -253,7 +254,8 @@ sub process_records {
         $uninit_process_context_code,
         $multithreading,
         $numofthreads,
-        $load_recursive) = @params{qw/
+        $load_recursive,
+        $blocksize) = @params{qw/
             process_code
             static_context
             init_process_context_code
@@ -261,6 +263,7 @@ sub process_records {
             multithreading
             numofthreads
             load_recursive
+            blocksize
         /};
 
     check_table();
@@ -278,6 +281,7 @@ sub process_records {
         destroy_reader_dbs_code     => \&destroy_dbs,
         multithreading              => $multithreading,
         tableprocessing_threads     => $numofthreads,
+        blocksize                   => $blocksize,
     );
 }
 
@@ -337,6 +341,8 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            $record->load_relation($load_recursive,'voip_subscribers','NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_contractid',$record->{id},$load_recursive);
+            $record->load_relation($load_recursive,'contact','NGCP::BulkProcessor::Dao::Trunk::billing::contacts::findby_id',$record->{contact_id},$load_recursive);
 
             push @records,$record;
         }
