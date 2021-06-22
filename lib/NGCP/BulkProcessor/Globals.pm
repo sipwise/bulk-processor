@@ -141,11 +141,11 @@ our $VERSION = '1.0.1';
 our $system_version = $VERSION; #keep this filename-save
 our $system_abbreviation = 'bulkprocessor'; #keep this filename-, dbname-save
 our $system_instance = 'ngcp'; #'test'; #'2014'; #dbname-save 0-9a-z_
-our $system_instance_label = 'some node';
+our $system_instance_label;
 
 our $local_ip = get_ipaddress();
 our $local_fqdn = get_hostfqdn();
-our $application_version = $main::VERSION // $VERSION;
+our $application_version = ($main::VERSION // $VERSION);
 our $application_path = get_applicationpath();
 our $executable_path = $FindBin::Bin . '/';
 #my $remotefilesystem = "MSWin32";
@@ -275,12 +275,12 @@ our $smtppasswd = 'xyz';
 our $sender_address = 'donotreply@sipwise.com';
 
 
-
 #service layer:
 our @jobservers = ('127.0.0.1:4730');
 #our $jobnamespace = $system_abbreviation . '-' . $system_version . '-' . $local_fqdn . '-' . $system_instance;
-our $jobnamespace = $system_abbreviation . '-' . $system_version . '-' . $system_instance;
-
+our $jobnamespace = $system_abbreviation;
+$jobnamespace .= '-' . $system_version if length($system_version);
+$jobnamespace .= '-' . $system_instance if length($system_instance);
 
 
 # test directory

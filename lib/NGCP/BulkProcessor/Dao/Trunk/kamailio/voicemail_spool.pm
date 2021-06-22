@@ -25,6 +25,7 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
+    findby_mailboxuser
     insert_row
 );
 
@@ -61,6 +62,23 @@ sub new {
     copy_row($self,shift,$expected_fieldnames);
 
     return $self;
+
+}
+
+sub findby_mailboxuser {
+
+    my ($mailboxuser,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('mailboxuser') . ' = ?';
+    my @params = ($mailboxuser);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
 

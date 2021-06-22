@@ -4,7 +4,6 @@ use strict;
 ## no critic
 
 use NGCP::BulkProcessor::Globals qw(
-    $system_version
     $erroremailrecipient
     $warnemailrecipient
     $doneemailrecipient
@@ -418,7 +417,7 @@ sub restresponseerror {
 sub fieldnamesdiffer {
 
     my ($db,$tablename,$expectedfieldnames,$fieldnamesfound,$logger) = @_;
-    my $message = _getsqlconnectorinstanceprefix($db) . 'wrong table fieldnames (v ' . $system_version . '): [' . $db->connectidentifier() . '].' . $tablename . ":\nexpected: " . ((defined $expectedfieldnames) ? join(', ',@$expectedfieldnames) : '<none>') . "\nfound:    " . ((defined $fieldnamesfound) ? join(', ',@$fieldnamesfound) : '<none>');
+    my $message = _getsqlconnectorinstanceprefix($db) . 'wrong table fieldnames: [' . $db->connectidentifier() . '].' . $tablename . ":\nexpected: " . ((defined $expectedfieldnames) ? join(', ',@$expectedfieldnames) : '<none>') . "\nfound:    " . ((defined $fieldnamesfound) ? join(', ',@$fieldnamesfound) : '<none>');
     if (defined $logger) {
         $logger->error($message);
     }

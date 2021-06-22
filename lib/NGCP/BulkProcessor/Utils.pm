@@ -114,6 +114,8 @@ our @EXPORT_OK = qw(
     
     unshare
     run
+    
+    load_module
 );
 
 our $chmod_umask = 0777;
@@ -1081,6 +1083,19 @@ sub run {
         }
     }
 
+}
+
+sub load_module {
+    my $package_element = shift;
+    eval {
+        (my $module = $package_element) =~ s/::[a-zA-Z_0-9]+$//g;
+        (my $file = $module) =~ s|::|/|g;
+        require $file . '.pm';
+        #$module->import();
+        1;
+    } or do {
+        die($@);
+    };
 }
 
 1;
