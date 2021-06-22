@@ -2,6 +2,8 @@ use strict;
 
 ## no critic
 
+our $VERSION = "0.0";
+
 use File::Basename;
 use Cwd;
 use lib Cwd::abs_path(File::Basename::dirname(__FILE__) . '/../../../../../');

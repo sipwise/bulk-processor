@@ -1,7 +1,14 @@
 #!/usr/bin/make -f
 
+include /usr/share/dpkg/pkg-info.mk
+
 # Uncomment this to turn on verbose mode.
 # export DH_VERBOSE=1
 
 %:
 	dh "$@"
+
+execute_after_dh_install:
+	find debian/lib*-perl -name process.pl -print0 | \
+	  xargs -0 sed -i \
+	    -e 's/^our \$$VERSION = .*/our \$$VERSION = "$(DEB_VERSION)";/'
