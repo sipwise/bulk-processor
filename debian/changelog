@@ -1,3 +1,22 @@
+ngcp-bulk-processor (8.1.1.13+0~mr8.1.1.13) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [9e59060] TT#118050 SQLServer connectivity using tdsodbc
+  * [3d6cc26] TT#118151 mr7.5.5 redis "location" db DAO
+  * [530fb37] TT#118050 skip NULL values for mssql INDENTITY columns
+  * [858f5c5] TT#119459 allow NULL values for SQLServer IDENTITY columns
+  * [b794493] TT#119460 openser "location" DAO
+  * [188bc3d] TT#121785 provisioning::voip_subscribers::findby_id finder method
+  * [93b2ab2] TT#123800 MySQL connector: allow to override session charset
+  * [c31d2b1] TT#118151 fix mr7.5.5 redis "location" db DAO key versioning prefix
+  * [e8d3a1d] TT#127150 contract/susbcriber exporter: sqlite tabular export
+  * [841f47a] TT#127355 initialize application versions earlier
+
+  [ Guillem Jover ]
+  * [8118d27] TT#127355 Add support for application versions
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 28 Jun 2021 11:36:18 +0200
+
 ngcp-bulk-processor (8.1.1.12+0~mr8.1.1.12) unstable; urgency=medium
 
   [ Rene Krenn ]
