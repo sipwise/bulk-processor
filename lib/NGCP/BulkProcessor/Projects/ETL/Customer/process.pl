@@ -2,7 +2,9 @@ use strict;
 
 ## no critic
 
-our $VERSION = "0.0";
+BEGIN {
+our $VERSION = '0.0';
+}
 
 use File::Basename;
 use Cwd;
