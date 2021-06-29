@@ -69,8 +69,7 @@ sub get_fieldnames {
             $_;
         } @$tabular_fields ];
         $expected_fieldnames = [ @$fieldnames ];
-        push(@$expected_fieldnames,'domain') unless grep { 'domain' eq $_; } @$expected_fieldnames;
-        push(@$expected_fieldnames,'username') unless grep { 'username' eq $_; } @$expected_fieldnames;
+        push(@$expected_fieldnames,'uuid') unless grep { 'uuid' eq $_; } @$expected_fieldnames;
         push(@$expected_fieldnames,'delta');
     }
     return $fieldnames unless $expected;
@@ -78,10 +77,9 @@ sub get_fieldnames {
 }
 
 # table creation:
-my $primarykey_fieldnames = [ 'domain', 'username' ];
+my $primarykey_fieldnames = [ 'uuid' ];
 my $indexes = {
-    #$tablename . '_number' => [ 'number(32)' ],
-    #$tablename . '_rownum' => [ 'rownum(11)' ],
+    #$tablename . '_username_domain' => [ 'username', 'domain' ],
     $tablename . '_delta' => [ 'delta(7)' ],
 };
 #my $fixtable_statements = [];
@@ -156,7 +154,7 @@ sub findby_domainusername {
 
 sub update_delta {
 
-    my ($domain,$username,$delta) = @_;
+    my ($uuid,$delta) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -165,11 +163,10 @@ sub update_delta {
     my $stmt = 'UPDATE ' . $table . ' SET delta = ?';
     my @params = ();
     push(@params,$delta);
-    if (defined $domain or defined $username) {
+    if (defined $uuid) {
         $stmt .= ' WHERE ' .
-            $db->columnidentifier('domain') . ' = ?' .
-            ' AND ' . $db->columnidentifier('username') . ' = ?';
-        push(@params, $domain, $username);
+            $db->columnidentifier('uuid') . ' = ?';
+        push(@params, $uuid);
     }
 
     return $db->db_do($stmt,@params);
@@ -282,8 +279,7 @@ sub getupsertstatement {
     foreach my $fieldname (@{get_fieldnames(1)}) {
         if ('delta' eq $fieldname) {
             my $stmt = 'SELECT \'' . $updated_delta . '\' FROM ' . $table . ' WHERE ' .
-                $db->columnidentifier('domain') . ' = ?' .
-                ' AND ' . $db->columnidentifier('username') . ' = ?';
+                $db->columnidentifier('uuid') . ' = ?';
             push(@values,'COALESCE((' . $stmt . '), \'' . $added_delta . '\')');
         } else {
             push(@values,'?');
