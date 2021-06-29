@@ -299,7 +299,8 @@ sub _export_customer_tabular_init_context {
 
     return 0 unless _load_contract($context,$record);
     
-    if (not scalar @{$context->{contract}->{voip_subscribers}}) {
+    if (defined $context->{contract}->{voip_subscribers}
+        and not scalar @{$context->{contract}->{voip_subscribers}}) {
         _info($context,"contract ID $record->{id} has no subscribers, skipping",1);
         $result = 0;
     }
