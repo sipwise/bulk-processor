@@ -357,10 +357,9 @@ sub _get_subscriber_rows {
             }
             push(@row,$v);
         }
-        push(@row,$bill_subs->{domain}->{domain}) unless grep { 'domain' eq $_; } @{NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::get_fieldnames()};
-        push(@row,$bill_subs->{username}) unless grep { 'username' eq $_; } @{NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::get_fieldnames()};
+        push(@row,$bill_subs->{uuid}) unless grep { 'uuid' eq $_; } @{NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::get_fieldnames()};
         if ($context->{upsert}) {
-            push(@row,$bill_subs->{domain}->{domain},$bill_subs->{username});
+            push(@row,$bill_subs->{uuid});
         } else {
             push(@row,$NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::added_delta);
         }
@@ -376,7 +375,7 @@ sub _load_contract {
     
     my ($context,$record) = @_;
     $context->{contract} = run_dao_method('billing::contracts::findby_id', $record->{id}, { %$load_recursive,
-        'contracts.voip_subscribers.domain' => 1,
+        #'contracts.voip_subscribers.domain' => 1,
         _context => {
             _info => \&_info,
             _error => \&_error,
