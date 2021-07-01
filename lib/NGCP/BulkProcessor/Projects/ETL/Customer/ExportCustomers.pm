@@ -5,8 +5,10 @@ use strict;
 
 use threads::shared qw();
 
+use Tie::IxHash;
+
 use NGCP::BulkProcessor::Serialization qw();
-use Scalar::Util 'blessed';
+use Scalar::Util qw(blessed);
 use MIME::Base64 qw(encode_base64);
 
 use NGCP::BulkProcessor::Projects::ETL::Customer::Settings qw(
@@ -16,7 +18,6 @@ use NGCP::BulkProcessor::Projects::ETL::Customer::Settings qw(
     $export_customers_multithreading
     $export_customers_numofthreads
     $export_customers_blocksize
-    
 
     run_dao_method
     get_dao_var
@@ -29,6 +30,8 @@ use NGCP::BulkProcessor::Projects::ETL::Customer::Settings qw(
     $load_recursive
     $tabular_single_row_txn
     $ignore_tabular_unique
+    $graph_fields
+    $graph_fields_mode
 );
 
 use NGCP::BulkProcessor::Logging qw (
@@ -65,11 +68,50 @@ our @EXPORT_OK = qw(
     export_customers_tabular
 );
 
+sub _init_graph_field_map {
+    my $context = shift;
+    my %graph_field_map = ();
+    my %graph_field_globs = ();
+    tie(%graph_field_globs, 'Tie::IxHash');
+    foreach my $graph_field (@$graph_fields) {
+        my ($c,$a);
+        if ('HASH' eq ref $graph_field) {
+            $a = $graph_field->{path};
+            $c = $graph_field;
+        } else {
+            $a = $graph_field;
+            $c = 1;
+        }
+        #my @a = ();
+        #my $b = '';
+        #foreach my $c (split(/\./,$a)) {
+        #    
+        #    foreach my () {
+        #        $b .= $_
+        #        push()
+        #    }
+        #}
+        if ($a =~ /\*/) {
+            $a = quotemeta($a);
+            $a =~ s/(\\\*)+/[^.]+/g;
+            $a = '^' . $a . '$';
+            $graph_field_globs{$a} = $c unless exists $graph_field_globs{$a};
+        } else {
+            $graph_field_map{$a} = $c unless exists $graph_field_map{$a};
+        }
+    }
+    $context->{graph_field_map} = \%graph_field_map;
+    $context->{graph_field_globs} = \%graph_field_globs;
+}
+    
 sub export_customers_graph {
 
     my $static_context = {
 
     };
+    _init_graph_field_map($static_context);
+    ($static_context->{export_filename},$static_context->{export_format}) = get_export_filename($customer_export_filename_format);
+    
     my $result = 1; #_copy_customers_checks($static_context);
 
     destroy_all_dbs();
@@ -83,21 +125,18 @@ sub export_customers_graph {
             my @data = ();
             foreach my $record (@$records) {
                 next unless _export_customer_graph_init_context($context,$record);
-                push(@data,_get_contract_graph($context->{contract}));
+                push(@data,_get_contract_graph($context));
             }
             write_export_file(\@data,$context->{export_filename},$context->{export_format});
             return 1;
         },
         init_process_context_code => sub {
             my ($context)= @_;
-            #$context->{db} = &get_xa_db();
             $context->{error_count} = 0;
             $context->{warning_count} = 0;
-            ($context->{export_filename},$context->{export_format}) = get_export_filename($customer_export_filename_format);
         },
         uninit_process_context_code => sub {
             my ($context)= @_;
-            #undef $context->{db};
             destroy_all_dbs();
             {
                 lock $warning_count;
@@ -226,69 +265,72 @@ sub _export_customer_graph_init_context {
 sub _get_contract_graph {
     my ($context) = @_;
     
-    #sub unshare {
-    #
-    #    my ($obj,) = @_;
-    #    my $ref = ref $obj;
-    #    if ("ARRAY" eq $ref) {
-    #        my @array = ();
-    #        my $i = 0;
-    #        foreach my $value (@$obj) { 
-    #           push(@array, unshare($value)) if xx;
-    #           $i++;
-    #        }
-    #        return \@array;
-    #    } elsif ($ref eq "HASH") {
-    #        my %hash = ();
-    #        foreach my $key (keys %$obj) { 
-    #            $hash{$key} = unshare($obj->{$key}) if xx;
-    #        }
-    #        return \%hash;
-    #    }
-    #
-    #}
-    
-    foreach my $bill_subs (@{$context->{contract}->{voip_subscribers}}) {
-        ($bill_subs->{provisioning_voip_subscriber}->{voip_usr_preferences}, my $as, my $vs) =
-            array_to_map($bill_subs->{provisioning_voip_subscriber}->{voip_usr_preferences},
-            sub { return shift->{attribute}; }, sub { my $p = shift; }, 'group' );
-        if (my $prov_subscriber = $bill_subs->{provisioning_voip_subscriber}) {
-            foreach my $voicemail_user (@{$prov_subscriber->{voicemail_users}}) {
-                foreach my $voicemail (@{$voicemail_user->{voicemail_spool}}) {
-                    $voicemail->{recording} = encode_base64($voicemail->{recording},'');
+    my $dp = NGCP::BulkProcessor::DSPath->new($context->{contract}, {
+        filter => sub {
+            my $path = shift;
+            if ('whitelist' eq $graph_fields_mode) {
+                my $include;
+                if (exists $context->{graph_field_map}->{$path}) {
+                    $include = $context->{graph_field_map}->{$path};
+                } else {
+                    foreach my $glob (keys %{$context->{graph_field_globs}}) {
+                        if ($path =~ /$glob/) {
+                            $include = $context->{graph_field_globs}->{$glob};
+                            last;
+                        }
+                    }
+                }
+                if ('HASH' eq ref $include) {
+                    if (exists $include->{include}) {
+                        return $include->{include};
+                    }
+                    return 1;
+                } else {
+                    return $include;
+                }
+            } elsif ('blacklist' eq $graph_fields_mode) {
+                my $exclude;
+                if (exists $context->{graph_field_map}->{$path}) {
+                    $exclude = $context->{graph_field_map}->{$path};
+                } else {
+                    foreach my $glob (keys %{$context->{graph_field_globs}}) {
+                        if ($path =~ /$glob/) {
+                            $exclude = $context->{graph_field_globs}->{$glob};
+                            last;
+                        }
+                    }
+                }
+                if ('HASH' eq ref $exclude) {
+                    if (exists $exclude->{exclude}) {
+                        return not $exclude->{exclude};
+                    } elsif ($exclude->{transform}) {
+                        return 1;
+                    }
+                    return 0;
+                } else {
+                    return not $exclude;
                 }
             }
-        }            
-        my $dp = NGCP::BulkProcessor::DSPath->new($bill_subs, {
-            retrieve_key_from_non_hash => sub {},
-            key_does_not_exist => sub {},
-            index_does_not_exist => sub {},
-        });
-        #foreach my $graph_field (@$graph_fields) {
-        #    my $a;
-        #    my $sep = ',';
-        #    if ('HASH' eq ref $tabular_field) {
-        #        $a = $tabular_field->{path};
-        #        $sep = $tabular_field->{sep};
-        #    } else {
-        #        $a = $tabular_field;
-        #    }
-        #    #eval {'' . ($dp->get('.' . $a) // '');}; if($@){
-        #    #    my $x=5;
-        #    #}
-        #    my $v = $dp->get('.' . $a);
-        #    if ('ARRAY' eq ref $v) {
-        #        if ('HASH' eq ref $v->[0]) {
-        #            $v = join($sep, sort map { $_->{$tabular_field->{field}}; } @$v);
-        #        } else {
-        #            $v = join($sep, sort @$v);
-        #        }
-        #    } else {
-        #        $v = '' . ($v // '');
-        #    }
-        #    push(@row,$v);
-        #}
-    }
+        },
+        transform => sub {
+            return shift;
+            #    ($bill_subs->{provisioning_voip_subscriber}->{voip_usr_preferences}, my $as, my $vs) =
+            #        array_to_map($bill_subs->{provisioning_voip_subscriber}->{voip_usr_preferences},
+            #        sub { return shift->{attribute}; }, sub { my $p = shift; }, 'group' );
+            #    if (my $prov_subscriber = $bill_subs->{provisioning_voip_subscriber}) {
+            #        foreach my $voicemail_user (@{$prov_subscriber->{voicemail_users}}) {
+            #            foreach my $voicemail (@{$voicemail_user->{voicemail_spool}}) {
+            #                $voicemail->{recording} = encode_base64($voicemail->{recording},'');
+            #            }
+            #        }
+            #    }              
+        },
+    });
+    
+    $dp->filter()->transform();
+    
+    return $context->{contract};
+    
 }
 
 sub _export_customer_tabular_init_context {
@@ -335,9 +377,11 @@ sub _get_subscriber_rows {
         foreach my $tabular_field (@$tabular_fields) {
             my $a;
             my $sep = ',';
+            my $transform;
             if ('HASH' eq ref $tabular_field) {
                 $a = $tabular_field->{path};
                 $sep = $tabular_field->{sep};
+                $transform = $tabular_field->{transform};
             } else {
                 $a = $tabular_field;
             }
@@ -345,6 +389,10 @@ sub _get_subscriber_rows {
             #    my $x=5;
             #}
             my $v = $dp->get('.' . $a);
+            if ('CODE' eq ref $transform) {
+                my $closure = _closure($transform,_get_closure_context($context));
+                $v = $closure->($v,$bill_subs);
+            }
             if ('ARRAY' eq ref $v) {
                 if ('HASH' eq ref $v->[0]
                     or (blessed($v->[0]) and $v->[0]->isa('NGCP::BulkProcessor::SqlRecord'))) {
@@ -376,18 +424,34 @@ sub _load_contract {
     my ($context,$record) = @_;
     $context->{contract} = run_dao_method('billing::contracts::findby_id', $record->{id}, { %$load_recursive,
         #'contracts.voip_subscribers.domain' => 1,
-        _context => {
-            _info => \&_info,
-            _error => \&_error,
-            _debug => \&_debug,
-            _warn => \&_warn,
-            context => $context,
-        },
+        _context => _get_closure_context($context),
     });
     
     return 1 if $context->{contract};
     return 0;
     
+}
+
+sub _get_closure_context {
+    my $context = shift;
+    return {
+        _info => \&_info,
+        _error => \&_error,
+        _debug => \&_debug,
+        _warn => \&_warn,
+        context => $context,
+    };
+}
+
+sub _closure {
+    my ($sub,$context) = @_;
+    return sub {
+        foreach my $key (keys %$context) {
+            no strict "refs";  ## no critic (ProhibitNoStrict)
+            *{"main::$key"} = $context->{$key} if 'CODE' eq ref $context->{$key};
+        }
+        return $sub->(@_,$context);
+    };
 }
 
 sub _error {

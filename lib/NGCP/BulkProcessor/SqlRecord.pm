@@ -60,13 +60,13 @@ sub load_relation {
         }
         my $include = $load_recursive->{$relation_path};
         my $filter;
-        my $transfrom;
+        my $transform;
         if ('HASH' eq ref $include) {
             $filter = $include->{filter};
-            $transfrom = $include->{transform};
+            $transform = $include->{transform};
             if (exists $include->{include}) {
                 $include = $include->{include};
-            } elsif ($transfrom or $filter) {
+            } elsif ($transform or $filter) {
                 $include = 1;
             } 
         }
@@ -81,8 +81,8 @@ sub load_relation {
                 my $closure = _closure($filter,$load_recursive->{_context});
                 $self->{$relation} = [ grep { $closure->($_); } @{$self->{$relation}}];
             }
-            if ('CODE' eq ref $transfrom) {
-                my $closure = _closure($transfrom,$load_recursive->{_context});
+            if ('CODE' eq ref $transform) {
+                my $closure = _closure($transform,$load_recursive->{_context});
                 $self->{$relation} = $closure->($self->{$relation});
             }
             $load_recursive->{_relation_path} = $relation_path_backup;
