@@ -46,6 +46,8 @@ use HTML::PullParser qw();
 use HTML::Entities qw(decode_entities);
 use IO::Uncompress::Unzip qw(unzip $UnzipError);
 
+use File::Copy qw();
+
 # no debian package yet:
 #use DateTime::Format::Excel;
 
@@ -429,6 +431,21 @@ sub _gettablefilename {
     my $self = shift;
     my $tablename = shift;
     return $self->{f_dir} . $tablename . $csvextension;
+
+}
+
+sub copytablefile {
+
+    my $self = shift;
+    my $tablename = shift;
+    my $target = shift;
+    my $tablefilename = $self->_gettablefilename($tablename);
+    $self->db_disconnect();
+    if (File::Copy::copy($tablefilename,$target)) {
+      dbinfo($self,"$tablefilename copied to $target",getlogger(__PACKAGE__));
+    } else {
+      dberror($self,"copy from $tablefilename to $target failed: $!",getlogger(__PACKAGE__));
+    }
 
 }
 

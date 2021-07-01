@@ -1,7 +1,10 @@
+# load.yml: define which *contract* relations to fetch from db.
+
+#contracts.voip_subscribers: 1
 contracts.voip_subscribers:
   include: !!perl/code | 
     {
-      my ($contract) = @_;
+      my ($contract,$context) = @_;
       #return 0 if $contract->{status} eq 'terminated';
       return 1;
     }
@@ -20,12 +23,12 @@ contracts.voip_subscribers:
       return $bill_subs;
     }
 
-#contracts.contact: 1
+contracts.contact: 1
 contracts.voip_subscribers.primary_number: 1
 contracts.voip_subscribers.provisioning_voip_subscriber: 1
 contracts.voip_subscribers.provisioning_voip_subscriber.voip_dbaliases: 1
 contracts.voip_subscribers.provisioning_voip_subscriber.voip_usr_preferences: 1
-#contracts.voip_subscribers.provisioning_voip_subscriber.voip_usr_preferences.attribute: 1
+contracts.voip_subscribers.provisioning_voip_subscriber.voip_usr_preferences.attribute: 1
 contracts.voip_subscribers.provisioning_voip_subscriber.voip_usr_preferences.allowed_ips: 1
 contracts.voip_subscribers.provisioning_voip_subscriber.voip_usr_preferences.ncos: 1
 contracts.voip_subscribers.provisioning_voip_subscriber.voip_usr_preferences.cf_mapping: 1

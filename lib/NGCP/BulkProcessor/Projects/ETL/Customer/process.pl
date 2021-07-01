@@ -17,10 +17,14 @@ use NGCP::BulkProcessor::Globals qw();
 use NGCP::BulkProcessor::Projects::ETL::Customer::Settings qw(
     update_settings
     update_tabular_fields
-    $tabular_fields_yml
+    update_graph_fields
+    $tabular_yml
+    $graph_yml
 
     update_load_recursive
-    $load_recursive_yml
+    get_export_filename
+    $customer_export_filename_format
+    $load_yml
 
     check_dry
     $output_path
@@ -29,7 +33,6 @@ use NGCP::BulkProcessor::Projects::ETL::Customer::Settings qw(
     $dry
     $skip_errors
     $force
-
 );
 
 use NGCP::BulkProcessor::Logging qw(
@@ -59,17 +62,13 @@ use NGCP::BulkProcessor::Utils qw(getscriptpath prompt cleanupdir);
 use NGCP::BulkProcessor::Mail qw(
     cleanupmsgfiles
 );
-#use NGCP::BulkProcessor::SqlConnectors::CSVDB qw(cleanupcvsdirs);
+
+use NGCP::BulkProcessor::SqlConnectors::CSVDB qw(cleanupcvsdirs);
 use NGCP::BulkProcessor::SqlConnectors::SQLiteDB qw(cleanupdbfiles);
-#use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw(cleanupcertfiles);
 
-use NGCP::BulkProcessor::Projects::ETL::Customer::ProjectConnectorPool qw(destroy_all_dbs);
+use NGCP::BulkProcessor::Projects::ETL::Customer::ProjectConnectorPool qw(destroy_all_dbs get_csv_db get_sqlite_db);
 
-#use NGCP::BulkProcessor::Dao::Trunk::billing::contracts qw();
-#use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_dbaliases qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_cf_mappings qw();
-#use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_trusted_sources qw();
+use NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular qw();
 
 use NGCP::BulkProcessor::Projects::ETL::Customer::ExportCustomers qw(
     export_customers_graph
@@ -79,7 +78,7 @@ use NGCP::BulkProcessor::Projects::ETL::Customer::ExportCustomers qw(
 #    import_customers_json
 #);
 
-scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
+scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB;
 
 my @TASK_OPTS = ();
 
@@ -91,8 +90,8 @@ push(@TASK_OPTS,$cleanup_task_opt);
 my $cleanup_all_task_opt = 'cleanup_all';
 push(@TASK_OPTS,$cleanup_all_task_opt);
 
-#my $export_customers_graph_task_opt = 'export_customers_graph';
-#push(@TASK_OPTS,$export_customers_graph_task_opt);
+my $export_customers_graph_task_opt = 'export_customers_graph';
+push(@TASK_OPTS,$export_customers_graph_task_opt);
 
 my $export_customers_tabular_task_opt = 'export_customers_tabular';
 push(@TASK_OPTS,$export_customers_tabular_task_opt);
@@ -119,15 +118,16 @@ sub init {
         "dry" => \$dry,
         "skip-errors" => \$skip_errors,
         "force" => \$force,
-    ); # or scripterror('error in command line arguments',getlogger(getscriptpath()));
+    );
 
     $tasks = removeduplicates($tasks,1);
 
     my $result = load_config($configfile);
     init_log();
     $result &= load_config($settingsfile,\&update_settings,$SIMPLE_CONFIG_TYPE);
-    $result &= load_config($tabular_fields_yml,\&update_tabular_fields,$YAML_CONFIG_TYPE);
-    $result &= load_config($load_recursive_yml,\&update_load_recursive,$YAML_CONFIG_TYPE);
+    $result &= load_config($tabular_yml,\&update_tabular_fields,$YAML_CONFIG_TYPE);
+    $result &= load_config($graph_yml,\&update_graph_fields,$YAML_CONFIG_TYPE);
+    $result &= load_config($load_yml,\&update_load_recursive,$YAML_CONFIG_TYPE);
     return $result;
 
 }
@@ -148,9 +148,9 @@ sub main() {
             } elsif (lc($cleanup_all_task_opt) eq lc($task)) {
                 $result &= cleanup_task(\@messages,1) if taskinfo($cleanup_all_task_opt,$result);
 
-            #} elsif (lc($export_customers_graph_task_opt) eq lc($task)) {
-            #    $result &= export_customers_graph_task(\@messages) if taskinfo($export_customers_graph_task_opt,$result);
-            #    $completion |= 1;
+            } elsif (lc($export_customers_graph_task_opt) eq lc($task)) {
+                $result &= export_customers_graph_task(\@messages) if taskinfo($export_customers_graph_task_opt,$result);
+                $completion |= 1;
             } elsif (lc($export_customers_tabular_task_opt) eq lc($task)) {
                 $result &= export_customers_tabular_task(\@messages) if taskinfo($export_customers_tabular_task_opt,$result);
                 $completion |= 1;
@@ -193,17 +193,15 @@ sub cleanup_task {
     my $result = 0;
     if (!$clean_generated or $force or 'yes' eq lc(prompt("Type 'yes' to proceed: "))) {
         eval {
-            #cleanupcvsdirs() if $clean_generated;
-            cleanupdbfiles() if $clean_generated;
+            cleanupcvsdirs();
+            cleanupdbfiles();
             cleanuplogfiles(\&fileerror,\&filewarn,($currentlogfile,$attachmentlogfile));
             cleanupmsgfiles(\&fileerror,\&filewarn);
-            #cleanupcertfiles();
             cleanupdir($output_path,1,\&filewarn,getlogger(getscriptpath())) if $clean_generated;
             $result = 1;
         };
     }
     if ($@ or !$result) {
-        #print $@;
         push(@$messages,'working directory cleanup INCOMPLETE');
         return 0;
     } else {
@@ -242,7 +240,7 @@ sub export_customers_graph_task {
     } else {
         push(@$messages,"exporting customers (graph) completed$stats");
     }
-    destroy_all_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs(); 
     return $result;
 
 }
@@ -257,27 +255,36 @@ sub export_customers_tabular_task {
     my $err = $@;
     my $stats = ": $warning_count warnings";
     eval {
-        #$stats .= "\n  total mta subscriber records: " .
-        #    NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_ccacsn() . ' rows';
-        #my $added_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_delta(
-        #    $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::added_delta
-        #);
-        #$stats .= "\n    new: $added_count rows";
-        #my $existing_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_delta(
-        #    $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::updated_delta
-        #);
-        #$stats .= "\n    existing: $existing_count rows";
-        #my $deleted_count = NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::countby_delta(
-        #    $NGCP::BulkProcessor::Projects::Migration::UPCAT::Dao::import::MtaSubscriber::deleted_delta
-        #);
-        #$stats .= "\n    removed: $deleted_count rows";
+        $stats .= "\n  total subscriber records: " .
+            NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::countby_delta() . ' rows';
+        my $added_count = NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::countby_delta(
+            $NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::added_delta
+        );
+        $stats .= "\n    new: $added_count rows";
+        my $existing_count = NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::countby_delta(
+            $NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::updated_delta
+        );
+        $stats .= "\n    existing: $existing_count rows";
+        my $deleted_count = NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::countby_delta(
+            $NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::deleted_delta
+        );
+        $stats .= "\n    removed: $deleted_count rows";
+        my ($export_filename,$export_format) = get_export_filename($customer_export_filename_format);
+        if ('sqlite' eq $export_format) {
+            &get_sqlite_db()->copydbfile($export_filename);    
+        } elsif ('csv' eq $export_format) {
+            NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::copy_table(\&get_csv_db);
+            &get_csv_db()->copytablefile(NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::gettablename(),$export_filename);
+        } else {
+            push(@$messages,'invalid extension for output filename $export_filename');
+        }
     };
     if ($err or !$result) {
         push(@$messages,"exporting customers (tabular) INCOMPLETE$stats");
     } else {
         push(@$messages,"exporting customers (tabular) completed$stats");
     }
-    destroy_all_dbs(); #every task should leave with closed connections.
+    destroy_all_dbs(); 
     return $result;
 
 }
@@ -304,7 +311,7 @@ sub export_customers_tabular_task {
 #    } else {
 #        push(@$messages,"importing customers (json) completed$stats");
 #    }
-#    destroy_all_dbs(); #every task should leave with closed connections.
+#    destroy_all_dbs();
 #    return $result;
 #
 #}

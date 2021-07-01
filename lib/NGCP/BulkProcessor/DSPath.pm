@@ -36,8 +36,16 @@ sub new {
 			},
             not_a_coderef_or_method => $callbacks->{not_a_coderef_or_method} // sub {
 				my ($data, $key, $index, $value, $rest) = @_;
-				die "tried to retrieve from a non-existent coderef or method: $key in $data";
-			}
+				die "tried to retrieve from a non-existent coderef or method: $key in $data\n";
+			},
+			filter => $callbacks->{filter} // sub {
+				my ($item_path) = @_;
+				die "no filter callback method provided\n";
+			},
+			transform => $callbacks->{transform} // sub {
+				my ($item_path) = @_;
+				die "no transform callback method provided\n";
+			},
 		},
 	};
 	return bless $self,$class;
@@ -99,6 +107,87 @@ sub get {
 	}
 
 	return $value;
+}
+
+# filter graph (in-place)
+sub filter {
+	my ($self,$data,$path) = @_;
+
+	# set data to
+	$data //= $self->{data};
+	
+	$self->_filter($data,$path);
+	
+	return $self; #support chaining
+}
+
+sub _filter {
+	my ($self,$data,$path) = @_;
+	
+	my $reftype = reftype $data;
+	return unless $reftype;
+	my $include = 0;
+	if ("ARRAY" eq $reftype) {
+		my ($i,$j) = (0, 0);
+		foreach (@$data) {
+			my $item_path = (length($path) ? $path : '') . '[' . $j . ']';
+			if ($self->{callbacks}->{filter}->($item_path)
+				or $self->_filter($data->[$i],$item_path)) {
+				$include = 1;
+				$i++;
+			} else {
+				splice(@$data, $i, 1);
+			}
+			$j++;
+		}
+	} elsif ("HASH" eq $reftype) {
+		foreach my $key (keys %$data) {
+			my $item_path = (length($path) ? $path . '.' : '') . $key;
+			if ($self->{callbacks}->{filter}->($item_path)
+				or $self->_filter($data->{$key},$item_path)) {
+				$include = 1;
+			} else {
+				delete $data->{$key};
+			}
+		}
+	}
+	return $include;
+	
+}
+
+# transform graph (in-place)
+sub transform {
+	my ($self,$data,$path) = @_;
+
+	# set data to
+	$data //= $self->{data};
+	
+	$self->_transform($data,$path);
+	
+	return $self; #support chaining
+}
+
+sub _transform {
+	my ($self,$data,$path) = @_;
+	
+	my $reftype = reftype $data;
+	return unless $reftype;
+	if ("ARRAY" eq $reftype) {
+		my $i = 0;
+		foreach (@$data) {
+			my $item_path = (length($path) ? $path : '') . '[' . $i . ']';
+			$self->_transform($data->[$i],$item_path);
+			$data->[$i] = $self->{callbacks}->{transform}->($data->[$i],$item_path);
+			$i++;
+		}
+	} elsif ("HASH" eq $reftype) {
+		foreach my $key (keys %$data) {
+			my $item_path = (length($path) ? $path . '.' : '') . $key;
+			$self->_transform($data->{$key},$item_path);
+			$data->{$key} = $self->{callbacks}->{transform}->($data->{$key},$item_path);
+		}
+	}
+	
 }
 
 1;
