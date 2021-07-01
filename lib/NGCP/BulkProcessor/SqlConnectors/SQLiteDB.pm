@@ -26,6 +26,8 @@ use DBI 1.608 qw(:sql_types);
 use DBD::SQLite 1.29;
 use NGCP::BulkProcessor::Array qw(arrayeq contains setcontains);
 
+use File::Copy qw();
+
 use NGCP::BulkProcessor::Utils qw(
     tempfilename
     timestampdigits
@@ -104,6 +106,19 @@ sub _connectidentifier {
 
     my $self = shift;
     return _get_connectidentifier($self->{filemode},$self->{dbfilename});
+
+}
+
+sub copydbfile {
+
+    my $self = shift;
+    my $target = shift;
+    $self->db_disconnect();
+    if (File::Copy::copy($self->{dbfilename},$target)) {
+      dbinfo($self,"$self->{dbfilename} copied to $target",getlogger(__PACKAGE__));
+    } else {
+      dberror($self,"copy from $self->{dbfilename} to $target failed: $!",getlogger(__PACKAGE__));
+    }
 
 }
 

@@ -1,6 +1,12 @@
+# tabular.yml: define which *subscriber* columns to add tabular (.db/.csv) exports.
+
 - path: contract.id
-- path: id
-- path: username
+  transform: !!perl/code | 
+    {
+      my ($id,$bill_subs) = @_;
+      return $id;
+    }
+
 - path: primary_number.cc
 - path: primary_number.ac
 - path: primary_number.sn

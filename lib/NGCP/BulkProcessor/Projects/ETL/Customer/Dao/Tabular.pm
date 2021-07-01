@@ -7,7 +7,6 @@ use NGCP::BulkProcessor::Projects::ETL::Customer::ProjectConnectorPool qw(
     get_sqlite_db
     destroy_all_dbs
 );
-#import_db_tableidentifier
 
 use NGCP::BulkProcessor::Projects::ETL::Customer::Settings qw(
     $tabular_fields
@@ -18,14 +17,11 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     create_targettable
     checktableinfo
     copy_row
-
     insert_stmt
-
+    transfer_table
 );
-#process_table
-use NGCP::BulkProcessor::SqlRecord qw();
 
-#use NGCP::BulkProcessor::Projects::Migration::Teletek::Dao::import::Subscriber qw();
+use NGCP::BulkProcessor::SqlRecord qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -38,7 +34,6 @@ our @EXPORT_OK = qw(
 
     get_fieldnames
 
-
     update_delta
     findby_delta
     countby_delta
@@ -46,16 +41,12 @@ our @EXPORT_OK = qw(
     $deleted_delta
     $updated_delta
     $added_delta
-
+    
+    copy_table
 );
-#@fieldnames
-#findby_sipusername
-#findby_ccacsn
-#countby_ccacsn
 
 my $tablename = 'tabular';
 my $get_db = \&get_sqlite_db;
-#my $get_tablename = \&import_db_tableidentifier;
 
 my $fieldnames;
 my $expected_fieldnames;
@@ -76,13 +67,10 @@ sub get_fieldnames {
     return $expected_fieldnames;
 }
 
-# table creation:
 my $primarykey_fieldnames = [ 'uuid' ];
 my $indexes = {
-    #$tablename . '_username_domain' => [ 'username', 'domain' ],
     $tablename . '_delta' => [ 'delta(7)' ],
 };
-#my $fixtable_statements = [];
 
 our $deleted_delta = 'DELETED';
 our $updated_delta = 'UPDATED';
@@ -198,6 +186,26 @@ sub countby_delta {
 
 }
 
+sub copy_table {
+    
+    my ($get_target_db) = @_;
+     
+    check_table();
+    #checktableinfo($get_target_db,
+    #    __PACKAGE__,$tablename,
+    #    get_fieldnames(1),
+    #    $indexes);
+
+    return transfer_table(
+        get_db => $get_db,
+        class => __PACKAGE__,
+        get_target_db => $get_target_db,
+        targetclass => __PACKAGE__,
+        targettablename => $tablename,
+    );
+    
+}
+
 sub buildrecords_fromrows {
 
     my ($rows,$load_recursive) = @_;
@@ -218,47 +226,6 @@ sub buildrecords_fromrows {
     return \@records;
 
 }
-
-#sub process_records {
-#
-#    my %params = @_;
-#    my ($process_code,
-#        $static_context,
-#        $init_process_context_code,
-#        $uninit_process_context_code,
-#        $multithreading,
-#        $numofthreads) = @params{qw/
-#            process_code
-#            static_context
-#            init_process_context_code
-#            uninit_process_context_code
-#            multithreading
-#            numofthreads
-#        /};
-#
-#    check_table();
-#    my $db = &$get_db();
-#    my $table = $db->tableidentifier($tablename);
-#
-#    my @cols = map { $db->columnidentifier($_); } qw/domain sip_username/;
-#
-#    return process_table(
-#        get_db                      => $get_db,
-#        class                       => __PACKAGE__,
-#        process_code                => sub {
-#                my ($context,$rowblock,$row_offset) = @_;
-#                return &$process_code($context,$rowblock,$row_offset);
-#            },
-#        static_context              => $static_context,
-#        init_process_context_code   => $init_process_context_code,
-#        uninit_process_context_code => $uninit_process_context_code,
-#        destroy_reader_dbs_code     => \&destroy_all_dbs,
-#        multithreading              => $multithreading,
-#        tableprocessing_threads     => $numofthreads,
-#        'select'                    => 'SELECT ' . join(',',@cols) . ' FROM ' . $table . ' GROUP BY ' . join(',',@cols),
-#        'selectcount'              => 'SELECT COUNT(DISTINCT(' . join(',',@cols) . ')) FROM ' . $table,
-#    );
-#}
 
 sub getinsertstatement {
 
