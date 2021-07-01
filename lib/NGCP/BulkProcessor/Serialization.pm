@@ -29,16 +29,24 @@ our @EXPORT_OK = qw(
     $format_php
     $format_perl
     $format_storable_base64
+    @formats
 );
-                      #$format_storable
+#$format_storable
 
 #our $format_storable = 0;
+our @formats = ();
 our $format_xml = 1;
+push(@formats,$format_xml);
 our $format_yaml = 2;
+push(@formats,$format_yaml);
 our $format_json = 3;
+push(@formats,$format_json);
 our $format_php = 4;
+push(@formats,$format_php);
 our $format_perl = 5;
+push(@formats,$format_perl);
 our $format_storable_base64 = 6;
+push(@formats,$format_storable_base64);
 
 use MIME::Base64 qw(encode_base64 decode_base64);
 
