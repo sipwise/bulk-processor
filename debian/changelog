@@ -1,3 +1,11 @@
+ngcp-bulk-processor (8.1.1.15+0~mr8.1.1.15) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [c3d126f] TT#127355 use override_dh_install instead of execute_after_*
+  * [e587c8f] TT#128650 contract graph exporter
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 06 Jul 2021 12:04:12 +0200
+
 ngcp-bulk-processor (8.1.1.14+0~mr8.1.1.14) unstable; urgency=medium
 
   [ Rene Krenn ]
