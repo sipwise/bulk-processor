@@ -54,7 +54,7 @@ sub get_fieldnames {
     my $expected = shift;
     unless (defined $fieldnames and defined $expected_fieldnames) {
         $fieldnames = [ map {
-            local $_ = (ref $_ ? $_->{path} : $_);
+            local $_ = (ref $_ ? (exists $_->{colname} ? $_->{colname} : $_->{path}) : $_);
             $_ =~ s/\./_/g;
             $_ =~ s/\[(\d+)\]/_$1/g;
             $_;
