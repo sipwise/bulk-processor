@@ -1,3 +1,10 @@
+ngcp-bulk-processor (8.1.1.16+0~mr8.1.1.16) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [ae620ed] TT#137100 contract exporter: support duplicate datapaths
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 19 Aug 2021 10:51:29 +0200
+
 ngcp-bulk-processor (8.1.1.15+0~mr8.1.1.15) unstable; urgency=medium
 
   [ Rene Krenn ]
