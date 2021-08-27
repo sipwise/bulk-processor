@@ -1,3 +1,10 @@
+ngcp-bulk-processor (7.5.5.13+0~mr7.5.5.13) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [79bc78f] TT#138400 fix findby_domain_usernames finder method query
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 27 Aug 2021 11:34:25 +0200
+
 ngcp-bulk-processor (7.5.5.12+0~mr7.5.5.12) unstable; urgency=medium
 
   [ Rene Krenn ]
