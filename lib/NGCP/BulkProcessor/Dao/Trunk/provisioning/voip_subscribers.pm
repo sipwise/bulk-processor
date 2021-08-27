@@ -82,7 +82,7 @@ sub findby_domain_usernames {
     $xa_db //= $db;
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT s.* FROM ' . $table . ' s join provisioning.domains d on s.domain_id = d.id WHERE d.domain = ?';
+    my $stmt = 'SELECT s.* FROM ' . $table . ' s join provisioning.voip_domains d on s.domain_id = d.id WHERE d.domain = ?';
     my @params = ($domain);
     if (defined $usernames and 'ARRAY' eq ref $usernames) {
         $stmt .= ' AND ' . $db->columnidentifier('username') . ' IN (' . substr(',?' x scalar @$usernames,1) . ')';
