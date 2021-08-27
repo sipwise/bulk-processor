@@ -23,7 +23,7 @@ use NGCP::BulkProcessor::SqlRecord qw();
 use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_dbaliases qw();
 use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_usr_preferences qw();
 use NGCP::BulkProcessor::Dao::mr341::kamailio::voicemail_users qw();
-use NGCP::BulkProcessor::Dao::mr341::kamailio::locations qw();
+use NGCP::BulkProcessor::Dao::mr341::kamailio::location qw();
 use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_trusted_sources qw();
 
 use NGCP::BulkProcessor::Dao::mr341::provisioning::voip_cf_destination_sets qw();
