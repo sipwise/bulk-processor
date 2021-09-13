@@ -45,6 +45,7 @@ our @EXPORT_OK = qw(
 
     $output_path
     $input_path
+    $csv_dir
 
     $defaultsettings
     $defaultconfig
@@ -59,6 +60,8 @@ our @EXPORT_OK = qw(
     $skip_errors
     $force
 
+    get_export_filename
+    $registrations_export_filename_format
 );
 
 our $defaultconfig = 'config.cfg';
@@ -66,6 +69,7 @@ our $defaultsettings = 'settings.cfg';
 
 our $output_path = $working_path . 'output/';
 our $input_path = $working_path . 'input/';
+our $csv_dir = 'location';
 
 our $usernames_filename = undef;
 our $usernames_rownum_start = 0;
@@ -78,6 +82,8 @@ our $skip_errors = 0;
 our $force = 0;
 
 our $sqlite_db_file = 'sqlite';
+
+our $registrations_export_filename_format = undef;
 
 sub update_settings {
 
@@ -92,6 +98,7 @@ sub update_settings {
 
         $result &= _prepare_working_paths(1);
 
+        $csv_dir = $data->{csv_dir} if exists $data->{csv_dir};
         $sqlite_db_file = $data->{sqlite_db_file} if exists $data->{sqlite_db_file};
 
         $load_registrations_multithreading = $data->{load_registrations_multithreading} if exists $data->{load_registrations_multithreading};
@@ -104,6 +111,9 @@ sub update_settings {
         $skip_errors = $data->{skip_errors} if exists $data->{skip_errors};
         $force = $data->{force} if exists $data->{force};
 
+        $registrations_export_filename_format = $data->{registrations_export_filename} if exists $data->{registrations_export_filename};
+        get_export_filename($data->{registrations_export_filename},$configfile);
+        
         return $result;
 
     }
@@ -142,6 +152,28 @@ sub _get_import_filename {
         $import_filename = $input_path . $import_filename unless -e $import_filename;
     }
     return $import_filename;
+}
+
+sub get_export_filename {
+    my ($filename_format,$configfile) = @_;
+    my $export_filename;
+    my $export_format;
+    if ($filename_format) {
+        $export_filename = $output_path . sprintf($filename_format,timestampdigits(),threadid());
+        if (-e $export_filename and (unlink $export_filename) == 0) {
+            filewarn('cannot remove ' . $export_filename . ': ' . $!,getlogger(__PACKAGE__));
+            $export_filename = undef;
+        }
+        my ($name,$path,$suffix) = fileparse($export_filename,".db",".csv");
+        if ($suffix eq '.db') {
+            $export_format = 'sqlite';
+        } elsif ($suffix eq '.csv') {
+            $export_format = 'csv';
+        } else {
+            configurationerror($configfile,"$filename_format: either .db or .csv export file format required");
+        }
+    }
+    return ($export_filename,$export_format);
 }
 
 1;
