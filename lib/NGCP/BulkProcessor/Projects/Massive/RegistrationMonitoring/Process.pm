@@ -41,6 +41,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 );
 
 use NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location qw();
+use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
 
 use NGCP::BulkProcessor::Redis::Trunk::location::usrdom qw();
 
@@ -49,10 +50,11 @@ use NGCP::BulkProcessor::Utils qw(threadid trim);
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-    load_registrations
+    load_registrations_file
+    load_registrations_all
 );
 
-sub load_registrations {
+sub load_registrations_file {
     
     my ($file) = @_;
     $file //= $usernames_filename;
@@ -75,6 +77,78 @@ sub load_registrations {
             my @location_rows = ();
             foreach my $record (@$records) {
                 if (_load_registrations_init_context($context,$record->[0],$record->[1])) {
+                    foreach my $registration (@{$context->{registrations}}) {
+                        my %r = %{$registration->getvalue}; my @row_ext = @r{@NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location::fieldnames};
+                        if ($context->{upsert}) {
+                            push(@row_ext,$registration->getvalue()->{ruid});
+                        } else {
+                            push(@row_ext,$NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location::added_delta);
+                        }
+                        push(@location_rows,\@row_ext);
+                    }
+                    if ($location_single_row_txn and (scalar @location_rows) > 0) {
+                        while (defined (my $location_row = shift @location_rows)) {
+                            if ($skip_errors) {
+                                eval { _insert_location_rows($context,[$location_row]); };
+                                _warn($context,$@) if $@;
+                            } else {
+                                _insert_location_rows($context,[$location_row]);
+                            }
+                        }
+                    }
+                }
+            }
+            if (not $location_single_row_txn and (scalar @location_rows) > 0) {
+                if ($skip_errors) {
+                    eval { _insert_location_rows($context,\@location_rows); };
+                    _warn($context,$@) if $@;
+                } else {
+                    _insert_location_rows($context,\@location_rows);
+                }
+            }
+            return 1;
+        },
+        init_process_context_code => sub {
+            my ($context)= @_;
+            $context->{db} = &get_sqlite_db();
+            #$context->{redis} = &get_location_store();
+            $context->{upsert} = $upsert;
+            $context->{error_count} = 0;
+            $context->{warning_count} = 0;
+        },
+        uninit_process_context_code => sub {
+            my ($context)= @_;
+            undef $context->{db};
+            #undef $context->{redis};
+            destroy_all_dbs();
+            destroy_stores();
+            {
+                lock $warning_count;
+                $warning_count += $context->{warning_count};
+            }
+        },
+        multithreading => $load_registrations_multithreading,
+        numofthreads => $load_registrations_numofthreads,
+    ),$warning_count);
+
+}
+
+sub load_registrations_all {
+
+    my $result = NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location::create_table(0);
+
+    my $upsert = _locations_reset_delta();
+    
+    destroy_all_dbs(); #close all db connections before forking..
+    destroy_stores();
+    my $warning_count :shared = 0;
+    return ($result && NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::process_records(
+        process_code => sub {
+            my ($context,$records,$row_offset) = @_;
+            my @data = ();
+            my @location_rows = ();
+            foreach my $record (@$records) {
+                if (_load_registrations_all_init_context($context,$record)) {
                     foreach my $registration (@{$context->{registrations}}) {
                         my %r = %{$registration->getvalue}; my @row_ext = @r{@NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location::fieldnames};
                         if ($context->{upsert}) {
@@ -163,14 +237,14 @@ sub _insert_location_rows {
     }
 }
 
-sub _load_registrations_init_context() {
+sub _load_registrations_file_init_context() {
     
     my ($context,$username,$domain) = @_;
     $context->{username} = $username;
     $context->{domain} = $domain;
     my @registrations = ();
     my $result = 1;
-    $context->{usrdom} = NGCP::BulkProcessor::Redis::Trunk::location::usrdom::get_usrdom_by_username_domain($username,$domain,{ _entries => 1, });
+    $context->{usrdom} = NGCP::BulkProcessor::Redis::Trunk::location::usrdom::get_usrdom_by_username_domain($context->{username},$context->{domain},{ _entries => 1, });
     if ($context->{usrdom}) {
         foreach my $entry (@{$context->{usrdom}->{_entries}}) {
             push(@registrations,$entry); # if expiry > now
@@ -182,7 +256,24 @@ sub _load_registrations_init_context() {
     
 }
 
-
+sub _load_registrations_all_init_context() {
+    
+    my ($context,$prov_subscriber) = @_;
+    $context->{username} = $prov_subscriber->{username};
+    $context->{domain} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_id($prov_subscriber->{domain_id})->{domain};
+    my @registrations = ();
+    my $result = 1;
+    $context->{usrdom} = NGCP::BulkProcessor::Redis::Trunk::location::usrdom::get_usrdom_by_username_domain(lc($context->{username}),$context->{domain},{ _entries => 1, });
+    if ($context->{usrdom}) {
+        foreach my $entry (@{$context->{usrdom}->{_entries}}) {
+            push(@registrations,$entry); # if expiry > now
+        }
+    }
+    $result = 0 unless scalar @registrations;
+    $context->{registrations} = \@registrations;
+    return $result;
+    
+}
 
 
 sub _error {

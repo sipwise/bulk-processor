@@ -21,6 +21,9 @@ use NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Settings qw(
 
     $skip_errors
     $force
+    
+    get_export_filename
+    $registrations_export_filename_format
 );
 
 use NGCP::BulkProcessor::Logging qw(
@@ -56,6 +59,8 @@ use NGCP::BulkProcessor::SqlConnectors::SQLiteDB qw(cleanupdbfiles);
 use NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location qw();
 
 use NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::ProjectConnectorPool qw(
+    get_sqlite_db
+    get_csv_db
     destroy_all_dbs
 );
 use NGCP::BulkProcessor::ConnectorPool qw(
@@ -63,7 +68,8 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 );
 
 use NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Process qw(
-    load_registrations
+    load_registrations_file
+    load_registrations_all
 );
 
 scripterror(getscriptpath() . ' already running',getlogger(getscriptpath())) unless flock DATA, LOCK_EX | LOCK_NB; # not tested on windows yet
@@ -188,7 +194,11 @@ sub load_registrations_task {
     my ($messages) = @_;
     my ($result,$warning_count) = (0,0);
     eval {
-        ($result,$warning_count) = load_registrations($file);
+        if ($file) {
+            ($result,$warning_count) = load_registrations_file($file);
+        } else {
+            ($result,$warning_count) = load_registrations_all();
+        }
     };
     #print $@;
     my $err = $@;
@@ -208,6 +218,15 @@ sub load_registrations_task {
             $NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location::deleted_delta
         );
         $stats .= "\n    removed: $deleted_count rows";
+        my ($export_filename,$export_format) = get_export_filename($registrations_export_filename_format);
+        if ('sqlite' eq $export_format) {
+            &get_sqlite_db()->copydbfile($export_filename);    
+        } elsif ('csv' eq $export_format) {
+            NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location::copy_table(\&get_csv_db);
+            &get_csv_db()->copytablefile(NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location::gettablename(),$export_filename);
+        } else {
+            push(@$messages,'invalid extension for output filename $export_filename');
+        }
     };
     if ($err or !$result) {
         push(@$messages,"loading registrations INCOMPLETE$stats");
