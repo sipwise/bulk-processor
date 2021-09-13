@@ -15,7 +15,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
     copy_row
 
     insert_stmt
-
+    transfer_table
 );
 #process_table
 use NGCP::BulkProcessor::SqlRecord qw();
@@ -35,6 +35,7 @@ our @EXPORT_OK = qw(
     update_delta
     findby_delta
     countby_delta
+    copy_table
 
     $deleted_delta
     $updated_delta
@@ -239,6 +240,26 @@ sub buildrecords_fromrows {
 
     return \@records;
 
+}
+
+sub copy_table {
+    
+    my ($get_target_db) = @_;
+     
+    check_table();
+    #checktableinfo($get_target_db,
+    #    __PACKAGE__,$tablename,
+    #    get_fieldnames(1),
+    #    $indexes);
+
+    return transfer_table(
+        get_db => $get_db,
+        class => __PACKAGE__,
+        get_target_db => $get_target_db,
+        targetclass => __PACKAGE__,
+        targettablename => $tablename,
+    );
+    
 }
 
 #sub process_records {
