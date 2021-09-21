@@ -1,3 +1,10 @@
+ngcp-bulk-processor (7.5.5.14+0~mr7.5.5.14) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [15f7a2f] TT#142500 SET ANSI_PADDING ON for SQLServer connections
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 21 Sep 2021 13:00:58 +0200
+
 ngcp-bulk-processor (7.5.5.13+0~mr7.5.5.13) unstable; urgency=medium
 
   [ Rene Krenn ]
