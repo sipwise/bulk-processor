@@ -254,6 +254,7 @@ sub db_connect {
     }
     $self->db_do('SET ANSI_WARNINGS ON');
     $self->db_do('SET ANSI_NULLS ON');
+    $self->db_do('SET ANSI_PADDING ON');
 
     dbinfo($self,'connected',getlogger(__PACKAGE__));
 
