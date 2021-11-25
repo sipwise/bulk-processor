@@ -1,3 +1,10 @@
+ngcp-bulk-processor (8.1.1.17+0~mr8.1.1.17) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [c25da6b] TT#138950 add missing accounting.cdr field defs
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 25 Nov 2021 12:35:07 +0100
+
 ngcp-bulk-processor (8.1.1.16+0~mr8.1.1.16) unstable; urgency=medium
 
   [ Rene Krenn ]
