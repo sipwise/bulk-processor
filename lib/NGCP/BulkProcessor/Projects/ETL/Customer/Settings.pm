@@ -294,7 +294,10 @@ sub get_export_filename {
     my $export_filename;
     my $export_format;
     if ($filename_format) {
-        $export_filename = $output_path . sprintf($filename_format,timestampdigits(),threadid());
+        $export_filename = sprintf($filename_format,timestampdigits(),threadid());
+        unless ($export_filename =~ /^\//) {
+            $export_filename = $output_path . $export_filename;
+        }
         if (-e $export_filename and (unlink $export_filename) == 0) {
             filewarn('cannot remove ' . $export_filename . ': ' . $!,getlogger(__PACKAGE__));
             $export_filename = undef;
