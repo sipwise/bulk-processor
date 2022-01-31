@@ -1,3 +1,22 @@
+ngcp-bulk-processor (7.5.4.6+0~mr7.5.4.6) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [05777b7] TT#104251 cdr paging queries: force index
+  * [95d9cb5] TT#109163 fix contracts dao for mr1.0.3 schema
+  * [24a23de] TT#108604 introduce nosql abstraction and redis connector
+  * [8387c4e] TT#108606 multithread consumer-producer pattern for Redis
+  * [6df5f28] TT#108605 redis "location" store schema #1
+  * [3f0e6f4] TT#108605 redis "location" store schema #2
+  * [21eb7b4] TT#110203 redis registration monitoring to SQLite PoC
+  * [d901974] TT#111206 add mr1.0.3 openser.voicemail_spool DAO
+  * [2642f0a] TT#111750 add trunk kamailio.voicemail_spool DAO
+  * [c6bc679] TT#111905 perl system() wrapper
+  * [2b3663a] TT#118050 SQLServer connectivity using tdsodbc
+  * [898cbf9] TT#118151 mr7.5.5 redis "location" db DAO
+  * [ac17a02] TT#118050 skip NULL values for mssql INDENTITY columns
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 31 Jan 2022 17:23:57 +0100
+
 ngcp-bulk-processor (7.5.4.5+0~mr7.5.4.5) unstable; urgency=medium
 
   [ Rene Krenn ]
