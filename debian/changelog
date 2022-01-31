@@ -1,3 +1,21 @@
+ngcp-bulk-processor (7.5.4.3+0~mr7.5.4.3) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * [d25b89b] TT#69200 Add initial unit tests for NGCP::BulkProcessor::Array
+  * [d1acdf2] TT#69200 Pass the entire list to push in mergearrays()
+  * [e5d02c6] TT#69200 Use reverse in reversearray() instead of an ad-hoc implementation
+  * [6a65cfb] TT#69200 Reimplement contains() based on List::Util's any()
+  * [4b7aa09] TT#69200 Reimplement removeduplicates() based of List::Util's uniq
+  * [2dc0f2b] TT#69200 Remove unused variable in arrayeq()
+  * [da808b4] TT#69200 Reimplement itemcount() based on grep()
+  * [00399b9] TT#69950 Unbundle Excel::Reader::XLSX modules
+  * [19cbe08] TT#69200 Set exexutable bits for programs
+  * [3b296a0] TT#69200 Use correct variable in _create_cftimeset() sub
+  * [4c28556] TT#69200 Move hash argument to content method into a variable
+  * [203e972] TT#69200 Use strict and warnings
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 31 Jan 2022 15:49:32 +0100
+
 ngcp-bulk-processor (7.5.4.2+0~mr7.5.4.2) unstable; urgency=medium
 
   [ Guillem Jover ]
