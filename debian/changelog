@@ -1,3 +1,26 @@
+ngcp-bulk-processor (7.5.4.4+0~mr7.5.4.4) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * [3cca4ef] TT#69200 Set shebang for perl scripts
+  * [84555d7] TT#69200 Fix mapeq() to match correctly according to caseinsensitive argument
+  * [a426d0c] TT#69200 Add more unit tests for NGCP::BulkProcessor::Array
+  * [30d1050] TT#69200 Do not use indirect method syntax
+  * [7cbe2f2] TT#69200 Refactor getting last array index into a new sub
+  * [b7cb6a1] TT#69200 Refactor getting the size of a hash
+  * [896d933] TT#69200 Rewrite mapeq() to not need an intermediate hash
+  * [06f6b9c] TT#69200 Switch to an early return in arrayeq()  to reduce nesting level
+  * [7a3537e] TT#69200 Switch from C-style for loops to range ones
+  * [2f2137d] TT#69200 Reduce nesting levels in array_to_map()
+  * [8fb0dbf] TT#69200 Fix coding style
+  * [c718cd5] TT#69200 Use none() instead of comparin $mode with each value
+  * [b03a0bf] TT#69200 Rerwite seteq() based off setcontains()
+  * [66f0c99] TT#69200 Rewrite setcontains() to use a hash instead of contains()
+
+  [ Rene Krenn ]
+  * [9f05fdd] TT#72650 cdr-generator: fix random subscriber selection
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 31 Jan 2022 16:33:10 +0100
+
 ngcp-bulk-processor (7.5.4.3+0~mr7.5.4.3) unstable; urgency=medium
 
   [ Guillem Jover ]
