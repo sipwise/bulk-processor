@@ -1,3 +1,32 @@
+ngcp-bulk-processor (7.5.4.7+0~mr7.5.4.7) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [42046e8] TT#119459 allow NULL values for SQLServer IDENTITY columns
+  * [9ac9040] TT#119460 openser "location" DAO
+  * [ecde537] TT#121785 provisioning::voip_subscribers::findby_id finder method
+  * [16e7871] TT#123800 MySQL connector: allow to override session charset
+  * [4a4d3dc] TT#118151 fix mr7.5.5 redis "location" db DAO key versioning prefix
+  * [b517246] TT#127150 contract/susbcriber exporter: sqlite tabular export
+  * [ba32c31] TT#127355 initialize application versions earlier
+  * [06e6666] TT#127150 contract/susbcriber exporter: fix skipped contract
+  * [1996adb] TT#127150 contract/subscriber exporter: support delta for terminated subs
+  * [372643e] TT#128650 contract graph exporter
+  * [e3b881d] TT#137100 contract exporter: support duplicate datapaths
+  * [a3c6605] TT#138400 provisioning.voip_subscribers.findby_domain_usernames
+  * [efa11b1] TT#138400 fix findby_domain_usernames finder method query
+  * [fc332ac] TT#136902 render UML class diagrams
+  * [dd3a9a2] TT#129852 export registration to .csv or sqlite
+  * [06d16fd] TT#142500 SET ANSI_PADDING ON for SQLServer connections
+  * [4e31dba] TT#138950 add missing accounting.cdr field defs
+  * [344ae11] TT#158550 customer exporter: support absolute output filenames
+
+  [ Guillem Jover ]
+  * [2633c76] TT#127355 Add support for application versions
+  * [e73efd5] TT#127355 Switch the application variable into a function
+  * [c594894] Revert "TT#127355 initialize application versions earlier"
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 31 Jan 2022 18:07:42 +0100
+
 ngcp-bulk-processor (7.5.4.6+0~mr7.5.4.6) unstable; urgency=medium
 
   [ Rene Krenn ]
