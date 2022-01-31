@@ -1,3 +1,17 @@
+ngcp-bulk-processor (7.5.4.2+0~mr7.5.4.2) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * [4743ec6] TT#69200 Sort perl build system dependencies
+  * [e866d41] TT#69200 Switch to use CPAN::Meta::Spec metadata
+  * [7a87612] TT#69200 Updete perl build system dependencies
+  * [d94c403] TT#69200 Use sprintf instead of ad-hoc code to 0 fill digits
+  * [856c93e] TT#69200 Use Time::Seconds instead of ad-hoc code to pretty print time offsets
+  * [b157166] TT#69200 Use Time::Piece instead of ad-hoc code to print dates and times
+  * [0c455dd] TT#69200 Use Time::Piece and Time::Local to add up months
+  * [19d8711] TT#69200 Susbstantially simplify and generalize kbytes2gigs()
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 31 Jan 2022 15:36:22 +0100
+
 ngcp-bulk-processor (7.5.4.1+0~mr7.5.4.1) unstable; urgency=medium
 
   * New release.
