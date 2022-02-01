@@ -206,7 +206,7 @@ sub _get_period_event_rows {
             $context->{subscriber_id},
             $profile_id,
             datetime_to_string(from_epoch($profile_events->{start}->{timestamp})),
-            join(",",map { datetime_to_string(from_epoch($_)); } @{$profile_events->{update}}),
+            join(",",map { datetime_to_string(from_epoch($_->{timestamp})); } @{$profile_events->{update}}),
             (defined $profile_events->{stop} ? datetime_to_string(from_epoch($profile_events->{stop}->{timestamp})) : undef),
         ]);
     }
