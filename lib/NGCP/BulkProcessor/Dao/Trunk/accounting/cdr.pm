@@ -50,6 +50,8 @@ our @EXPORT_OK = qw(
     $CFU_CALL_TYPE
     $CFB_CALL_TYPE
 
+    findby_id
+    get_cdrid_range
 );
 #process_records
 #delete_ids
@@ -177,6 +179,39 @@ sub new {
 
 }
 
+sub findby_id {
+
+    my ($id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub get_cdrid_range {
+    
+    my ($id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT min(id),max(id) FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('id') . ' = ?';
+    my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return $rows;
+    
+}
 
 sub delete_callids {
 
@@ -542,6 +577,12 @@ sub gettablename {
 
     return $tablename;
 
+}
+
+sub settablename {
+    
+    $tablename = shift;
+    
 }
 
 sub check_table {
