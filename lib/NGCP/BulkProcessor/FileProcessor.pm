@@ -198,7 +198,7 @@ sub process {
                     notimplementederror((ref $self) . ': ' . 'extractfields class method not implemented',getlogger(__PACKAGE__));
                 }
                 
-                $files_code->(sub {
+                $files_code->($context,sub {
                     my $filename = shift;
                     if (-s $filename > 0) {
                         fileprocessingstarted($filename,getlogger(__PACKAGE__));
@@ -341,7 +341,7 @@ sub _reader {
             notimplementederror((ref $context->{instance}) . ': ' . 'extractfields class method not implemented',getlogger(__PACKAGE__));
         }
 
-        $context->{files_code}->(sub {
+        $context->{files_code}->($context,sub {
             my $filename = shift;
             if (-s $filename > 0) {
                 fileprocessingstarted($filename,getlogger(__PACKAGE__));

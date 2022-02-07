@@ -15,7 +15,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     copy_row
-
+    insert_record
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
@@ -23,11 +23,13 @@ require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
+    settablename
     check_table
 
     findby_cdrid
     findby_callid
 
+    insert_row
 );
 #findby_callid
 
@@ -92,6 +94,20 @@ sub findby_callid {
 
 }
 
+sub insert_row {
+
+    my $db = &$get_db();
+    my $xa_db = shift // $db;
+
+    my ($data,$insert_ignore) = @_;
+    check_table();
+    if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
+        return $xa_db->db_last_insert_id();
+    }
+    return undef;
+
+}
+
 sub buildrecords_fromrows {
 
     my ($rows,$load_recursive) = @_;
@@ -117,6 +133,12 @@ sub gettablename {
 
     return $tablename;
 
+}
+
+sub settablename {
+    
+    $tablename = shift;
+    
 }
 
 sub check_table {
