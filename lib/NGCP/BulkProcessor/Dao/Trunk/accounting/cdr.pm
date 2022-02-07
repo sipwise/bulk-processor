@@ -30,6 +30,7 @@ require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
     gettablename
+    settablename
     check_table
 
     update_row
@@ -52,6 +53,8 @@ our @EXPORT_OK = qw(
 
     findby_id
     get_cdrid_range
+    
+    buildrecords_fromrows
 );
 #process_records
 #delete_ids
@@ -204,12 +207,11 @@ sub get_cdrid_range {
     my $db = &$get_db();
     my $table = $db->tableidentifier($tablename);
 
-    my $stmt = 'SELECT min(id),max(id) FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('id') . ' = ?';
-    my @params = ($id);
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
+    my $stmt = 'SELECT min(id) as min, max(id) as max FROM ' . $table;
+    my @params = ();
+    my $row = $db->db_get_row($stmt,@params);
 
-    return $rows;
+    return $row;
     
 }
 
@@ -546,6 +548,8 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            $record->load_relation($load_recursive,'cdr_groups','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group::findby_cdrid',undef,$record->{id},$load_recursive);
+            $record->load_relation($load_recursive,'cdr_tags','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag_data::findby_cdrid',undef,$record->{id},$load_recursive);
 
             push @records,$record;
         }
