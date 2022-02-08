@@ -144,6 +144,7 @@ sub process {
                                                 errorstates                 => \%errorstates,
                                                 readertid                   => $reader->tid(),
                                                 process_code                => $process_code,
+                                                single_file                 => $single_file,
                                                 init_process_context_code   => $init_process_context_code,
                                                 uninit_process_context_code => $uninit_process_context_code,
                                                 instance                    => $self,
@@ -491,9 +492,12 @@ sub _process {
                         last;
                     }
 
-                } else {
+                } elsif ($context->{single_file}) {
                     filethreadingdebug('[' . $tid . '] shutting down processor thread (end of data - empty block) ...',getlogger(__PACKAGE__));
                     last;
+                } else {
+                    #yield();
+                    sleep($thread_sleep_secs);
                 }
             } else {
                 #yield();
