@@ -54,7 +54,6 @@ our @EXPORT_OK = qw(
     findby_id
     get_cdrid_range
     
-    buildrecords_fromrows
 );
 #process_records
 #delete_ids

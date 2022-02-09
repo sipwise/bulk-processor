@@ -102,7 +102,7 @@ sub insert_row {
     my ($data,$insert_ignore) = @_;
     check_table();
     if (insert_record($db,$xa_db,__PACKAGE__,$data,$insert_ignore,$insert_unique_fields)) {
-        return $xa_db->db_last_insert_id();
+        return $xa_db->db_last_insert_id() || 1;
     }
     return undef;
 
