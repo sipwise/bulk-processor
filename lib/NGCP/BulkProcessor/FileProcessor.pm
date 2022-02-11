@@ -110,7 +110,7 @@ sub process {
     my $single_file = 1;
     $single_file = 0 if ('CODE' eq ref $file);
     $files_code = sub {
-        my $cb = shift;
+        my ($context,$cb) = @_;
         $cb->($file);
     } if $single_file;
 
@@ -200,7 +200,7 @@ sub process {
                 }
                 
                 $files_code->($context,sub {
-                    my $filename = shift;
+                    $filename = shift;
                     if (-s $filename > 0) {
                         fileprocessingstarted($filename,getlogger(__PACKAGE__));
                     } else {
@@ -343,7 +343,7 @@ sub _reader {
         }
 
         $context->{files_code}->($context,sub {
-            my $filename = shift;
+            $filename = shift;
             if (-s $filename > 0) {
                 fileprocessingstarted($filename,getlogger(__PACKAGE__));
             } else {
