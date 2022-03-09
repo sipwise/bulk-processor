@@ -1,3 +1,10 @@
+ngcp-bulk-processor (8.1.1.19+0~mr8.1.1.19) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [dc5b9e4] TT#166652 add prov_subscriber->subscriber_profile relation
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 09 Mar 2022 12:14:23 +0100
+
 ngcp-bulk-processor (8.1.1.18+0~mr8.1.1.18) unstable; urgency=medium
 
   [ Rene Krenn ]
