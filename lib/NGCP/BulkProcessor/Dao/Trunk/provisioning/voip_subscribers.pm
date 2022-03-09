@@ -214,6 +214,8 @@ sub buildrecords_fromrows {
             $record->load_relation($load_recursive,'voip_fax_preferences','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_fax_preferences::findby_subscriberid',$record->{id},$load_recursive);
             $record->load_relation($load_recursive,'voip_fax_destinations','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_fax_destinations::findby_subscriberid',$record->{id},$load_recursive);
             
+            $record->load_relation($load_recursive,'profile','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscriber_profiles::findby_id',$record->{profile_id},$load_recursive);
+            
             push @records,$record;
         }
     }
