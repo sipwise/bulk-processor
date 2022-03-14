@@ -91,14 +91,11 @@ our @EXPORT_OK = qw(
     $export_customers_numofthreads
     $export_customers_blocksize
    
-
-    $cf_default_priority
-    $cf_default_timeout
-    $cft_default_ringtimeout
-
-    $rollback_sql_export_filename_format
-    $rollback_sql_stmt_format
+    $csv_all_expected_fields
 );
+#$cf_default_priority
+#$cf_default_timeout
+#$cft_default_ringtimeout
 
 our $defaultconfig = 'config.cfg';
 our $defaultsettings = 'settings.cfg';
@@ -121,6 +118,8 @@ our $input_path = $working_path . 'input/';
 our $csv_dir = 'customer';
 
 our $customer_export_filename_format = undef;
+
+our $csv_all_expected_fields = 1;
 
 #our $customer_import_filename = undef;
 #our $customer_import_numofthreads = $cpucount;
@@ -239,6 +238,8 @@ sub update_settings {
         #$cf_default_timeout = $data->{cf_default_timeout} if exists $data->{cf_default_timeout};
         #$cft_default_ringtimeout = $data->{cft_default_ringtimeout} if exists $data->{cft_default_ringtimeout};
 
+        $csv_all_expected_fields = $data->{csv_all_expected_fields} if exists $data->{csv_all_expected_fields};
+        
         $mr = $data->{schema_version};
         if (not defined $mr or not contains($mr,\@supported_mr)) {
             configurationerror($configfile,'schema_version must be one of ' . join(', ', @supported_mr));
