@@ -10,6 +10,7 @@ use NGCP::BulkProcessor::Projects::ETL::Customer::ProjectConnectorPool qw(
 
 use NGCP::BulkProcessor::Projects::ETL::Customer::Settings qw(
     $tabular_fields
+    $csv_all_expected_fields
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
@@ -189,13 +190,16 @@ sub countby_delta {
 sub copy_table {
     
     my ($get_target_db) = @_;
-     
-    check_table();
-    #checktableinfo($get_target_db,
-    #    __PACKAGE__,$tablename,
-    #    get_fieldnames(1),
-    #    $indexes);
 
+    if ($csv_all_expected_fields) {
+        check_table();
+    } else {
+        checktableinfo($get_db,
+            __PACKAGE__,$tablename,
+            get_fieldnames(0),
+            $indexes);
+    }
+    
     return transfer_table(
         get_db => $get_db,
         class => __PACKAGE__,
