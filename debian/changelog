@@ -1,3 +1,19 @@
+ngcp-bulk-processor (10.4.1.0+0~mr10.4.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [6fd5f75] TT#158550 customer exporter: support absolute output filenames
+  * [d812c82] TT#155901 LGI: exporter for EDR transition data
+  * [f53d049] TT#155901 LGI EDR: fix exporting updateprofile events
+  * [7210135] TT#161550 file processors: support processing directory structures
+  * [3552503] TT#161550 support loading CDR graphs
+  * [879bf33] TT#161550 fix suspending fileprocessor workers with multiple files
+  * [591663c] TT#161550 properly report inserted/ignored cdr records
+  * [25cf45f] TT#161550 fix processing single files only
+  * [bca22ed] TT#166652 add prov_subscriber->subscriber_profile relation
+  * [7b79a63] TT#166652 contractexporter: option to omit internal cols in csv exports
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 30 Mar 2022 23:57:46 +0200
+
 ngcp-bulk-processor (10.4.0.0+0~mr10.4.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
