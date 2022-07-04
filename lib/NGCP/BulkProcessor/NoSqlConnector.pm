@@ -10,7 +10,7 @@ use NGCP::BulkProcessor::Logging qw(
     getlogger
     nosqlinfo
     nosqldebug);
-use NGCP::BulkProcessor::LogError qw(nosqlerror);
+use NGCP::BulkProcessor::LogError qw(nosqlerror notimplementederror);
 
 use NGCP::BulkProcessor::Utils qw(threadid);
 
