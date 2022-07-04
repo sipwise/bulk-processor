@@ -550,6 +550,15 @@ sub buildrecords_fromrows {
             $record->load_relation($load_recursive,'cdr_groups','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_group::findby_cdrid',undef,$record->{id},$load_recursive);
             $record->load_relation($load_recursive,'cdr_tags','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag_data::findby_cdrid',undef,$record->{id},$load_recursive);
 
+            
+            #$record->load_relation($load_recursive,'cdr_cash_balance
+            #$record->load_relation($load_recursive,'cdr_export_status
+            #$record->load_relation($load_recursive,'cdr_mos_data
+            #$record->load_relation($load_recursive,'cdr_relation
+            #$record->load_relation($load_recursive,'cdr_time_balance
+
+            
+            
             push @records,$record;
         }
     }

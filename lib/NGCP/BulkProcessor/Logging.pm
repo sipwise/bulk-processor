@@ -801,7 +801,7 @@ sub fetching_entries {
 
     my ($store,$scan_pattern,$start,$blocksize,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getnosqlconnectorinstanceprefix($store) . _getnosqlconnectidentifiermessage($store,'fetching ' . $scan_pattern . ' entries: ' . ($start + 1) . '-' . ($start + $blocksize)));
+        $logger->info(_getnosqlconnectorinstanceprefix($store) . _getnosqlconnectidentifiermessage($store,'fetching ' . ($scan_pattern ? "$scan_pattern " : '') . 'entries: ' . ($start + 1) . '-' . ($start + $blocksize)));
     }
 
 }
