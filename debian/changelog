@@ -1,3 +1,11 @@
+ngcp-bulk-processor (11.0.1.0+0~mr11.0.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [d569230] TT#92350 TT#175101 LNP database bulk loader
+  * [51631b7] TT#175101 LNP database loader config
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 22 Aug 2022 19:59:47 +0200
+
 ngcp-bulk-processor (11.0.0.0+0~mr11.0.0.0) unstable; urgency=medium
 
   * New release.
