@@ -14,8 +14,6 @@ use NGCP::BulkProcessor::LogError qw(
     attachmentdownloaderwarn
 );
 
-use NGCP::BulkProcessor::Utils qw(kbytes2gigs); # changemod);
-
 use IO::Socket::SSL;
 use Mail::IMAPClient;
 use MIME::Base64;

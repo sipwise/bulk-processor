@@ -16,7 +16,7 @@ use Log::Log4perl qw(get_logger);
 
 use File::Basename qw(basename);
 
-use NGCP::BulkProcessor::Utils qw(timestampdigits datestampdigits changemod chopstring trim kbytes2gigs);
+use NGCP::BulkProcessor::Utils qw(timestampdigits datestampdigits changemod chopstring trim humanize_bytes);
 use NGCP::BulkProcessor::Array qw (contains);
 
 require Exporter;
@@ -665,7 +665,7 @@ sub fileprocessingstarted {
 
     my ($file,$logger) = @_;
     if (defined $logger) {
-        $logger->info('file processing started: ' . basename($file) . ' (' . kbytes2gigs(int((-s $file)/ 1024)) . ')');
+        $logger->info('file processing started: ' . basename($file) . ' (' . humanize_bytes(-s $file) . ')');
     }
 
 }
@@ -684,7 +684,7 @@ sub fileprocessingdone {
 #    my ($file,$start,$blocksize,$block_n,$logger) = @_;
 #    if (defined $logger) {
 #        if (defined $block_n) {
-#            $logger->info('fetching lines from ' . basename($file) . ': ' . kbytes2gigs($block_n));
+#            $logger->info('fetching lines from ' . basename($file) . ': ' . humanize_bytes($block_n));
 #        } else {
 #            $logger->info('fetching lines from ' . basename($file) . ': ' . ($start + 1) . '~' . ($start + $blocksize));
 #        }
@@ -699,7 +699,7 @@ sub lines_read {
     if (defined $logger) {
         if (defined $block_n) {
             if ($block_n > 0) {
-                $logger->info(basename($file) . ': ' . kbytes2gigs(int($block_n / 1024)) . ' read');
+                $logger->info(basename($file) . ': ' . humanize_bytes($block_n) . ' read');
             }
         } else {
             $logger->info(basename($file) . ': lines ' . ($start + 1) . '~' . ($start + $blocksize) . ' read');
@@ -714,7 +714,7 @@ sub processing_lines {
     if (defined $logger) {
         if (defined $block_n) {
             if ($block_n > 0) {
-                $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing lines: ' . kbytes2gigs(int($block_n / 1024)));
+                $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing lines: ' . humanize_bytes($block_n));
             }
         } else {
             $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing lines: ' . ($start + 1) . '-' . ($start + $blocksize));
