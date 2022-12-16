@@ -25,7 +25,7 @@ use LWP::UserAgent;
 use HTTP::Request;
 #use HTTP::Cookies;
 
-use NGCP::BulkProcessor::Utils qw(kbytes2gigs changemod);
+use NGCP::BulkProcessor::Utils qw(humanize_bytes changemod);
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -116,15 +116,15 @@ sub _process_attachments {
     if (defined $self->{checkfilenamecode} and ref $self->{checkfilenamecode} eq 'CODE') {
         my $match = &{$self->{checkfilenamecode}}($attachment);
         if ($match == $attachment_no_match) {
-        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') skipped',getlogger(__PACKAGE__));
+        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') skipped',getlogger(__PACKAGE__));
         next;
         } elsif ($match == $attachment_found) {
-        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') found',getlogger(__PACKAGE__));
+        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') found',getlogger(__PACKAGE__));
         $found = 1;
         } elsif ($match == $attachment_match) {
-        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') matched',getlogger(__PACKAGE__));
+        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') matched',getlogger(__PACKAGE__));
         } else {
-        attachmentdownloaderwarn('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') - unknown match, skipped',getlogger(__PACKAGE__));
+        attachmentdownloaderwarn('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') - unknown match, skipped',getlogger(__PACKAGE__));
         next;
         }
     }
@@ -209,15 +209,15 @@ sub _process_body {
             if (defined $self->{checkfilenamecode} and ref $self->{checkfilenamecode} eq 'CODE') {
             my $match = &{$self->{checkfilenamecode}}($attachment);
             if ($match == $attachment_no_match) {
-                attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') skipped',getlogger(__PACKAGE__));
+                attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') skipped',getlogger(__PACKAGE__));
                 next;
             } elsif ($match == $attachment_found) {
-                attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') found',getlogger(__PACKAGE__));
+                attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') found',getlogger(__PACKAGE__));
                 $found = 1;
             } elsif ($match == $attachment_match) {
-                attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') matched',getlogger(__PACKAGE__));
+                attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') matched',getlogger(__PACKAGE__));
             } else {
-                attachmentdownloaderwarn('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') - unknown match, skipped',getlogger(__PACKAGE__));
+                attachmentdownloaderwarn('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') - unknown match, skipped',getlogger(__PACKAGE__));
                 next;
             }
             }

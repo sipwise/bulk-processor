@@ -88,6 +88,7 @@ our @EXPORT_OK = qw(
     get_hostfqdn
     getscriptpath
 
+    humanize_bytes
     kbytes2gigs
     cleanupdir
     fixdirpath
@@ -489,12 +490,15 @@ sub getscriptpath {
 }
 
 my @unit_suffix = qw(
+    Bytes
     kBytes
     MBytes
     GBytes
+    TBytes
+    PBytes
 );
 
-sub kbytes2gigs {
+sub humanize_bytes {
     my ($number, $base, $round_integer) = @_;
 
     $base = 1024 if $base <= 0;
@@ -509,6 +513,14 @@ sub kbytes2gigs {
     $number = int $number if $round_integer;
 
     return "$number $unit_suffix[$unit]";
+}
+
+sub kbytes2gigs {
+    my ($number, $base, $round_integer) = @_;
+
+    $base //= 1024;
+
+    return humanize_bytes($number * $base, $base, $round_integer);
 }
 
 sub cleanupdir {
