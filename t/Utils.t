@@ -16,13 +16,14 @@
 use strict;
 use warnings;
 
-use Test::More tests => 45;
+use Test::More tests => 72;
 use Time::Local;
 
 require_ok('NGCP::BulkProcessor::Utils');
 
 NGCP::BulkProcessor::Utils->import(qw(
     zerofill
+    humanize_bytes
     kbytes2gigs
     secs_to_years
     timestampdigits
@@ -42,6 +43,41 @@ is(zerofill(25, 4), '0025');
 is(zerofill(1000, 4), '1000');
 
 # Unit conversion
+is(humanize_bytes(1), '1 Bytes');
+is(humanize_bytes(1024), '1 kBytes');
+is(humanize_bytes(1024 ** 2), '1 MBytes');
+is(humanize_bytes(1024 ** 3), '1 GBytes');
+is(humanize_bytes(1024 ** 4), '1 TBytes');
+is(humanize_bytes(1024 ** 5), '1 PBytes');
+
+is(humanize_bytes(2), '2 Bytes');
+is(humanize_bytes(2 * 1024), '2 kBytes');
+is(humanize_bytes(2 * (1024 ** 2) + 1), '2 MBytes');
+is(humanize_bytes(2 * (1024 ** 3) + 1024 + 1), '2 GBytes');
+is(humanize_bytes(2 * (1024 ** 4) + (1024 ** 2) + 1024 + 1), '2 TBytes');
+
+is(humanize_bytes(920), '920 Bytes');
+is(humanize_bytes(920 * 1024), '920 kBytes');
+is(humanize_bytes(942080 * 1024), '920 MBytes');
+is(humanize_bytes(964689920 * 1024), '920 GBytes');
+
+is(humanize_bytes(920, 1000), '920 Bytes');
+is(humanize_bytes(920000, 1000), '920 kBytes');
+is(humanize_bytes(920000000, 1000), '920 MBytes');
+is(humanize_bytes(920000000000, 1000), '920 GBytes');
+
+is(humanize_bytes(942172), '920.08 kBytes');
+is(humanize_bytes(965632092), '920.89 MBytes');
+
+is(humanize_bytes(920920, 1000), '920.92 kBytes');
+is(humanize_bytes(920920920, 1000), '920.92 MBytes');
+
+is(humanize_bytes(942172, 1024, 1), '920 kBytes');
+is(humanize_bytes(965632092, 1024, 1), '920 MBytes');
+
+is(humanize_bytes(920920, 1000, 1), '920 kBytes');
+is(humanize_bytes(920920920, 1000,1 ), '920 MBytes');
+
 is(kbytes2gigs(1), '1 kBytes');
 is(kbytes2gigs(1024), '1 MBytes');
 is(kbytes2gigs(1024 ** 2), '1 GBytes');
