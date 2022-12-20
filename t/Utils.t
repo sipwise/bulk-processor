@@ -43,68 +43,68 @@ is(zerofill(25, 4), '0025');
 is(zerofill(1000, 4), '1000');
 
 # Unit conversion
-is(humanize_bytes(1), '1 Bytes');
-is(humanize_bytes(1024), '1 kBytes');
-is(humanize_bytes(1024 ** 2), '1 MBytes');
-is(humanize_bytes(1024 ** 3), '1 GBytes');
-is(humanize_bytes(1024 ** 4), '1 TBytes');
-is(humanize_bytes(1024 ** 5), '1 PBytes');
+is(humanize_bytes(1), '1 bytes');
+is(humanize_bytes(1024), '1 KiB');
+is(humanize_bytes(1024 ** 2), '1 MiB');
+is(humanize_bytes(1024 ** 3), '1 GiB');
+is(humanize_bytes(1024 ** 4), '1 TiB');
+is(humanize_bytes(1024 ** 5), '1 PiB');
 
-is(humanize_bytes(2), '2 Bytes');
-is(humanize_bytes(2 * 1024), '2 kBytes');
-is(humanize_bytes(2 * (1024 ** 2) + 1), '2 MBytes');
-is(humanize_bytes(2 * (1024 ** 3) + 1024 + 1), '2 GBytes');
-is(humanize_bytes(2 * (1024 ** 4) + (1024 ** 2) + 1024 + 1), '2 TBytes');
+is(humanize_bytes(2), '2 bytes');
+is(humanize_bytes(2 * 1024), '2 KiB');
+is(humanize_bytes(2 * (1024 ** 2) + 1), '2 MiB');
+is(humanize_bytes(2 * (1024 ** 3) + 1024 + 1), '2 GiB');
+is(humanize_bytes(2 * (1024 ** 4) + (1024 ** 2) + 1024 + 1), '2 TiB');
 
-is(humanize_bytes(920), '920 Bytes');
-is(humanize_bytes(920 * 1024), '920 kBytes');
-is(humanize_bytes(942080 * 1024), '920 MBytes');
-is(humanize_bytes(964689920 * 1024), '920 GBytes');
+is(humanize_bytes(920), '920 bytes');
+is(humanize_bytes(920 * 1024), '920 KiB');
+is(humanize_bytes(942080 * 1024), '920 MiB');
+is(humanize_bytes(964689920 * 1024), '920 GiB');
 
-is(humanize_bytes(920, 1000), '920 Bytes');
-is(humanize_bytes(920000, 1000), '920 kBytes');
-is(humanize_bytes(920000000, 1000), '920 MBytes');
-is(humanize_bytes(920000000000, 1000), '920 GBytes');
+is(humanize_bytes(920, 1000), '920 bytes');
+is(humanize_bytes(920000, 1000), '920 kB');
+is(humanize_bytes(920000000, 1000), '920 MB');
+is(humanize_bytes(920000000000, 1000), '920 GB');
 
-is(humanize_bytes(942172), '920.08 kBytes');
-is(humanize_bytes(965632092), '920.89 MBytes');
+is(humanize_bytes(942172), '920.08 KiB');
+is(humanize_bytes(965632092), '920.89 MiB');
 
-is(humanize_bytes(920920, 1000), '920.92 kBytes');
-is(humanize_bytes(920920920, 1000), '920.92 MBytes');
+is(humanize_bytes(920920, 1000), '920.92 kB');
+is(humanize_bytes(920920920, 1000), '920.92 MB');
 
-is(humanize_bytes(942172, 1024, 1), '920 kBytes');
-is(humanize_bytes(965632092, 1024, 1), '920 MBytes');
+is(humanize_bytes(942172, 1024, 1), '920 KiB');
+is(humanize_bytes(965632092, 1024, 1), '920 MiB');
 
-is(humanize_bytes(920920, 1000, 1), '920 kBytes');
-is(humanize_bytes(920920920, 1000,1 ), '920 MBytes');
+is(humanize_bytes(920920, 1000, 1), '920 kB');
+is(humanize_bytes(920920920, 1000,1 ), '920 MB');
 
-is(kbytes2gigs(1), '1 kBytes');
-is(kbytes2gigs(1024), '1 MBytes');
-is(kbytes2gigs(1024 ** 2), '1 GBytes');
+is(kbytes2gigs(1), '1 KiB');
+is(kbytes2gigs(1024), '1 MiB');
+is(kbytes2gigs(1024 ** 2), '1 GiB');
 
-is(kbytes2gigs(2), '2 kBytes');
-is(kbytes2gigs(2 * 1024 + 1), '2 MBytes');
-is(kbytes2gigs(2 * 1024 ** 2 + 1024 + 1), '2 GBytes');
+is(kbytes2gigs(2), '2 KiB');
+is(kbytes2gigs(2 * 1024 + 1), '2 MiB');
+is(kbytes2gigs(2 * 1024 ** 2 + 1024 + 1), '2 GiB');
 
-is(kbytes2gigs(920), '920 kBytes');
-is(kbytes2gigs(920 * 1024), '920 MBytes');
-is(kbytes2gigs(920 * 1024 ** 2), '920 GBytes');
+is(kbytes2gigs(920), '920 KiB');
+is(kbytes2gigs(920 * 1024), '920 MiB');
+is(kbytes2gigs(920 * 1024 ** 2), '920 GiB');
 
-is(kbytes2gigs(920, 1000), '920 kBytes');
-is(kbytes2gigs(920 * 1000, 1000), '920 MBytes');
-is(kbytes2gigs(920 * 1000 ** 2, 1000), '920 GBytes');
+is(kbytes2gigs(920, 1000), '920 kB');
+is(kbytes2gigs(920 * 1000, 1000), '920 MB');
+is(kbytes2gigs(920 * 1000 ** 2, 1000), '920 GB');
 
-is(kbytes2gigs(92 + 920 * 1024), '920.08 MBytes');
-is(kbytes2gigs(92 + 920 * 1024 + 920 * 1024 ** 2), '920.89 GBytes');
+is(kbytes2gigs(92 + 920 * 1024), '920.08 MiB');
+is(kbytes2gigs(92 + 920 * 1024 + 920 * 1024 ** 2), '920.89 GiB');
 
-is(kbytes2gigs(920920, 1000), '920.92 MBytes');
-is(kbytes2gigs(920920920, 1000), '920.92 GBytes');
+is(kbytes2gigs(920920, 1000), '920.92 MB');
+is(kbytes2gigs(920920920, 1000), '920.92 GB');
 
-is(kbytes2gigs(92 + 920 * 1024, 1024, 1), '920 MBytes');
-is(kbytes2gigs(92 + 920 * 1024 + 920 * 1024 ** 2, 1024, 1), '920 GBytes');
+is(kbytes2gigs(92 + 920 * 1024, 1024, 1), '920 MiB');
+is(kbytes2gigs(92 + 920 * 1024 + 920 * 1024 ** 2, 1024, 1), '920 GiB');
 
-is(kbytes2gigs(920920, 1000, 1), '920 MBytes');
-is(kbytes2gigs(920920920, 1000,1 ), '920 GBytes');
+is(kbytes2gigs(920920, 1000, 1), '920 MB');
+is(kbytes2gigs(920920920, 1000,1 ), '920 GB');
 
 # secs_to_years()
 is(secs_to_years(1), '1 second');

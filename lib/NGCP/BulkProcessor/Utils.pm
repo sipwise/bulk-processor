@@ -489,19 +489,29 @@ sub getscriptpath {
 
 }
 
-my @unit_suffix = qw(
-    Bytes
-    kBytes
-    MBytes
-    GBytes
-    TBytes
-    PBytes
+my @dec_unit_suffix = qw(
+    bytes
+    kB
+    MB
+    GB
+    TB
+    PB
+);
+
+my @bin_unit_suffix = qw(
+    bytes
+    KiB
+    MiB
+    GiB
+    TiB
+    PiB
 );
 
 sub humanize_bytes {
     my ($number, $base, $round_integer) = @_;
 
     $base = 1024 if $base <= 0;
+    my @unit_suffix = $base == 1024 ? @bin_unit_suffix : @dec_unit_suffix;
 
     my $unit = 0;
     while ($unit < @unit_suffix && $number >= $base) {
