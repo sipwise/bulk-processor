@@ -1,3 +1,11 @@
+ngcp-bulk-processor (11.3.0.0+0~mr11.3.0.0) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * [0db028f] MT#56236 Simplify and extend kbytes2gigs() into humanize_bytes()
+  * [cb86f01] MT#56236 Support decimal and binary unit suffixes in humanize_bytes()
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 17 Jan 2023 17:41:13 +0100
+
 ngcp-bulk-processor (11.2.0.0+0~mr11.2.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
