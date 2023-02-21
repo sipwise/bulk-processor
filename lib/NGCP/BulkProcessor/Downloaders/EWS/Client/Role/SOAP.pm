@@ -1,6 +1,7 @@
 package EWS::Client::Role::SOAP;
 use strict;
 use warnings;
+
 BEGIN {
   $EWS::Client::Role::SOAP::VERSION = '1.143070';
 }
@@ -57,7 +58,7 @@ sub _build_transporter {
     my $self = shift;
     my $addr = $self->server . '/EWS/Exchange.asmx';
 
-    if (not $self->use_negotiated_auth) {
+    if (not $self->use_negotiated_auth and $self->username) {
         $addr = sprintf '%s:%s@%s',
             $self->username, $self->password, $addr;
     }
@@ -124,8 +125,8 @@ sub _create_oauth_ua {
 
     my $self = shift;
 	
-	my $tenant_id = $self->tenand_id;
-	return unless $tenant_id;
+	  my $tenant_id = $self->tenant_id; 
+	  return unless $tenant_id;
 
     #https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?
     #client_id=6731de76-14a6-49ae-97bc-6eba6914391e
@@ -191,7 +192,7 @@ sub _create_oauth_ua {
 sub save_tokens {
     my ($token_string) = @_;
  
-    print "token:" . $token_string;
+    #print "token:" . $token_string;
 }
 
 no Moose::Role;
