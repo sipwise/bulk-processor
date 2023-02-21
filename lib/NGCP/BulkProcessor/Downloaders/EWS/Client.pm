@@ -26,14 +26,14 @@ use Log::Report;
 
 has username => (
     is => 'rw',
-    isa => 'Str',
-    required => 1,
+    isa => 'Maybe[Str]',
+    required => 0,
 );
 
 has password => (
     is => 'rw',
-    isa => 'Str',
-    required => 1,
+    isa => 'Maybe[Str]',
+    required => 0,
 );
 
 has server => (
@@ -109,8 +109,7 @@ sub BUILD {
         if ($self->username =~ m/(.+)@(.+)/) {
             $self->username( $2 .'\\'. $1 );
         }
-    }
-    else {
+    } else {
         # URI escape the username and password
         $self->password( URI::Escape::uri_escape($self->password) );
         $self->username( URI::Escape::uri_escape($self->username) );
