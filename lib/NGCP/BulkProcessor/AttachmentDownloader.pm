@@ -101,37 +101,38 @@ sub _process_message {
 }
 
 sub _process_attachments {
-    my ($self,$parsed,$subject,$filedir,$files_saved) = @_;
-
+    my ($self,$parsed,$subject,$filedir,$files_saved,@attachments) = @_;
+    
     my $found = 0;
+    
+	unless (scalar @attachments) {
+		my $stripper = Email::MIME::Attachment::Stripper->new($parsed, (force_filename => 1));
 
-    my $stripper = Email::MIME::Attachment::Stripper->new($parsed, (force_filename => 1));
-
-    my @attachments = $stripper->attachments();
-
+		@attachments = $stripper->attachments();
+	}
+	
     foreach my $attachment (@attachments) {
-    $attachment->{subject} = $subject;
-    $attachment->{size} = length($attachment->{payload});
-    $attachment->{match} = undef;
-    if (defined $self->{checkfilenamecode} and ref $self->{checkfilenamecode} eq 'CODE') {
-        my $match = &{$self->{checkfilenamecode}}($attachment);
-        if ($match == $attachment_no_match) {
-        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') skipped',getlogger(__PACKAGE__));
-        next;
-        } elsif ($match == $attachment_found) {
-        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') found',getlogger(__PACKAGE__));
-        $found = 1;
-        } elsif ($match == $attachment_match) {
-        attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') matched',getlogger(__PACKAGE__));
-        } else {
-        attachmentdownloaderwarn('attachment ' . $attachment->{filename} . ' (' . humanize_bytes($attachment->{size}, undef, 1) . ' ' . $attachment->{content_type} . ') - unknown match, skipped',getlogger(__PACKAGE__));
-        next;
-        }
-    }
-
-    _save_file($attachment,$filedir,$files_saved);
-
-
+		$attachment->{subject} = $subject;
+		$attachment->{size} = length($attachment->{payload});
+		$attachment->{match} = undef;
+		if (defined $self->{checkfilenamecode} and ref $self->{checkfilenamecode} eq 'CODE') {
+			my $match = &{$self->{checkfilenamecode}}($attachment);
+			if ($match == $attachment_no_match) {
+			attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') skipped',$logger);
+			next;
+			} elsif ($match == $attachment_found) {
+			attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') found',$logger);
+			$found = 1;
+			} elsif ($match == $attachment_match) {
+			attachmentdownloaderinfo('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') matched',$logger);
+			} else {
+			attachmentdownloaderwarn('attachment ' . $attachment->{filename} . ' (' . kbytes2gigs(int($attachment->{size} / 1024), undef, 1) . ' ' . $attachment->{content_type} . ') - unknown match, skipped',$logger);
+			next;
+			}
+		}
+		
+		_save_file($attachment,$filedir,$files_saved);
+   
     }
     return $found;
 }
