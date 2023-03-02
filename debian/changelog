@@ -1,3 +1,41 @@
+ngcp-bulk-processor (7.5.5.15+0~mr7.5.5.15) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [2f9039f] TT#127150 contract/susbcriber exporter: sqlite tabular export
+  * [0e7fcd2] TT#127355 initialize application versions earlier
+  * [459bdb4] TT#127150 contract/susbcriber exporter: fix skipped contract
+  * [1b9a853] TT#127150 contract/subscriber exporter: support delta for terminated subs
+  * [7cab06a] TT#128650 contract graph exporter
+  * [839d026] TT#137100 contract exporter: support duplicate datapaths
+  * [17965ea] TT#136902 render UML class diagrams
+  * [05f8cae] TT#129852 export registration to .csv or sqlite
+  * [9fe73d1] TT#138950 add missing accounting.cdr field defs
+  * [3599b84] TT#158550 customer exporter: support absolute output filenames
+  * [8b70b90] TT#155901 LGI: exporter for EDR transition data
+  * [9979d70] TT#155901 LGI EDR: fix exporting updateprofile events
+  * [3b40eb0] TT#161550 file processors: support processing directory structures
+  * [34538ea] TT#161550 support loading CDR graphs
+  * [0fec708] TT#161550 fix suspending fileprocessor workers with multiple files
+  * [f92e8b4] TT#161550 fix processing single files only
+  * [7b261f9] TT#166652 add prov_subscriber->subscriber_profile relation
+  * [ec78f19] TT#166652 contractexporter: option to omit internal cols in csv exports
+  * [c4fc744] TT#92350 TT#175101 LNP database bulk loader
+  * [568a119] TT#175101 LNP database loader config
+  * [87c7473] TT#123451 CDR graph exporter/importer #1
+  * [efd3cb7] MT#56555 OAuth2: EWS client implementation
+  * [96fd492] MT#56555 OAuth2: EWS SOAP GetAttachment implementation
+  * [abaf81c] MT#56555 OAuth2: OAuth2 implementation for EWS SOAP cleint
+  * [92dabf0] MT#56555 OAuth2: EWS AttachmentDownloader implementation
+  * [e4a20a6] MT#56555 OAuth2: credential parameters for EWS SOAP client
+
+  [ Guillem Jover ]
+  * [bf3e94c] TT#127355 Switch the application variable into a function
+  * [58c9a08] Revert "TT#127355 initialize application versions earlier"
+  * [bf767f1] MT#56236 Simplify and extend kbytes2gigs() into humanize_bytes()
+  * [d5f37d5] MT#56236 Support decimal and binary unit suffixes in humanize_bytes()
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 02 Mar 2023 15:04:01 +0100
+
 ngcp-bulk-processor (7.5.5.14+0~mr7.5.5.14) unstable; urgency=medium
 
   [ Rene Krenn ]
