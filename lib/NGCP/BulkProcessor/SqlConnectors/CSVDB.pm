@@ -66,7 +66,7 @@ our @EXPORT_OK = qw(
 
 our $csvextension = '.csv';
 
-my $default_csv_config = { eol         => "\r\n",
+our $default_csv_config = { eol         => "\r\n",
                             sep_char    => ';',
                             quote_char  => '"',
                             escape_char => '"',
