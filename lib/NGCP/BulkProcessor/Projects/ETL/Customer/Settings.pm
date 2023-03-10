@@ -14,6 +14,7 @@ use JSON -support_by_pp, -no_export;
     my $input_ref = shift;
     return JSON::to_json($input_ref, { allow_nonref => 1, allow_blessed => 1, convert_blessed => 1, pretty => 1, as_nonblessed => 1 });
 };
+use NGCP::BulkProcessor::SqlConnectors::CSVDB qw($default_csv_config);
 
 use NGCP::BulkProcessor::Globals qw(
     $working_path
@@ -246,10 +247,31 @@ sub update_settings {
             $result = 0;
         }
         
+        $csv_all_expected_fields = $data->{csv_sep_char} if exists $data->{csv_all_expected_fields};
+        
+        $default_csv_config = {
+            eol         => "\r\n",
+            sep_char    => ';',
+            quote_char  => '"',
+            escape_char => '"',
+        };
+        $default_csv_config->{eol} = unescape($data->{csv_eol}) if exists $data->{csv_eol};
+        $default_csv_config->{sep_char} = unescape($data->{csv_sep_char}) if exists $data->{csv_sep_char};
+        $default_csv_config->{quote_char} = unescape($data->{csv_quote_char}) if exists $data->{csv_quote_char};
+        $default_csv_config->{escape_char} = unescape($data->{csv_escape_char}) if exists $data->{csv_escape_char};
+        
         return $result;
     }
     return 0;
 
+}
+
+sub unescape {
+    my $input = shift;
+    $input =~ s/\\t/\t/g;
+    $input =~ s/\\n/\n/g;
+    $input =~ s/\\r/\r/g;
+    return $input;
 }
 
 sub run_dao_method {
