@@ -1,3 +1,10 @@
+ngcp-bulk-processor (7.5.5.16+0~mr7.5.5.16) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [5ac81ee] TT#56913 Customer Exporter: .csv config options
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 15 Mar 2023 14:26:08 +0100
+
 ngcp-bulk-processor (7.5.5.15+0~mr7.5.5.15) unstable; urgency=medium
 
   [ Rene Krenn ]
