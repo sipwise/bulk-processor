@@ -60,7 +60,8 @@ our @EXPORT_OK = qw(
     sanitize_column_name
     sanitize_spreadsheet_name
     get_tableidentifier
-    $csvextension);
+    $csvextension
+    $default_csv_config);
 #excel_to_timestamp
 #excel_to_date
 
