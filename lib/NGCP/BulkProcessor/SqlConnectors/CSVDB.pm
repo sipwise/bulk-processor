@@ -440,9 +440,11 @@ sub copytablefile {
     my $self = shift;
     my $tablename = shift;
     my $target = shift;
+    my $drop_header_line = shift;
     my $tablefilename = $self->_gettablefilename($tablename);
     $self->db_disconnect();
     if (File::Copy::copy($tablefilename,$target)) {
+      `sed -i '1d' $target` if $drop_header_line;
       dbinfo($self,"$tablefilename copied to $target",getlogger(__PACKAGE__));
     } else {
       dberror($self,"copy from $tablefilename to $target failed: $!",getlogger(__PACKAGE__));
