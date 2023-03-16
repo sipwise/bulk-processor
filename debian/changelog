@@ -1,3 +1,10 @@
+ngcp-bulk-processor (7.5.5.18+0~mr7.5.5.18) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [b464aba] TT#56913 CustomerExporter: option to skip header line
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 16 Mar 2023 12:34:42 +0100
+
 ngcp-bulk-processor (7.5.5.17+0~mr7.5.5.17) unstable; urgency=medium
 
   [ Rene Krenn ]
