@@ -31,6 +31,8 @@ use NGCP::BulkProcessor::Projects::ETL::Customer::Settings qw(
     $dry
     $skip_errors
     $force
+    
+    $csv_header_line
 );
 
 use NGCP::BulkProcessor::Logging qw(
@@ -272,7 +274,7 @@ sub export_customers_tabular_task {
             &get_sqlite_db()->copydbfile($export_filename);    
         } elsif ('csv' eq $export_format) {
             NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::copy_table(\&get_csv_db);
-            &get_csv_db()->copytablefile(NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::gettablename(),$export_filename);
+            &get_csv_db()->copytablefile(NGCP::BulkProcessor::Projects::ETL::Customer::Dao::Tabular::gettablename(),$export_filename,not $csv_header_line);
         } else {
             push(@$messages,'invalid extension for output filename $export_filename');
         }

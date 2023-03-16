@@ -93,6 +93,8 @@ our @EXPORT_OK = qw(
     $export_customers_blocksize
    
     $csv_all_expected_fields
+    
+    $csv_header_line
 );
 #$cf_default_priority
 #$cf_default_timeout
@@ -121,6 +123,8 @@ our $csv_dir = 'customer';
 our $customer_export_filename_format = undef;
 
 our $csv_all_expected_fields = 1;
+
+our $csv_header_line = 1;
 
 #our $customer_import_filename = undef;
 #our $customer_import_numofthreads = $cpucount;
@@ -247,8 +251,6 @@ sub update_settings {
             $result = 0;
         }
         
-        $csv_all_expected_fields = $data->{csv_sep_char} if exists $data->{csv_all_expected_fields};
-        
         $default_csv_config = {
             eol         => "\r\n",
             sep_char    => ';',
@@ -259,6 +261,8 @@ sub update_settings {
         $default_csv_config->{sep_char} = unescape($data->{csv_sep_char}) if exists $data->{csv_sep_char};
         $default_csv_config->{quote_char} = unescape($data->{csv_quote_char}) if exists $data->{csv_quote_char};
         $default_csv_config->{escape_char} = unescape($data->{csv_escape_char}) if exists $data->{csv_escape_char};
+        
+        $csv_header_line = $data->{csv_header_line} if exists $data->{csv_header_line};
         
         return $result;
     }
