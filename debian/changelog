@@ -1,3 +1,14 @@
+ngcp-bulk-processor (11.2.1.2+0~mr11.2.1.2) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [0beb21b] MT#56555 OAuth2: EWS client implementation
+  * [b727b11] MT#56555 OAuth2: EWS SOAP GetAttachment implementation
+  * [0d9c9b5] MT#56555 OAuth2: OAuth2 implementation for EWS SOAP cleint
+  * [d493956] MT#56555 OAuth2: EWS AttachmentDownloader implementation
+  * [f665ed3] MT#56555 OAuth2: credential parameters for EWS SOAP client
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 22 Mar 2023 12:33:04 +0100
+
 ngcp-bulk-processor (11.2.1.1+0~mr11.2.1.1) unstable; urgency=medium
 
   * New release.
