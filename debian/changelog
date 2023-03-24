@@ -1,3 +1,17 @@
+ngcp-bulk-processor (11.4.0.0+0~mr11.4.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [a5db9a0] MT#56555 OAuth2: EWS client implementation
+  * [fa1dcaf] MT#56555 OAuth2: EWS SOAP GetAttachment implementation
+  * [79dd062] MT#56555 OAuth2: OAuth2 implementation for EWS SOAP cleint
+  * [ef285f1] MT#56555 OAuth2: EWS AttachmentDownloader implementation
+  * [edaa161] MT#56555 OAuth2: credential parameters for EWS SOAP client
+  * [f1addaf] TT#56913 Customer Exporter: .csv config options
+  * [5fbec0a] TT#56913 fix exporting csv config options
+  * [bd0797d] TT#56913 CustomerExporter: option to skip header line
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 24 Mar 2023 13:02:32 +0100
+
 ngcp-bulk-processor (11.3.0.0+0~mr11.3.0.0) unstable; urgency=medium
 
   [ Guillem Jover ]
