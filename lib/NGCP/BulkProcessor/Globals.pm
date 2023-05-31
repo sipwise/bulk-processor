@@ -222,6 +222,7 @@ our $working_path = tempdir(CLEANUP => 0) . '/'; #'/var/sipwise/';
 
 
 our $provisioning_conf = undef;
+our $constants_yml = undef;
 
 
 # csv
@@ -385,6 +386,16 @@ sub update_masterconfig {
                 { force_plugins => [ 'Config::Any::XML' ] }
             ]);
         }
+        
+        $constants_yml = $data->{constants_yml} if exists $data->{constants_yml};
+
+        if (defined $constants_yml and length($constants_yml) > 0) {
+            push(@loadconfig_args,[
+                $constants_yml,
+                \&_update_constants_yml,
+                $yamlconfigtype,
+            ]);
+        }
 
         return ($result,\@loadconfig_args,\&_postprocess_masterconfig);
 
@@ -402,6 +413,62 @@ sub _update_provisioning_conf {
         my $result = 1;
 
 
+
+        return $result;
+
+    }
+    return 0;
+
+}
+
+sub _update_constants_yml {
+
+    my ($data,$configfile) = @_;
+
+    if (defined $data) {
+
+        my $result = 1;
+
+        $accounting_host = $data->{database}->{central}->{dbhost};
+        $accounting_port = $data->{database}->{central}->{dbport};
+        $accounting_databasename = 'accounting';
+        $accounting_username = $data->{credentials}->{mysql}->{provisioning}->{u};
+        $accounting_password = $data->{credentials}->{mysql}->{provisioning}->{p};
+
+        $billing_host = $data->{database}->{central}->{dbhost};
+        $billing_port = $data->{database}->{central}->{dbport};
+        $billing_databasename = 'billing';
+        $billing_username = $data->{credentials}->{mysql}->{provisioning}->{u};
+        $billing_password = $data->{credentials}->{mysql}->{provisioning}->{p};
+
+        $provisioning_host = $data->{database}->{central}->{dbhost};
+        $provisioning_port = $data->{database}->{central}->{dbport};
+        $provisioning_databasename = 'provisioning';
+        $provisioning_username = $data->{credentials}->{mysql}->{provisioning}->{u};
+        $provisioning_password = $data->{credentials}->{mysql}->{provisioning}->{p};
+
+        $kamailio_host = $data->{database}->{central}->{dbhost};
+        $kamailio_port = $data->{database}->{central}->{dbport};
+        $kamailio_databasename = 'kamailio';
+        $kamailio_username = $data->{credentials}->{mysql}->{provisioning}->{u};
+        $kamailio_password = $data->{credentials}->{mysql}->{provisioning}->{p};
+
+        $xa_host = $data->{database}->{central}->{dbhost};
+        $xa_port = $data->{database}->{central}->{dbport};
+        $xa_databasename = 'ngcp';
+        $xa_username = $data->{credentials}->{mysql}->{provisioning}->{u};
+        $xa_password = $data->{credentials}->{mysql}->{provisioning}->{p};
+
+        #$ngcprestapi_uri = 
+        #$ngcprestapi_username = 
+        #$ngcprestapi_password = 
+        #$ngcprestapi_realm = 
+        
+        $location_databaseindex = '20';
+        #$location_password = 
+        $location_host = $data->{database}->{central}->{dbhost};
+        $location_port = $data->{database}->{central}->{redis_port};
+        #$location_sock = 
 
         return $result;
 
