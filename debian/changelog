@@ -1,3 +1,10 @@
+ngcp-bulk-processor (11.5.0.0+0~mr11.5.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [b040972] MT#57531 support loading constants.yml
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 26 Jun 2023 14:09:02 +0200
+
 ngcp-bulk-processor (11.4.0.0+0~mr11.4.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
