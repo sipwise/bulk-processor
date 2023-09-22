@@ -2,6 +2,7 @@ Source: ngcp-bulk-processor
 Section: perl
 Priority: optional
 Maintainer: Sipwise Development Team <support@sipwise.com>
+Rules-Requires-Root: binary-targets
 Build-Depends:
  debhelper-compat (= 13),
  libdata-uuid-perl <!nocheck>,
@@ -12,7 +13,7 @@ Build-Depends:
  libnet-address-ip-local-perl <!nocheck>,
  libsys-cpuaffinity-perl <!nocheck>,
  libuuid-perl <!nocheck>,
-Standards-Version: 4.5.1
+Standards-Version: 4.6.2
 Homepage: https://www.sipwise.com/
 
 Package: libngcp-bulkprocessor-perl
