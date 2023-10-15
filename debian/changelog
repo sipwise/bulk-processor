@@ -1,3 +1,10 @@
+ngcp-bulk-processor (12.1.0.0+0~mr12.1.0.0) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * [0d198f8] MT#58356 Update packaging for bookworm
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Sun, 15 Oct 2023 08:22:14 +0200
+
 ngcp-bulk-processor (12.0.1.0+0~mr12.0.1.0) unstable; urgency=medium
 
   * New release.
