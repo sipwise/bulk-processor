@@ -99,7 +99,7 @@ SKIP:
         },
         multithreading => 1,
         numofthreads => 4,
-        load_recursive => { _entries => 1, },
+        load_recursive => { entries => 1, },
     );
     
 }

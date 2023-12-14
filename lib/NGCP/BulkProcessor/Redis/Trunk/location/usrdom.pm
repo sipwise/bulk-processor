@@ -16,7 +16,7 @@ use NGCP::BulkProcessor::NoSqlConnectors::RedisEntry qw(
     copy_value
 );
 
-use NGCP::BulkProcessor::Redis::Trunk::location::entry qw();
+#use NGCP::BulkProcessor::Redis::Trunk::location::entry qw();
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::NoSqlConnectors::RedisEntry);
@@ -101,17 +101,20 @@ sub transformitem {
     my ($item,$load_recursive) = @_;
 
     # transformations go here ...
-    if ($load_recursive) {
-        $load_recursive = {} unless ref $load_recursive;
-        my $field = "_entries";
-        if ($load_recursive->{$field}) {
-            my @entries = ();
-            foreach my $element (keys %{$item->getvalue()}) {
-                push(@entries,NGCP::BulkProcessor::Redis::Trunk::location::entry::get_entry($element,$load_recursive));
-            }
-            $item->{$field} = \@entries;
-        }
-    }
+    
+    #if ($load_recursive) {
+    #    $load_recursive = {} unless ref $load_recursive;
+    #    my $field = "_entries";
+    #    if ($load_recursive->{$field}) {
+    #        my @entries = ();
+    #        foreach my $element (keys %{$item->getvalue()}) {
+    #            push(@entries,NGCP::BulkProcessor::Redis::Trunk::location::entry::get_entry($element,$load_recursive));
+    #        }
+    #        $item->{$field} = \@entries;
+    #    }
+    #}
+    
+    $item->load_relation($load_recursive,'_entries','NGCP::BulkProcessor::Redis::Trunk::location::entry::get_entries',[ keys %{$item->getvalue()} ],$load_recursive);
  
 }
 
@@ -154,6 +157,12 @@ sub process_keys {
         multithreading                  => $multithreading,
         nosqlprocessing_threads    => $numofthreads,
     );
+}
+
+sub gettablename {
+
+    return $table;
+
 }
 
 1;
