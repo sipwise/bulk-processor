@@ -20,6 +20,7 @@ require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::NoSqlConnectors::RedisEntry);
 our @EXPORT_OK = qw(
     get_entry
+    get_entries
     get_entry_by_ruid
     process_keys
 );
@@ -78,6 +79,20 @@ sub get_entry {
         return builditems_fromrows($key,\%res,$load_recursive);
     }
     return undef;
+
+}
+
+sub get_entries {
+
+    my ($keys,$load_recursive) = @_;
+    my $store = &$get_store();
+    
+    my @entries = ();
+    foreach my $key (@$keys) {
+        push(@entries,get_entry($key,$load_recursive));
+    }
+    
+    return \@entries;
 
 }
 
@@ -157,6 +172,12 @@ sub process_keys {
         multithreading                  => $multithreading,
         nosqlprocessing_threads    => $numofthreads,
     );
+}
+
+sub gettablename {
+
+    return $table;
+
 }
 
 1;

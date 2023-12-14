@@ -42,6 +42,7 @@ use NGCP::BulkProcessor::ConnectorPool qw(
 
 use NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::Dao::Location qw();
 use NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers qw();
+use NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains qw();
 
 use NGCP::BulkProcessor::Redis::Trunk::location::usrdom qw();
 
@@ -199,6 +200,9 @@ sub load_registrations_all {
                 $warning_count += $context->{warning_count};
             }
         },
+        load_recursive => { 'voip_subscribers.provisioning_voip_subscriber.voip_domain' => 1,
+                             'voip_subscribers.provisioning_voip_subscriber.registrations' => 1,
+                            'voip_subscribers.provisioning_voip_subscriber' => 1, },
         multithreading => $load_registrations_multithreading,
         numofthreads => $load_registrations_numofthreads,
     ),$warning_count);
@@ -244,9 +248,9 @@ sub _load_registrations_file_init_context() {
     $context->{domain} = $domain;
     my @registrations = ();
     my $result = 1;
-    $context->{usrdom} = NGCP::BulkProcessor::Redis::Trunk::location::usrdom::get_usrdom_by_username_domain($context->{username},$context->{domain},{ _entries => 1, });
+    $context->{usrdom} = NGCP::BulkProcessor::Redis::Trunk::location::usrdom::get_usrdom_by_username_domain($context->{username},$context->{domain},{ entries => 1, });
     if ($context->{usrdom}) {
-        foreach my $entry (@{$context->{usrdom}->{_entries}}) {
+        foreach my $entry (@{$context->{usrdom}->{entries}}) {
             push(@registrations,$entry); # if expiry > now
         }
     }
@@ -259,13 +263,15 @@ sub _load_registrations_file_init_context() {
 sub _load_registrations_all_init_context() {
     
     my ($context,$prov_subscriber) = @_;
-    $context->{username} = $prov_subscriber->{username};
-    $context->{domain} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_id($prov_subscriber->{domain_id})->{domain};
+    #$context->{username} = $prov_subscriber->{username};
+    #$context->{domain} = NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_id($prov_subscriber->{domain_id})->{domain};
+    ##$context->{domain} = $context->{domain}->{domain} if $context->{domain};
     my @registrations = ();
     my $result = 1;
-    $context->{usrdom} = NGCP::BulkProcessor::Redis::Trunk::location::usrdom::get_usrdom_by_username_domain(lc($context->{username}),$context->{domain},{ _entries => 1, });
-    if ($context->{usrdom}) {
-        foreach my $entry (@{$context->{usrdom}->{_entries}}) {
+    #$context->{usrdom} = NGCP::BulkProcessor::Redis::Trunk::location::usrdom::get_usrdom_by_username_domain(lc($context->{username}),$context->{domain},{ entries => 1, });
+    #if ($context->{usrdom}) {
+    if ($prov_subscriber->{registrations}) {
+        foreach my $entry (@{$prov_subscriber->{registrations}->{entries}}) {
             push(@registrations,$entry); # if expiry > now
         }
     }

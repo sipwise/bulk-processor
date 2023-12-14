@@ -10,6 +10,7 @@ use NGCP::BulkProcessor::Logging qw(
 
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_billing_db
+    destroy_dbs
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(

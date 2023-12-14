@@ -20,6 +20,8 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::NoSqlConnectors::RedisEntry qw();
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -237,6 +239,10 @@ sub buildrecords_fromrows {
             $record->load_relation($load_recursive,'voip_fax_destinations','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_fax_destinations::findby_subscriberid',$record->{id},$load_recursive);
             
             $record->load_relation($load_recursive,'profile','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_subscriber_profiles::findby_id',$record->{profile_id},$load_recursive);
+
+            $record->load_relation($load_recursive,'voip_domain','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_domains::findby_id',$record->{domain_id},$load_recursive);
+
+            NGCP::BulkProcessor::NoSqlConnectors::RedisEntry::load_relation($record,$load_recursive,'registrations','NGCP::BulkProcessor::Redis::Trunk::location::usrdom::get_usrdom_by_username_domain',$record->{username},($record->{voip_domain} ? $record->{voip_domain}->{domain} : undef),$load_recursive);
             
             push @records,$record;
         }
