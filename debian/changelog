@@ -1,3 +1,10 @@
+ngcp-bulk-processor (12.2.1.0+0~mr12.2.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [38a6857] MT#58896 possibility to include redis registrations in customer exporter
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 15 Jan 2024 14:45:40 +0100
+
 ngcp-bulk-processor (12.2.0.0+0~mr12.2.0.0) unstable; urgency=medium
 
   * New release.
