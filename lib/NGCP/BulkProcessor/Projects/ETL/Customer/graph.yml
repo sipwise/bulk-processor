@@ -1,5 +1,0 @@
-# graph.yml: whitelist/blacklist of *contract* fields to export to .json/.yaml/.xml/...
-
-- id
-- voip_subscribers*.provisioning_voip_subscriber.voip_usr_preferences*.attribute.attribute
-- voip_subscribers*.provisioning_voip_subscriber.voip_usr_preferences*.value
