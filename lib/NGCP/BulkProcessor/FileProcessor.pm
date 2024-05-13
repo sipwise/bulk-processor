@@ -13,6 +13,7 @@ use File::Basename qw(basename);
 use NGCP::BulkProcessor::Globals qw(
     $enablemultithreading
     $cpucount
+    get_threadqueuelength
 );
 use NGCP::BulkProcessor::Logging qw(
     getlogger
@@ -21,6 +22,7 @@ use NGCP::BulkProcessor::Logging qw(
     fileprocessingdone
     lines_read
     processing_lines
+    enable_threading_info
 );
 
 use NGCP::BulkProcessor::LogError qw(
@@ -42,6 +44,7 @@ my $thread_sleep_secs = 0.1;
 my $RUNNING = 1;
 my $COMPLETED = 2;
 my $ERROR = 4;
+my $STOP = 8;
 
 sub new {
 
@@ -155,6 +158,23 @@ sub process {
                 $processors{$processor->tid()} = $processor;
             }
 
+            my $signal_handler = sub {
+                my $tid = threadid();
+                $errorstate = $STOP;
+                enable_threading_info(1);
+                filethreadingdebug("[$tid] interrupt signal received",getlogger(__PACKAGE__));
+                #print("[$tid] interrupt signal received"); 
+                #_info($context,"interrupt signal received");
+                #$result = 0;
+                my $errorstates = \%errorstates;
+                lock $errorstates;
+                $errorstates->{$tid} = $STOP;
+            };
+            local $SIG{TERM} = $signal_handler;
+	        local $SIG{INT} = $signal_handler;
+	        local $SIG{QUIT} = $signal_handler;
+	        local $SIG{HUP} = $signal_handler;
+
             $reader->join();
             filethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
             while ((scalar keys %processors) > 0) {
@@ -168,7 +188,8 @@ sub process {
                 sleep($thread_sleep_secs);
             }
 
-            $errorstate = (_get_other_threads_state(\%errorstates,$tid) & ~$RUNNING);
+            $errorstate = $COMPLETED if $errorstate == $RUNNING;
+            $errorstate |= (_get_other_threads_state(\%errorstates,$tid) & ~$RUNNING);
 
         } else {
 
@@ -382,7 +403,7 @@ sub _reader {
 
             my $i = 0;
             my $state = $RUNNING; #start at first
-            while (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0) { #as long there is one running consumer and no defunct consumer
+            while (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0 and ($state & $STOP) == 0) { #as long there is one running consumer and no defunct consumer
                 #fetching_lines($context->{filename},$i,$context->{instance}->{blocksize},undef,getlogger(__PACKAGE__));
                 my $block_n = 0;
                 my @lines = ();
@@ -429,7 +450,7 @@ sub _reader {
                         $context->{queue}->enqueue(\%packet); #$packet);
                         $blockcount++;
                         #wait if thequeue is full and there there is one running consumer
-                        while (((($state = _get_other_threads_state($context->{errorstates},$tid)) & $RUNNING) == $RUNNING) and $context->{queue}->pending() >= $context->{instance}->{threadqueuelength}) {
+                        while (((($state = _get_other_threads_state($context->{errorstates},$tid)) & $RUNNING) == $RUNNING) and $context->{queue}->pending() >= get_threadqueuelength($context->{instance}->{threadqueuelength})) {
                             #yield();
                             sleep($thread_sleep_secs);
                         }
@@ -445,10 +466,11 @@ sub _reader {
                     }
                 }
             }
-            if (not (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0)) {
+            if (not (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0 and ($state & $STOP) == 0)) {
                 filethreadingdebug('[' . $tid . '] reader thread is shutting down (' .
-                                  (($state & $RUNNING) == $RUNNING ? 'still running consumer threads' : 'no running consumer threads') . ', ' .
-                                  (($state & $ERROR) == 0 ? 'no defunct thread(s)' : 'defunct thread(s)') . ') ...'
+                                  (($state & $RUNNING) == $RUNNING ? 'still running consumer threads' : uc('no running consumer threads')) . ', ' .
+                                  (($state & $ERROR) == 0 ? 'no defunct thread(s)' : uc('defunct thread(s)')) . ', ' .
+                                  (($state & $STOP) == 0 ? 'no thread(s) stopping by signal' : uc('thread(s) stopping by signal')) . ') ...'
                 ,getlogger(__PACKAGE__));
             }
             close(INPUTFILE_READER);
@@ -463,7 +485,7 @@ sub _reader {
     if ($@) {
         $context->{errorstates}->{$tid} = $ERROR;
         fileprocessingfailed($filename,getlogger(__PACKAGE__));
-    } else {
+    } elsif ($context->{errorstates}->{$tid} != $STOP) {
         $context->{errorstates}->{$tid} = $COMPLETED;
     }
     return $context->{errorstates}->{$tid};
@@ -527,7 +549,7 @@ sub _process {
     lock $context->{errorstates};
     if ($err) {
         $context->{errorstates}->{$tid} = $ERROR;
-    } else {
+    } elsif ($context->{errorstates}->{$tid} != $STOP) {
         $context->{errorstates}->{$tid} = $COMPLETED; #(not $rowblock_result) ? $ERROR : $COMPLETED;
     }
     return $context->{errorstates}->{$tid};
@@ -563,16 +585,17 @@ sub _get_stop_consumer_thread {
         $reader_state = $errorstates->{$context->{readertid}};
     }
     $queuesize = $context->{queue}->pending();
-    if (($other_threads_state & $ERROR) == 0 and ($queuesize > 0 or $reader_state == $RUNNING)) {
+    if (($other_threads_state & $ERROR) == 0 and ($other_threads_state & $STOP) == 0 and ($queuesize > 0 or $reader_state == $RUNNING)) {
         $result = 0;
         #keep the consumer thread running if there is no defunct thread and queue is not empty or reader is still running
     }
 
     if ($result) {
         filethreadingdebug('[' . $tid . '] consumer thread is shutting down (' .
-                            (($other_threads_state & $ERROR) == 0 ? 'no defunct thread(s)' : 'defunct thread(s)') . ', ' .
-                            ($queuesize > 0 ? 'blocks pending' : 'no blocks pending') . ', ' .
-                            ($reader_state == $RUNNING ? 'reader thread running' : 'reader thread not running') . ') ...'
+                            (($other_threads_state & $ERROR) == 0 ? 'no defunct thread(s)' : uc('defunct thread(s)')) . ', ' .
+                            (($other_threads_state & $STOP) == 0 ? 'no thread(s) stopping by signal' : uc('thread(s) stopping by signal')) . ', ' .
+                            ($queuesize > 0 ? 'blocks pending' : uc('no blocks pending')) . ', ' .
+                            ($reader_state == $RUNNING ? 'reader thread running' : uc('reader thread not running')) . ') ...'
         ,getlogger(__PACKAGE__));
     }
 

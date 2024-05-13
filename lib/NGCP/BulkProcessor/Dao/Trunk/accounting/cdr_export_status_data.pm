@@ -8,6 +8,7 @@ use NGCP::BulkProcessor::Logging qw(
     rowsupdated
     rowinserted
     rowupserted
+    rowsupserted
     rowupdated
 );
 
@@ -25,6 +26,10 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status qw();
+
+use NGCP::BulkProcessor::Array qw(flatten);
+
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -34,21 +39,27 @@ our @EXPORT_OK = qw(
     update_row
     insert_row
     upsert_row
+    upsert_rows
     
     find_last_processed_cdrid
 
     update_export_status
+    findby_cdrid
 
     $UNEXPORTED
     $OK
     $FAILED
     $SKIPPED
+
+    @STATES
 );
 
 our $UNEXPORTED = 'unexported';
 our $OK = 'ok';
 our $FAILED = 'failed';
 our $SKIPPED = 'skipped';
+
+our @STATES = ($UNEXPORTED, $OK, $FAILED, $SKIPPED);
 
 my $tablename = 'cdr_export_status_data';
 my $get_db = \&get_accounting_db;
@@ -98,6 +109,24 @@ sub find_last_processed_cdrid {
     }
 
     return $db->db_get_value($stmt,@params);
+
+}
+
+sub findby_cdrid {
+
+    my ($xa_db,$cdrid,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('cdr_id') . ' = ?';
+    my @params = ($cdrid);
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
 
 }
             
@@ -199,6 +228,34 @@ sub upsert_row {
 
 }
 
+sub upsert_rows {
+
+    my $db = &$get_db();
+    my $xa_db = shift // $db;
+
+    my ($rows,$export_status) = @_;
+
+    my $result;
+    if ($result = $xa_db->db_do('INSERT INTO ' . $db->tableidentifier($tablename) . ' (' .
+            $db->columnidentifier('cdr_id') . ', ' .
+            $db->columnidentifier('status_id') . ', ' .
+            $db->columnidentifier('export_status') . ', ' .
+            $db->columnidentifier('exported_at') . ', ' .
+            $db->columnidentifier('cdr_start_time') . ') VALUES ' .
+            join(',',('(?,?,?,NOW(),?)') x scalar @$rows) .
+            ' ON DUPLICATE KEY UPDATE ' .
+            'export_status = ?, ' .
+            'exported_at = IF(export_status = "' . $UNEXPORTED . '",NOW(),exported_at)',
+            flatten(@$rows),
+            $export_status,
+        )) {
+        rowsupserted($db,$tablename,getlogger(__PACKAGE__));
+    }
+
+    return $result; # 0 .. no change, 1 .. inserted, 2 .. updated
+
+}
+
 sub update_export_status {
 
     my ($status_id,$export_status,$start_time_from,$start_time_to,$call_ids) = @_;
@@ -252,6 +309,8 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            #$record->load_relation($load_recursive,'status','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status::findby_id',undef,$record->{status_id},$load_recursive);
+            $record->load_relation($load_recursive,'status','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_export_status::findby_id_cached',$record->{id},$load_recursive);
 
             push @records,$record;
         }

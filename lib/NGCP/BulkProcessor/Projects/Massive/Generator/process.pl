@@ -58,7 +58,7 @@ use NGCP::BulkProcessor::Utils qw(getscriptpath prompt cleanupdir);
 use NGCP::BulkProcessor::Mail qw(
     cleanupmsgfiles
 );
-use NGCP::BulkProcessor::SqlConnectors::CSVDB qw(cleanupcvsdirs);
+use NGCP::BulkProcessor::SqlConnectors::CSVDB qw(cleanupcsvdirs);
 use NGCP::BulkProcessor::SqlConnectors::SQLiteDB qw(cleanupdbfiles);
 use NGCP::BulkProcessor::RestConnectors::NGCPRestApi qw(cleanupcertfiles);
 
@@ -204,7 +204,7 @@ sub cleanup_task {
     my $result = 0;
     if (!$clean_generated or $force or 'yes' eq lc(prompt("Type 'yes' to proceed: "))) {
         eval {
-            cleanupcvsdirs() if $clean_generated;
+            cleanupcsvdirs() if $clean_generated;
             cleanupdbfiles() if $clean_generated;
             cleanuplogfiles(\&fileerror,\&filewarn,($currentlogfile,$attachmentlogfile));
             cleanupmsgfiles(\&fileerror,\&filewarn);

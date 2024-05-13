@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction;
+package NGCP::BulkProcessor::Dao::Trunk::billing::billing_zones_history;
 use strict;
 
 ## no critic
@@ -8,18 +8,15 @@ use NGCP::BulkProcessor::Logging qw(
 );
 
 use NGCP::BulkProcessor::ConnectorPool qw(
-    get_accounting_db
+    get_billing_db
     destroy_dbs
 );
 
 use NGCP::BulkProcessor::SqlProcessor qw(
     checktableinfo
     copy_row
-
 );
 use NGCP::BulkProcessor::SqlRecord qw();
-
-use NGCP::BulkProcessor::Array qw(array_to_map); 
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
@@ -27,26 +24,19 @@ our @EXPORT_OK = qw(
     gettablename
     check_table
 
-    findall
     findby_id
-    findby_id_cached
-
-    $SOURCE
-    $DESTINATION
-
 );
 
-
-my $tablename = 'cdr_direction';
-my $get_db = \&get_accounting_db;
+my $tablename = 'billing_zones_history';
+my $get_db = \&get_billing_db;
 
 my $expected_fieldnames = [
-  "id",
-  "type",
+  'id',
+  'bz_id',
+  'billing_profile_id',
+  'zone',
+  'detail',
 ];
-
-our $SOURCE = 'source';
-our $DESTINATION = 'destination';
 
 my $indexes = {};
 
@@ -64,34 +54,6 @@ sub new {
 
 }
 
-sub findall {
-
-    my ($load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table;
-    my @params = ();
-    my $rows = $db->db_get_all_arrayref($stmt,@params);
-
-    return buildrecords_fromrows($rows,$load_recursive);
-
-}
-
-my $cdr_direction_map;
-
-sub findby_id_cached {
-    my ($id,$load_recursive) = @_;
-    unless ($cdr_direction_map) {
-        ($cdr_direction_map, my $directions, my $ids) = array_to_map(findall($load_recursive),
-            sub { return shift->{id}; }, sub { return shift; }, 'last');
-    }
-    return __PACKAGE__->new($cdr_direction_map->{$id}) if defined $id;
-    return;
-}
-
 sub findby_id {
 
     my ($id,$load_recursive) = @_;
@@ -105,7 +67,7 @@ sub findby_id {
     my @params = ($id);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
-    return buildrecords_fromrows($rows,$load_recursive);
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
 
 }
 

@@ -55,8 +55,14 @@ my $expected_fieldnames = [
   'offpeak_init_interval',
   'offpeak_follow_rate',
   'offpeak_follow_interval',
-  'use_free_time',
+  'onpeak_use_free_time',
   'match_mode',
+  'onpeak_extra_rate',
+  'onpeak_extra_second',
+  'offpeak_extra_rate',
+  'offpeak_extra_second',
+  'offpeak_use_free_time',
+  'aoc_pulse_amount_per_message',
 ];
 
 my $indexes = {};

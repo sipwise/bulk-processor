@@ -162,7 +162,8 @@ sub _dbd_connect {
     } else {
         #$connection_string = 'dbi:ODBC:driver=SQL Server Native Client 11.0;server=tcp:' . $self->{host} . ',' . $self->{port};
         #$connection_string = 'dbi:ODBC:driver=ODBC Driver 17 for SQL Server;server=tcp:' . $self->{host} . ',' . $self->{port};
-        $connection_string = 'dbi:ODBC:driver={FreeTDS};server=' . $self->{host} . ',' . $self->{port};
+        #$connection_string = 'dbi:ODBC:driver={FreeTDS};server=' . $self->{host} . ',' . $self->{port};
+        $connection_string = 'dbi:ODBC:driver={FreeTDS};server=' . $self->{host} . ';encryption=off;port=' . $self->{port};
     }
     if (length($databasename) > 0) {
         $connection_string .= ';database=' . $databasename;
@@ -212,7 +213,7 @@ sub db_connect {
 
     my $self = shift;
 
-    my ($databasename,$username,$password,$host,$port) = @_;
+    my ($databasename,$username,$password,$host,$port,$create_database) = @_;
 
     $self->SUPER::db_connect($databasename,$username,$password,$host,$port);
 
@@ -232,7 +233,7 @@ sub db_connect {
     $self->{username} = $username;
     $self->{password} = $password;
 
-    if (not contains($databasename,$self->getdatabases(),0)) {
+    if ($create_database and not contains($databasename,$self->getdatabases(),0)) {
         $self->_createdatabase($databasename);
     }
 

@@ -28,6 +28,7 @@ our @EXPORT_OK = qw(
     findby_name
     findby_name_states
     findby_id
+    findby_contractid
     findall
 
     insert_row
@@ -75,6 +76,23 @@ sub findall {
 
     my $stmt = 'SELECT * FROM ' . $table;
     my $rows = $db->db_get_all_arrayref($stmt);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
+sub findby_contractid {
+
+    my ($contract_id,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('contract_id') . ' = ?';
+    my @params = ($contract_id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);
 

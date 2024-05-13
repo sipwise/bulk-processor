@@ -343,6 +343,9 @@ sub buildrecords_fromrows {
             # transformations go here ...
             $record->load_relation($load_recursive,'voip_subscribers','NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_contractid',$record->{id},$load_recursive);
             $record->load_relation($load_recursive,'contact','NGCP::BulkProcessor::Dao::Trunk::billing::contacts::findby_id',$record->{contact_id},$load_recursive);
+            $record->load_relation($load_recursive,'product','NGCP::BulkProcessor::Dao::Trunk::billing::products::findby_id_cached',$record->{product_id},$load_recursive);
+            $record->load_relation($load_recursive,'voip_peer_groups','NGCP::BulkProcessor::Dao::Trunk::provisioning::voip_peer_groups::findby_peeringcontractid',$record->{id},$load_recursive);
+            $record->load_relation($load_recursive,'resellers','NGCP::BulkProcessor::Dao::Trunk::billing::resellers::findby_contractid',$record->{id},$load_recursive);
 
             push @records,$record;
         }

@@ -3,6 +3,8 @@ use strict;
 
 ## no critic
 
+use Cwd 'abs_path';
+
 use NGCP::BulkProcessor::Globals qw(
     $system_name
     $system_instance_label
@@ -31,6 +33,7 @@ use NGCP::BulkProcessor::LogError qw(
 
 use YAML qw();
 $YAML::UseCode = 1;
+
 use Config::Any qw();
 use NGCP::BulkProcessor::Utils qw(format_number trim);
 
@@ -131,7 +134,9 @@ sub load_config {
         return $result;
     } else {
         my $result = &$process_code($data,$variant);
-        configurationinfo('config file ' . $variant . ' loaded',getlogger(__PACKAGE__));
+        my $msg = 'config file ' . $variant . ' loaded';
+        $msg .= ' (' . abs_path($variant) . ')' if $variant ne abs_path($variant);
+        configurationinfo($msg,getlogger(__PACKAGE__));
         return $result;
     }
 
@@ -177,7 +182,9 @@ sub _splashinfo {
     configurationinfo('application path: ' . $application_path,getlogger(__PACKAGE__));
     configurationinfo('working path: ' . $working_path,getlogger(__PACKAGE__));
     configurationinfo($cpucount . ' cpu(s), multithreading ' . ($enablemultithreading ? 'enabled' : 'disabled'),getlogger(__PACKAGE__));
-    configurationinfo('master config file ' . $configfile . ' loaded',getlogger(__PACKAGE__));
+    my $msg = 'master config file ' . $configfile . ' loaded';
+    $msg .= ' (' . abs_path($configfile) . ')' if $configfile ne abs_path($configfile);
+    configurationinfo($msg,getlogger(__PACKAGE__));
     configurationinfo('WARNING: running perl debug',getlogger(__PACKAGE__)) if $is_perl_debug;
 
 }
@@ -302,9 +309,14 @@ sub _parse_yaml_config {
 
     my ($file,$configparser_args) = @_;
 
-    my $config = undef;
+    my $config;
+    unless (-e $file and -f _ and -r _) {
+        filewarn('parsing yaml format - cannot open file ' . $file,getlogger(__PACKAGE__));
+        return $config;
+    }
+
     eval {
-        $config = YAML::LoadFile($file);
+        $config = YAML::LoadFile($file) // {};
     };
     if ($@) {
         configurationerror($file,'parsing yaml format - error: ' . $@,getlogger(__PACKAGE__));
@@ -318,9 +330,15 @@ sub _parse_any_config {
 
     my ($file,$configparser_args) = @_;
 
-    my $config = undef;
+    my $config;
+
+    unless (-e $file and -f _ and -r _) {
+        filewarn('parsing any format - cannot open file ' . $file,getlogger(__PACKAGE__));
+        return $config;
+    }
+
     eval {
-        $config = Config::Any->load_files( { files => [ $file ], (defined $configparser_args ? %$configparser_args : ()) } );
+        $config = Config::Any->load_files( { files => [ $file ], (defined $configparser_args ? %$configparser_args : ()) } ) // {};
     };
     if ($@) {
         configurationerror($file,'parsing any format - error: ' . $@,getlogger(__PACKAGE__));

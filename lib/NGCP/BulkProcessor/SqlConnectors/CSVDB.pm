@@ -54,7 +54,7 @@ use File::Copy qw();
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlConnector);
 our @EXPORT_OK = qw(
-    cleanupcvsdirs
+    cleanupcsvdirs
     xlsbin2csv
     xlsxbin2csv
     sanitize_column_name
@@ -342,7 +342,7 @@ sub vacuum {
 
 }
 
-sub cleanupcvsdirs {
+sub cleanupcsvdirs {
 
     my (@remainingdbdirs) = @_;
     local *DBDIR;
