@@ -170,7 +170,7 @@ sub cleanup_task {
     my $result = 0;
     if (!$clean_generated or $force or 'yes' eq lc(prompt("Type 'yes' to proceed: "))) {
         eval {
-            #cleanupcvsdirs() if $clean_generated;
+            #cleanupcsvdirs() if $clean_generated;
             cleanupdbfiles() if $clean_generated;
             cleanuplogfiles(\&fileerror,\&filewarn,($currentlogfile,$attachmentlogfile));
             cleanupmsgfiles(\&fileerror,\&filewarn);

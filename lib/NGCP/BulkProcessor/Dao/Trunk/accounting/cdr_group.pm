@@ -120,6 +120,7 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
+            $record->load_relation($load_recursive,'cdrs','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr::findby_callid',undef,$record->{call_id},undef,undef,undef,$load_recursive);
 
             push @records,$record;
         }

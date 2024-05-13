@@ -117,6 +117,8 @@ our @EXPORT_OK = qw(
     run
     
     load_module
+
+    is_in_eval
 );
 
 our $chmod_umask = 0777;
@@ -143,7 +145,7 @@ sub round {
 sub stringtobool {
 
   my $inputstring = shift;
-  if (lc($inputstring) eq 'y' or lc($inputstring) eq 'true' or $inputstring >= 1) {
+  if (lc($inputstring) eq 'y' or lc($inputstring) eq 'yes' or lc($inputstring) eq 'true' or lc($inputstring) eq 'on' or $inputstring >= 1) {
     return 1;
   } else {
     return 0;
@@ -572,11 +574,12 @@ sub fixdirpath {
 }
 
 sub makepath {
-    my ($dirpath,$fileerrorcode,$logger) = @_;
+    my ($dirpath,$fileerrorcode,$logger,%opts) = @_;
     #print $chmod_umask ."\n";
     #changemod($dirpath);
+    %opts = ('chmod' => $chmod_umask,) unless scalar keys %opts;
     make_path($dirpath,{
-        'chmod' => $chmod_umask,
+        %opts,
         'verbose' => 1,
         'error' => \my $err });
     if (@$err) {
@@ -1108,6 +1111,7 @@ sub run {
 }
 
 sub load_module {
+
     my $package_element = shift;
     eval {
         (my $module = $package_element) =~ s/::[a-zA-Z_0-9]+$//g;
@@ -1118,6 +1122,22 @@ sub load_module {
     } or do {
         die($@);
     };
+
+}
+
+ sub is_in_eval{ 
+
+    my $i=0; 
+    while(1) {
+        my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = caller($i); 
+        last unless defined $package; 
+        $i++; 
+        if ($subroutine eq "(eval)" || $evaltext) { 
+            return 1;
+        } 
+    }; 
+    return 0; 
+
 }
 
 1;

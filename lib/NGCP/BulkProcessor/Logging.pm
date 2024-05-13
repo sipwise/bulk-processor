@@ -3,6 +3,9 @@ use strict;
 
 ## no critic
 
+use threads; # as early as possible...
+use threads::shared;
+
 use NGCP::BulkProcessor::Globals qw(
     $root_threadid
     $logfile_path
@@ -13,6 +16,9 @@ use NGCP::BulkProcessor::Globals qw(
 );
 
 use Log::Log4perl qw(get_logger);
+
+*Log::Log4perl::Logger::notice = *Log::Log4perl::Logger::info;
+*Log::Log4perl::Logger::warning = *Log::Log4perl::Logger::warn;
 
 use File::Basename qw(basename);
 
@@ -57,6 +63,7 @@ our @EXPORT_OK = qw(
 
     rowinserted
     rowupserted
+    rowsupserted
     rowupdated
     rowsdeleted
     rowsupdated
@@ -107,6 +114,8 @@ our @EXPORT_OK = qw(
     tablefixed
     servicedebug
     serviceinfo
+
+    enable_threading_info
 );
 #rowskipped
 
@@ -154,17 +163,29 @@ sub init_log_default {
 
 sub init_log {
 
-    $currentlogfile = $logfile_path . timestampdigits() . $logfileextension;
-    createlogfile($currentlogfile);
-    $attachmentlogfile = $logfile_path . 'email_' . timestampdigits() . $logfileextension;
-    createlogfile($attachmentlogfile);
-    #$weblogfile = $logfile_path . 'web_' . datestampdigits() .  $logfileextension;
-    #createlogfile($weblogfile);
+    my ($ts,$name,$daemon_logfile) = @_;
+ 
+    $name //= '';
+    $name = '_' . $name if $name;
+
+    undef $currentlogfile;
+    undef $attachmentlogfile;
+
+    if ($daemon_logfile) {
+        $currentlogfile = sprintf($daemon_logfile,$name);
+    } else {
+        $ts //= time;
+        $ts = timestampdigits($ts);
+        $currentlogfile = $logfile_path . $ts . $name .  $logfileextension;
+        $attachmentlogfile = $logfile_path . 'email_' . $ts . $name . $logfileextension;
+    }
 
     # log configuration
-    my $conf = "log4perl.logger                       = DEBUG, FileApp, ScreenApp, MailAttApp\n" .
-
-               "log4perl.appender.FileApp             = Log::Log4perl::Appender::File\n" .
+    my @loggers = ( 'DEBUG' );
+    my $conf = '';
+    if (length($fileloglevel) and 'off' ne lc($fileloglevel) and $currentlogfile) {
+        createlogfile($currentlogfile);
+        $conf .= "log4perl.appender.FileApp             = Log::Log4perl::Appender::File\n" .
                "log4perl.appender.FileApp.umask       = 0\n" .
                "log4perl.appender.FileApp.syswite     = 1\n" .
                'log4perl.appender.FileApp.Threshold   = ' . $fileloglevel . "\n" .
@@ -172,9 +193,12 @@ sub init_log {
                'log4perl.appender.FileApp.filename    = ' . $currentlogfile . "\n" .
                "log4perl.appender.FileApp.create_at_logtime = 1\n" .
                "log4perl.appender.FileApp.layout      = PatternLayout\n" .
-               'log4perl.appender.FileApp.layout.ConversionPattern = %d> %m%n' . "\n\n" .
-
-               "log4perl.appender.MailAttApp             = Log::Log4perl::Appender::File\n" .
+               'log4perl.appender.FileApp.layout.ConversionPattern = %d> %m%n' . "\n\n";
+        push(@loggers,'FileApp');
+    }
+    if (length($emailloglevel) and 'off' ne lc($emailloglevel) and $attachmentlogfile) {
+        createlogfile($attachmentlogfile);
+        $conf .= "log4perl.appender.MailAttApp             = Log::Log4perl::Appender::File\n" .
                "log4perl.appender.MailApp.umask          = 0\n" .
                "log4perl.appender.MailApp.syswite        = 1\n" .
                'log4perl.appender.MailAttApp.Threshold   = ' . $emailloglevel . "\n" .
@@ -182,14 +206,21 @@ sub init_log {
                'log4perl.appender.MailAttApp.filename    = ' . $attachmentlogfile . "\n" .
                "log4perl.appender.MailAttApp.create_at_logtime = 1\n" .
                "log4perl.appender.MailAttApp.layout      = Log::Log4perl::Layout::SimpleLayout\n" .
-               'log4perl.appender.MailAttApp.layout.ConversionPattern = %d> %m%n' . "\n\n" .
+               'log4perl.appender.MailAttApp.layout.ConversionPattern = %d> %m%n' . "\n\n";
+        push(@loggers,'MailAttApp');
+    }
 
-               "log4perl.appender.ScreenApp           = Log::Log4perl::Appender::Screen\n" .
+    if (length($screenloglevel) and 'off' ne lc($screenloglevel)) {
+        $conf .= "log4perl.appender.ScreenApp           = Log::Log4perl::Appender::Screen\n" .
                #"log4perl.appender.ScreenApp           = Log::Log4perl::Appender::ScreenColoredLevels\n" .
                'log4perl.appender.ScreenApp.Threshold = ' . $screenloglevel . "\n" .
                "log4perl.appender.ScreenApp.stderr    = 0\n" .
                "log4perl.appender.ScreenApp.layout    = Log::Log4perl::Layout::SimpleLayout\n" .
                'log4perl.appender.ScreenApp.layout.ConversionPattern = %d> %m%n';
+        push(@loggers,'ScreenApp');
+    }
+
+    $conf = "log4perl.logger                       = " . join(',',@loggers) . "\n" . $conf;
 
     # Initialize logging behaviour
     Log::Log4perl->init( \$conf );
@@ -223,7 +254,7 @@ sub getlogger {
     #if (defined $loglogger and defined $newlogger) {
     #    $loglogger->debug('logger for category ' . $package . ' created');
     #}
-    return get_logger($package);
+    return eval { get_logger($package) };
     #_get_loglogger()->debug('logger for category ' . $package . ' created');
     #return $newlogger;
 
@@ -420,11 +451,24 @@ sub tableprocessingstarted {
 
 }
 
+my $threading_info : shared = 0;
+
+sub enable_threading_info {
+    my $info = shift;
+    lock $threading_info;
+    $threading_info = 1;
+}
+
 sub tablethreadingdebug {
 
     my ($message,$logger) = @_;
     if (defined $logger) {
-        $logger->debug($message);
+        lock $threading_info;
+        if ($threading_info) {
+            $logger->info($message);
+        } else {    
+            $logger->debug($message);
+        }
     }
 
 }
@@ -524,6 +568,15 @@ sub rowupserted {
     my ($db,$tablename,$logger) = @_;
     if (defined $logger) {
         $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row upserted');
+    }
+
+}
+
+sub rowsupserted {
+
+    my ($db,$tablename,$logger) = @_;
+    if (defined $logger) {
+        $logger->debug(_getsqlconnectorinstanceprefix($db) . 'row(s) upserted');
     }
 
 }
@@ -644,11 +697,28 @@ sub writing_rows {
 
 sub processing_rows {
 
-    my ($tid, $start,$blocksize,$totalnumofrows,$logger) = @_;
+    my ($context, $start,$blocksize,$totalnumofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing rows: ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
+        $logger->info(_processing_prefix($context) . 'processing rows: ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
     }
 
+}
+
+sub _processing_prefix {
+    my $context = shift;
+    $context = { tid => $context, } unless ref $context;
+    my $name = '';
+    $name = $context->{name} if exists $context->{name};
+    if (length($name) > 0) {
+    if ($context->{tid} != $root_threadid) {
+        return '[' . $context->{tid} . ' ' . $name . '] ';
+    } else {
+        return '[' . $name . '] ';
+    }
+    } elsif ($context->{tid} != $root_threadid) {
+    return '[' . $context->{tid} . '] ';
+    }
+    return '';
 }
 
 
@@ -710,14 +780,14 @@ sub lines_read {
 
 sub processing_lines {
 
-    my ($tid, $start,$blocksize,$block_n,$logger) = @_;
+    my ($context, $start,$blocksize,$block_n,$logger) = @_;
     if (defined $logger) {
         if (defined $block_n) {
             if ($block_n > 0) {
-                $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing lines: ' . humanize_bytes($block_n));
+                $logger->info(_processing_prefix($context) . 'processing lines: ' . humanize_bytes($block_n));
             }
         } else {
-            $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing lines: ' . ($start + 1) . '-' . ($start + $blocksize));
+            $logger->info(_processing_prefix($context) . 'processing lines: ' . ($start + 1) . '-' . ($start + $blocksize));
         }
     }
 
@@ -725,18 +795,18 @@ sub processing_lines {
 
 sub processing_info {
 
-    my ($tid, $message, $logger) = @_;
+    my ($context, $message, $logger) = @_;
     if (defined $logger) {
-        $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
+        $logger->info(_processing_prefix($context) . $message);
     }
 
 }
 
 sub processing_debug {
 
-    my ($tid, $message, $logger) = @_;
+    my ($context, $message, $logger) = @_;
     if (defined $logger) {
-        $logger->debug(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
+        $logger->debug(_processing_prefix($context) . $message);
     }
 
 }
@@ -762,9 +832,9 @@ sub fetching_items {
 
 sub processing_items {
 
-    my ($tid, $start,$blocksize,$logger) = @_;
+    my ($context, $start,$blocksize,$logger) = @_;
     if (defined $logger) {
-        $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing items: ' . ($start + 1) . '-' . ($start + $blocksize));
+        $logger->info(_processing_prefix($context) . 'processing items: ' . ($start + 1) . '-' . ($start + $blocksize));
     }
 
 }
@@ -808,12 +878,12 @@ sub fetching_entries {
 
 sub processing_entries {
 
-    my ($tid, $start, $blocksize, $logger) = @_;
+    my ($context, $start, $blocksize, $logger) = @_;
     if (defined $logger) {
         if ($blocksize) {
-            $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing entries: ' . ($start + 1) . '-' . ($start + $blocksize));
+            $logger->info(_processing_prefix($context) . 'processing entries: ' . ($start + 1) . '-' . ($start + $blocksize));
         } else {
-            $logger->info(($enablemultithreading ? '[' . $tid . '] ' : '') . 'processing entries: (none)');
+            $logger->info(_processing_prefix($context) . 'processing entries: (none)');
         }
     }
 
@@ -927,7 +997,7 @@ sub _getsqlconnectorinstanceprefix {
     my $instancestring = $db->instanceidentifier();
     if (length($instancestring) > 0) {
     if ($db->{tid} != $root_threadid) {
-        return '[' . $db->{tid} . '/' . $instancestring . '] ';
+        return '[' . $db->{tid} . ' ' . $instancestring . '] ';
     } else {
         return '[' . $instancestring . '] ';
     }
@@ -955,7 +1025,7 @@ sub _getnosqlconnectorinstanceprefix {
     my $instancestring = $connector->instanceidentifier();
     if (length($instancestring) > 0) {
     if ($connector->{tid} != $root_threadid) {
-        return '[' . $connector->{tid} . '/' . $instancestring . '] ';
+        return '[' . $connector->{tid} . ' ' . $instancestring . '] ';
     } else {
         return '[' . $instancestring . '] ';
     }
@@ -979,7 +1049,7 @@ sub _getrestconnectorinstanceprefix {
     my $instancestring = $restapi->instanceidentifier();
     if (length($instancestring) > 0) {
     if ($restapi->{tid} != $root_threadid) {
-        return '[' . $restapi->{tid} . '/' . $instancestring . '] ';
+        return '[' . $restapi->{tid} . ' ' . $instancestring . '] ';
     } else {
         return '[' . $instancestring . '] ';
     }

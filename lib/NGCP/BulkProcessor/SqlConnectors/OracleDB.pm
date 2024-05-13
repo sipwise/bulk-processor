@@ -198,7 +198,7 @@ sub db_connect {
 
     my $self = shift;
 
-    my ($servicename,$sid,$schema,$username,$password,$host,$port) = @_;
+    my ($servicename,$sid,$schema,$username,$password,$host,$port,$create_database) = @_;
 
     $self->SUPER::db_connect($servicename,$sid,$schema,$username,$password,$host,$port);
 
@@ -240,7 +240,7 @@ sub db_connect {
 
     $self->{dbh} = $dbh;
 
-    if (not contains($schema,$self->getdatabases(),0)) {
+    if ($create_database and not contains($schema,$self->getdatabases(),0)) {
         $self->_createdatabase($schema); #notimplemented error...
     }
 
@@ -253,7 +253,8 @@ sub db_connect {
     $self->db_do('ALTER SESSION SET NLS_TERRITORY = \'' . $connNLS_TERRITORY . '\'');
     #$self->db_do('ALTER SESSION SET NLS_CHARACTERSET = \'' . $connNLS_CHARACTERSET . '\'');
     $self->db_do('ALTER SESSION SET NLS_NUMERIC_CHARACTERS = \'.,\'');
-    $self->db_do('ALTER SESSION SET NLS_DATE_FORMAT = \'YYYY-MM-DD HH24:MI:SS\'');
+    $self->db_do('ALTER SESSION SET NLS_DATE_FORMAT = \'YYYY-MM-DD\'');
+    $self->db_do('ALTER SESSION SET NLS_TIMESTAMP_FORMAT = \'YYYY-MM-DD HH24:MI:SS\'');
 
     if (length($isolation_level) > 0) {
         $self->db_do('ALTER SESSION SET ISOLATION_LEVEL = ' . $isolation_level);

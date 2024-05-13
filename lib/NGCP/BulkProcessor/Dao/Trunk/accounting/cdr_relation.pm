@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction;
+package NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_relation;
 use strict;
 
 ## no critic
@@ -31,13 +31,10 @@ our @EXPORT_OK = qw(
     findby_id
     findby_id_cached
 
-    $SOURCE
-    $DESTINATION
-
 );
 
 
-my $tablename = 'cdr_direction';
+my $tablename = 'cdr_relation';
 my $get_db = \&get_accounting_db;
 
 my $expected_fieldnames = [
@@ -45,8 +42,6 @@ my $expected_fieldnames = [
   "type",
 ];
 
-our $SOURCE = 'source';
-our $DESTINATION = 'destination';
 
 my $indexes = {};
 
@@ -80,15 +75,15 @@ sub findall {
 
 }
 
-my $cdr_direction_map;
+my $cdr_relation_map;
 
 sub findby_id_cached {
     my ($id,$load_recursive) = @_;
-    unless ($cdr_direction_map) {
-        ($cdr_direction_map, my $directions, my $ids) = array_to_map(findall($load_recursive),
+    unless ($cdr_relation_map) {
+        ($cdr_relation_map, my $relations, my $ids) = array_to_map(findall($load_recursive),
             sub { return shift->{id}; }, sub { return shift; }, 'last');
     }
-    return __PACKAGE__->new($cdr_direction_map->{$id}) if defined $id;
+    return __PACKAGE__->new($cdr_relation_map->{$id}) if defined $id;
     return;
 }
 

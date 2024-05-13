@@ -109,9 +109,9 @@ sub DESTROY {
 
     if ($self->{tid} == threadid()) {
         $self->disconnect();
-        eval {
+        #eval {
             nosqldebug($self,(ref $self) . ' connector destroyed',getlogger(__PACKAGE__));
-        };
+        #};
     }
 
 }

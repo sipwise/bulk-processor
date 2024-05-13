@@ -27,6 +27,7 @@ use NGCP::BulkProcessor::Utils qw(
     getscriptpath
     timestamp
     secs_to_years
+    is_in_eval
 );
 
 use POSIX qw(ceil); # locale_h);
@@ -202,7 +203,7 @@ sub terminate {
 
     my ($message,$logger) = @_;
 
-    if (threadid() == $root_threadid) {
+    if (threadid() == $root_threadid and not is_in_eval()) {
 
         my $appexitsecs = Time::HiRes::time();
         #$message .= "\n\n" . sprintf("%.2f",$appexitsecs - $appstartsecs) . ' seconds';
@@ -477,11 +478,28 @@ sub processzerorowcount {
 
 }
 
+sub _processing_prefix {
+    my $context = shift;
+    $context = { tid => $context, } unless ref $context;
+    my $name = '';
+    $name = $context->{name} if exists $context->{name};
+    if (length($name) > 0) {
+    if ($context->{tid} != $root_threadid) {
+        return '[' . $context->{tid} . ' ' . $name . '] ';
+    } else {
+        return '[' . $name . '] ';
+    }
+    } elsif ($context->{tid} != $root_threadid) {
+    return '[' . $context->{tid} . '] ';
+    }
+    return '';
+}
+
 sub rowprocessingerror {
 
-    my ($tid, $message, $logger) = @_;
+    my ($context, $message, $logger) = @_;
     if (defined $logger) {
-        $logger->error(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
+        $logger->error(_processing_prefix($context) . $message);
     }
     terminate($message, $logger);
 
@@ -489,9 +507,9 @@ sub rowprocessingerror {
 
 sub rowprocessingwarn {
 
-    my ($tid, $message, $logger) = @_;
+    my ($context, $message, $logger) = @_;
     if (defined $logger) {
-        $logger->warn(($enablemultithreading ? '[' . $tid . '] ' : '') . $message);
+        $logger->warn(_processing_prefix($context) . $message);
     }
     warning($message, $logger);
 
@@ -770,7 +788,7 @@ sub _getsqlconnectorinstanceprefix {
     my $instancestring = $db->instanceidentifier();
     if (length($instancestring) > 0) {
     if ($db->{tid} != $root_threadid) {
-        return '[' . $db->{tid} . '/' . $instancestring . '] ';
+        return '[' . $db->{tid} . ' ' . $instancestring . '] ';
     } else {
         return '[' . $instancestring . '] ';
     }
@@ -822,7 +840,7 @@ sub _getrestconnectorinstanceprefix {
     my $instancestring = $restapi->instanceidentifier();
     if (length($instancestring) > 0) {
     if ($restapi->{tid} != $root_threadid) {
-        return '[' . $restapi->{tid} . '/' . $instancestring . '] ';
+        return '[' . $restapi->{tid} . ' ' . $instancestring . '] ';
     } else {
         return '[' . $instancestring . '] ';
     }
@@ -847,7 +865,7 @@ sub _getnosqlconnectorinstanceprefix {
     my $instancestring = $connector->instanceidentifier();
     if (length($instancestring) > 0) {
     if ($connector->{tid} != $root_threadid) {
-        return '[' . $connector->{tid} . '/' . $instancestring . '] ';
+        return '[' . $connector->{tid} . ' ' . $instancestring . '] ';
     } else {
         return '[' . $instancestring . '] ';
     }

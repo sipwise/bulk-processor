@@ -13,6 +13,7 @@ use Time::HiRes qw(sleep);
 use NGCP::BulkProcessor::Globals qw(
     $enablemultithreading
     $cpucount
+    get_threadqueuelength
     $cells_transfer_memory_limit
     $transfer_defer_indexes
 );
@@ -45,6 +46,7 @@ use NGCP::BulkProcessor::Logging qw(
     processing_rows
 
     tablethreadingdebug
+    enable_threading_info
 );
 
 use NGCP::BulkProcessor::LogError qw(
@@ -97,14 +99,15 @@ my $minnumberofchunks = 10;
 my $tableprocessing_threadqueuelength = 10;
 #my $tableprocessing_threads = $cpucount; #3;
 
-my $reader_connection_name = 'reader';
-#my $writer_connection_name = 'writer';
+my $reader_name = 'reader';
+my $writer_name = 'writer';
 
 my $thread_sleep_secs = 0.1;
 
 my $RUNNING = 1;
 my $COMPLETED = 2;
 my $ERROR = 4;
+my $STOP = 8;
 
 sub init_record {
 
@@ -773,8 +776,8 @@ sub transfer_table {
 
     if (ref $get_db eq 'CODE' and ref $get_target_db eq 'CODE') {
 
-        my $db = &$get_db($reader_connection_name,1);
-        my $target_db = &$get_target_db(); #$writer_connection_name);
+        my $db = &$get_db($reader_name,1); # $reader_name
+        my $target_db = &$get_target_db($writer_name); #$writer_name);
 
         my $connectidentifier = $db->connectidentifier();
         my $tid = threadid();
@@ -848,7 +851,8 @@ sub transfer_table {
                 tablethreadingdebug('starting reader thread',getlogger(__PACKAGE__));
 
                 $reader = threads->create(\&_reader,
-                                          { queue                => $queue,
+                                          { name                 => $reader_name,
+                                            queue                => $queue,
                                             errorstates          => \%errorstates,
                                             #readererrorstate_ref => \$readererrorstate,
                                             #writererrorstate_ref => \$writererrorstate,
@@ -867,7 +871,8 @@ sub transfer_table {
                 tablethreadingdebug('starting writer thread',getlogger(__PACKAGE__));
 
                 $writer = threads->create(\&_writer,
-                                          { queue                => $queue,
+                                          { #name                 => $writer_name,
+                                            queue                => $queue,
                                             errorstates          => \%errorstates,
                                             readertid              => $reader->tid(),
                                             #readererrorstate_ref => \$readererrorstate,
@@ -882,17 +887,35 @@ sub transfer_table {
                                             destroy_dbs_code   => $destroy_target_dbs_code,
                                           });
 
+                my $signal_handler = sub {
+                    my $tid = threadid();
+                    $errorstate = $STOP;
+                    enable_threading_info(1);
+                    tablethreadingdebug("[$tid] interrupt signal received",getlogger(__PACKAGE__));
+                    #print("[$tid] interrupt signal received"); 
+                    #_info($context,"interrupt signal received");
+                    #$result = 0;
+                    my $errorstates = \%errorstates;
+                    lock $errorstates;
+                    $errorstates->{$tid} = $STOP;
+                };
+                local $SIG{TERM} = $signal_handler;
+	            local $SIG{INT} = $signal_handler;
+	            local $SIG{QUIT} = $signal_handler;
+	            local $SIG{HUP} = $signal_handler;
+
                 $reader->join();
                 tablethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
                 $writer->join();
                 tablethreadingdebug('writer thread joined',getlogger(__PACKAGE__));
 
+                $errorstate = $COMPLETED if $errorstate == $RUNNING;
                 #$errorstate = $readererrorstate | $writererrorstate;
-                $errorstate = _get_other_threads_state(\%errorstates,$tid);
+                $errorstate |= _get_other_threads_state(\%errorstates,$tid);
 
                 tablethreadingdebug('restoring db connections ...',getlogger(__PACKAGE__));
 
-                #$db = &$get_db($reader_connection_name,1);
+                #$db = &$get_db($reader_name,1);
                 $target_db = &$get_target_db(undef,1);
                 if ($default_connection_reconnect) {
                     $default_connection = &$get_db(undef,1);
@@ -904,10 +927,10 @@ sub transfer_table {
 
                 #$db->db_disconnect();
                 #undef $db;
-                #$db = &$get_db($reader_connection_name);
+                #$db = &$get_db($reader_name);
                 #$target_db->db_disconnect();
                 #undef $target_db;
-                #$target_db = &$get_target_db($writer_connection_name);
+                #$target_db = &$get_target_db($writer_name);
 
                 eval {
                     $db->db_get_begin($selectstatement,@$values) if $db->rowblock_transactional; #$tablename
@@ -1028,6 +1051,7 @@ sub process_table {
 
     my %params = @_;
     my ($get_db,
+        $name,
         $class,
         $process_code,
         $read_code,
@@ -1042,6 +1066,7 @@ sub process_table {
         $select,
         $values) = @params{qw/
             get_db
+            name
             class
             process_code
             read_code
@@ -1061,7 +1086,7 @@ sub process_table {
 
     if (ref $get_db eq 'CODE') {
 
-        my $db = &$get_db($reader_connection_name,1);
+        my $db = &$get_db($name,1); #$reader_name
 
         my $connectidentifier = $db->connectidentifier();
         my $tid = threadid();
@@ -1122,7 +1147,8 @@ sub process_table {
             tablethreadingdebug('starting reader thread',getlogger(__PACKAGE__));
 
             $reader = threads->create(\&_reader,
-                                          { queue                => $queue,
+                                          { name                 => $name,
+                                            queue                => $queue,
                                             errorstates          => \%errorstates,
                                             #readererrorstate_ref => \$readererrorstate,
                                             #writererrorstate_ref => \$processorerrorstate,
@@ -1143,7 +1169,8 @@ sub process_table {
                 tablethreadingdebug('starting processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads,getlogger(__PACKAGE__));
                 my $processor = threads->create(\&_process,
                                               _create_process_context($static_context,
-                                              { queue                => $queue,
+                                              { name                 => $name,
+                                                queue                => $queue,
                                                 errorstates          => \%errorstates,
                                                 readertid              => $reader->tid(),
                                                 #readererrorstate_ref => \$readererrorstate,
@@ -1174,6 +1201,23 @@ sub process_table {
             #    }
             #}
 
+            my $signal_handler = sub {
+                my $tid = threadid();
+                $errorstate = $STOP;
+                enable_threading_info(1);
+                tablethreadingdebug("[$tid] interrupt signal received",getlogger(__PACKAGE__));
+                #print("[$tid] interrupt signal received"); 
+                #_info($context,"interrupt signal received");
+                #$result = 0;
+                my $errorstates = \%errorstates;
+                lock $errorstates;
+                $errorstates->{$tid} = $STOP;
+            };
+            local $SIG{TERM} = $signal_handler;
+	        local $SIG{INT} = $signal_handler;
+	        local $SIG{QUIT} = $signal_handler;
+	        local $SIG{HUP} = $signal_handler;
+
             $reader->join();
             tablethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
             #print 'threads running: ' . (scalar threads->list(threads::running));
@@ -1195,12 +1239,13 @@ sub process_table {
                 sleep($thread_sleep_secs);
             }
 
+            $errorstate = $COMPLETED if $errorstate == $RUNNING;
             #$errorstate = $readererrorstate | $processorerrorstate;
-            $errorstate = (_get_other_threads_state(\%errorstates,$tid) & ~$RUNNING);
+            $errorstate |= (_get_other_threads_state(\%errorstates,$tid) & ~$RUNNING);
 
             tablethreadingdebug('restoring db connections ...',getlogger(__PACKAGE__));
 
-            #$db = &$get_db($reader_connection_name,1);
+            #$db = &$get_db($reader_name,1);
             if ($default_connection_reconnect) {
                 $default_connection = &$get_db(undef,1);
             }
@@ -1210,8 +1255,8 @@ sub process_table {
             $blocksize //= _calc_blocksize($rowcount,scalar @fieldnames,0,undef);
             #$db->db_disconnect();
             #undef $db;
-            #$db = &$get_db($reader_connection_name);
-            my $context = _create_process_context($static_context,{ tid => $tid });
+            #$db = &$get_db($reader_name);
+            my $context = _create_process_context($static_context,{ tid => $tid, name => $name, });
             my $rowblock_result = 1;
             eval {
                 if (defined $init_process_context_code and 'CODE' eq ref $init_process_context_code) {
@@ -1231,7 +1276,7 @@ sub process_table {
                     $db->db_finish() unless $db->rowblock_transactional;
                     my $realblocksize = scalar @$rowblock;
                     if ($realblocksize > 0) {
-                        processing_rows($tid,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
+                        processing_rows($context,$i,$realblocksize,$rowcount,getlogger(__PACKAGE__));
 
                         $rowblock_result = &$process_code($context,$rowblock,$i);
 
@@ -1251,6 +1296,7 @@ sub process_table {
 
             };
 
+print $@;
             if ($@) {
                 $errorstate = $ERROR;
             } else {
@@ -1274,6 +1320,7 @@ sub process_table {
             #$db->db_disconnect();
             return 1;
         } else {
+            print "errorstate: $errorstate \n";
             tableprocessingfailed($db,$tablename,$rowcount,getlogger(__PACKAGE__));
             #$db->db_disconnect();
         }
@@ -1294,7 +1341,7 @@ sub _calc_blocksize {
         my $blocksize = int ( 10 ** $exp );
         my $cellcount_in_memory = $columncount * $blocksize;
         if ($multithreaded) {
-            $cellcount_in_memory *= $threadqueuelength;
+            $cellcount_in_memory *= get_threadqueuelength($threadqueuelength);
         }
 
         while ( $cellcount_in_memory > $cells_transfer_memory_limit or
@@ -1303,7 +1350,7 @@ sub _calc_blocksize {
             $blocksize = int ( 10 ** $exp );
             $cellcount_in_memory = $columncount * $blocksize;
             if ($multithreaded) {
-                $cellcount_in_memory *= $threadqueuelength;
+                $cellcount_in_memory *= get_threadqueuelength($threadqueuelength);
             }
         }
 
@@ -1353,16 +1400,19 @@ sub _get_stop_consumer_thread {
         $reader_state = $errorstates->{$context->{readertid}};
     }
     $queuesize = $context->{queue}->pending();
-    if (($other_threads_state & $ERROR) == 0 and ($queuesize > 0 or $reader_state == $RUNNING)) {
+    if (($other_threads_state & $ERROR) == 0
+         and ($other_threads_state & $STOP) == 0
+         and ($queuesize > 0 or $reader_state == $RUNNING)) {
         $result = 0;
         #keep the consumer thread running if there is no defunct thread and queue is not empty or reader is still running
     }
 
     if ($result) {
         tablethreadingdebug('[' . $tid . '] consumer thread is shutting down (' .
-                            (($other_threads_state & $ERROR) == 0 ? 'no defunct thread(s)' : 'defunct thread(s)') . ', ' .
-                            ($queuesize > 0 ? 'blocks pending' : 'no blocks pending') . ', ' .
-                            ($reader_state == $RUNNING ? 'reader thread running' : 'reader thread not running') . ') ...'
+                            (($other_threads_state & $ERROR) == 0 ? 'no defunct thread(s)' : uc('defunct thread(s)')) . ', ' .
+                            (($other_threads_state & $STOP) == 0 ? 'no thread(s) stopping by signal' : uc('thread(s) stopping by signal')) . ', ' .
+                            ($queuesize > 0 ? 'blocks pending' : uc('no blocks pending')) . ', ' .
+                            ($reader_state == $RUNNING ? 'reader thread running' : uc('reader thread not running')) . ') ...'
         ,getlogger(__PACKAGE__));
     }
 
@@ -1387,7 +1437,7 @@ sub _reader {
 
     my $blockcount = 0;
     eval {
-        $reader_db = &{$context->{get_db}}(); #$reader_connection_name);
+        $reader_db = &{$context->{get_db}}($context->{name}); #$reader_name);
         $reader_db->db_get_begin($context->{selectstatement},@{$context->{values_ref}}) if $reader_db->rowblock_transactional; #$context->{tablename}
         tablethreadingdebug('[' . $tid . '] reader thread waiting for consumer threads',getlogger(__PACKAGE__));
         while ((_get_other_threads_state($context->{errorstates},$tid) & $RUNNING) == 0) { #wait on cosumers to come up
@@ -1396,7 +1446,7 @@ sub _reader {
         }
         my $i = 0;
         my $state = $RUNNING; #start at first
-        while (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0) { #as long there is one running consumer and no defunct consumer
+        while (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0 and ($state & $STOP) == 0) { #as long there is one running consumer and no defunct consumer
             fetching_rows($reader_db,$context->{tablename},$i,$context->{blocksize},$context->{rowcount},getlogger(__PACKAGE__));
             $reader_db->db_get_begin($context->{selectstatement},$i,$context->{blocksize},@{$context->{values_ref}}) unless $reader_db->rowblock_transactional;
             my $rowblock = $reader_db->db_get_rowblock($context->{blocksize});
@@ -1417,7 +1467,7 @@ sub _reader {
                 $context->{queue}->enqueue(\%packet); #$packet);
                 $blockcount++;
                 #wait if thequeue is full and there there is one running consumer
-                while (((($state = _get_other_threads_state($context->{errorstates},$tid)) & $RUNNING) == $RUNNING) and $context->{queue}->pending() >= $context->{threadqueuelength}) {
+                while (((($state = _get_other_threads_state($context->{errorstates},$tid)) & $RUNNING) == $RUNNING) and $context->{queue}->pending() >= get_threadqueuelength($context->{threadqueuelength})) {
                     #yield();
                     sleep($thread_sleep_secs);
                 }
@@ -1432,10 +1482,11 @@ sub _reader {
                 last;
             }
         }
-        if (not (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0)) {
+        if (not (($state & $RUNNING) == $RUNNING and ($state & $ERROR) == 0 and ($state & $STOP) == 0)) {
             tablethreadingdebug('[' . $tid . '] reader thread is shutting down (' .
-                              (($state & $RUNNING) == $RUNNING ? 'still running consumer threads' : 'no running consumer threads') . ', ' .
-                              (($state & $ERROR) == 0 ? 'no defunct thread(s)' : 'defunct thread(s)') . ') ...'
+                              (($state & $RUNNING) == $RUNNING ? 'still running consumer threads' : uc('no running consumer threads')) . ', ' .
+                              (($state & $ERROR) == 0 ? 'no defunct thread(s)' : uc('defunct thread(s)')) . ', ' .
+                              (($state & $STOP) == 0 ? 'no thread(s) stopping by signal' : uc('thread(s) stopping by signal')) . ') ...'
             ,getlogger(__PACKAGE__));
         }
         $reader_db->db_finish() if $reader_db->rowblock_transactional;
@@ -1453,7 +1504,7 @@ sub _reader {
     lock $context->{errorstates};
     if ($@) {
         $context->{errorstates}->{$tid} = $ERROR;
-    } else {
+    } elsif ($context->{errorstates}->{$tid} != $STOP) {
         $context->{errorstates}->{$tid} = $COMPLETED;
     }
     return $context->{errorstates}->{$tid};
@@ -1475,7 +1526,7 @@ sub _writer {
 
     my $blockcount = 0;
     eval {
-        $writer_db = &{$context->{get_target_db}}(); #$writer_connection_name);
+        $writer_db = &{$context->{get_target_db}}($writer_name); #$writer_name);
         while (not _get_stop_consumer_thread($context,$tid)) {
             my $packet = $context->{queue}->dequeue_nb();
             if (defined $packet) {
@@ -1508,7 +1559,7 @@ sub _writer {
     lock $context->{errorstates};
     if ($@) {
         $context->{errorstates}->{$tid} = $ERROR;
-    } else {
+    } elsif ($context->{errorstates}->{$tid} != $STOP) {
         $context->{errorstates}->{$tid} = $COMPLETED;
     }
     return $context->{errorstates}->{$tid};
@@ -1534,7 +1585,7 @@ sub _process {
         if (defined $context->{init_process_context_code} and 'CODE' eq ref $context->{init_process_context_code}) {
             &{$context->{init_process_context_code}}($context);
         }
-        #$writer_db = &{$context->{get_target_db}}($writer_connection_name);
+        #$writer_db = &{$context->{get_target_db}}($writer_name);
         while (not _get_stop_consumer_thread($context,$tid)) {
             my $packet = $context->{queue}->dequeue_nb();
             if (defined $packet) {
@@ -1548,7 +1599,7 @@ sub _process {
 
                     #$i += $realblocksize;
 
-                    processing_rows($tid,$packet->{row_offset},$packet->{size},$context->{rowcount},getlogger(__PACKAGE__));
+                    processing_rows($context,$packet->{row_offset},$packet->{size},$context->{rowcount},getlogger(__PACKAGE__));
 
                     $rowblock_result = &{$context->{process_code}}($context,$packet->{rows},$packet->{row_offset});
 
@@ -1582,7 +1633,7 @@ sub _process {
     lock $context->{errorstates};
     if ($err) {
         $context->{errorstates}->{$tid} = $ERROR;
-    } else {
+    } elsif ($context->{errorstates}->{$tid} != $STOP) {
         $context->{errorstates}->{$tid} = $COMPLETED; #(not $rowblock_result) ? $ERROR : $COMPLETED;
     }
     return $context->{errorstates}->{$tid};

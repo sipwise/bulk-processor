@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag_data;
+package NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_relation_data;
 use strict;
 
 ## no critic
@@ -20,7 +20,7 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
-use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag qw();
+use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_relation qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider qw();
 use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction qw();
 
@@ -37,14 +37,14 @@ our @EXPORT_OK = qw(
     insert_row
 );
 
-my $tablename = 'cdr_tag_data';
+my $tablename = 'cdr_relation_data';
 my $get_db = \&get_accounting_db;
 
 my $expected_fieldnames = [
   "cdr_id",
   "provider_id",
   "direction_id",
-  "tag_id",
+  "relation_id",
   "val",
   "cdr_start_time",
 ];
@@ -104,6 +104,24 @@ sub findby_cdrid {
 
 }
 
+sub findby_callid {
+
+    my ($xa_db,$callid,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('call_id') . ' = ?';
+    my @params = ($callid);
+    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive);
+
+}
+
 sub insert_row {
 
     my $db = &$get_db();
@@ -130,7 +148,7 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
-            $record->load_relation($load_recursive,'tag','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag::findby_id_cached',$record->{tag_id},$load_recursive);
+            $record->load_relation($load_recursive,'relation','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_relation::findby_id_cached',$record->{relation_id},$load_recursive);
             $record->load_relation($load_recursive,'direction','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction::findby_id_cached',$record->{direction_id},$load_recursive);
             $record->load_relation($load_recursive,'provider','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider::findby_id_cached',$record->{provider_id},$load_recursive);
 

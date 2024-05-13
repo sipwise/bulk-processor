@@ -30,11 +30,11 @@ use NGCP::BulkProcessor::Calendar qw();
 
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(get_tableidentifier);
+our @EXPORT_OK = qw(get_tableidentifier $log_db_operations);
 
 #my $logger = getlogger(__PACKAGE__);
 
-my $log_db_operations = 0; #0;
+our $log_db_operations = 0; #0;
 
 my $temptable_randomstringlength = 4;
 
@@ -988,6 +988,7 @@ sub db_finish {
     my $self = shift;
     my $transactional = shift;
     my $rollback = shift;
+    my $log = shift;
 
     # since this is also called from DESTROY, no die() here!
 
@@ -1001,7 +1002,7 @@ sub db_finish {
         if ($transactional) {
             #$self->unlock_tables();
             if ($rollback) {
-                $self->db_rollback(1);
+                $self->db_rollback($log);
             } else {
                 $self->db_commit();
             }

@@ -176,7 +176,7 @@ sub db_connect {
 
     my $self = shift;
 
-    my ($databasename,$username,$password,$host,$port) = @_;
+    my ($databasename,$username,$password,$host,$port,$create_database) = @_;
 
     $self->SUPER::db_connect($databasename,$username,$password,$host,$port);
 
@@ -192,7 +192,7 @@ sub db_connect {
     $self->{username} = $username;
     $self->{password} = $password;
 
-    if (not contains($databasename,$self->getdatabases(),0)) {
+    if ($create_database and not contains($databasename,$self->getdatabases(),0)) {
         $self->_createdatabase($databasename);
     }
 
