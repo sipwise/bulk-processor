@@ -1,4 +1,4 @@
-package NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag_data;
+package NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_presentity;
 use strict;
 
 ## no critic
@@ -20,10 +20,6 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
-use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag qw();
-use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider qw();
-use NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction qw();
-
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -31,23 +27,21 @@ our @EXPORT_OK = qw(
     settablename
     check_table
 
-    findby_cdrproviderdirectiontag
-    findby_cdrid
+    findby_callid
     
     insert_row
 );
 
-my $tablename = 'cdr_tag_data';
+my $tablename = 'cdr_presentity';
 my $get_db = \&get_accounting_db;
 
 my $expected_fieldnames = [
-  "cdr_id",
-  "provider_id",
-  "direction_id",
-  "tag_id",
-  "val",
-  "cdr_start_time",
+  "call_id",
+  "event",
+  "received_time",
+  "body",
 ];
+
 
 my $indexes = {};
 
@@ -65,30 +59,9 @@ sub new {
 
 }
 
-sub findby_cdrproviderdirectiontag {
+sub findby_callid {
 
-    my ($xa_db,$cdrid,$providerid,$directionid,$tagid,$load_recursive) = @_;
-
-    check_table();
-    my $db = &$get_db();
-    $xa_db //= $db;
-    my $table = $db->tableidentifier($tablename);
-
-    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('cdr_id') . ' = ?' .
-            ' AND ' . $db->columnidentifier('provider_id') . ' = ?' .
-            ' AND ' . $db->columnidentifier('direction_id') . ' = ?' .
-            ' AND ' . $db->columnidentifier('tag_id') . ' = ?';
-    my @params = ($cdrid,$providerid,$directionid,$tagid);
-    my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
-
-    return buildrecords_fromrows($rows,$load_recursive);
-
-}
-
-sub findby_cdrid {
-
-    my ($xa_db,$cdrid,$load_recursive) = @_;
+    my ($xa_db,$callid,$load_recursive) = @_;
 
     check_table();
     my $db = &$get_db();
@@ -96,8 +69,8 @@ sub findby_cdrid {
     my $table = $db->tableidentifier($tablename);
 
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
-            $db->columnidentifier('cdr_id') . ' = ?';
-    my @params = ($cdrid);
+            $db->columnidentifier('call_id') . ' = ?';
+    my @params = ($callid);
     my $rows = $xa_db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive);
@@ -130,9 +103,6 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
-            $record->load_relation($load_recursive,'tag','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_tag::findby_id_cached',$record->{tag_id},$load_recursive);
-            $record->load_relation($load_recursive,'direction','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_direction::findby_id_cached',$record->{direction_id},$load_recursive);
-            $record->load_relation($load_recursive,'provider','NGCP::BulkProcessor::Dao::Trunk::accounting::cdr_provider::findby_id_cached',$record->{provider_id},$load_recursive);
 
             push @records,$record;
         }

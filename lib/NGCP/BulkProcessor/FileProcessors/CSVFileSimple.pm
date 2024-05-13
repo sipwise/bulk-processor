@@ -3,6 +3,10 @@ use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Globals qw(
+    $cpucount
+);
+
 use NGCP::BulkProcessor::Logging qw(
     getlogger
 );

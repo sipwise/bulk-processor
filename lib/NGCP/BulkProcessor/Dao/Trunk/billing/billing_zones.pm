@@ -22,9 +22,6 @@ use NGCP::BulkProcessor::SqlProcessor qw(
 );
 use NGCP::BulkProcessor::SqlRecord qw();
 
-#use NGCP::BulkProcessor::Dao::Trunk::billing::billing_mappings qw();
-#use NGCP::BulkProcessor::Dao::Trunk::billing::billing_profiles qw();
-
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::SqlRecord);
 our @EXPORT_OK = qw(
@@ -33,7 +30,6 @@ our @EXPORT_OK = qw(
     insert_row
 
     process_records
-
 );
 
 my $tablename = 'billing_zones';
@@ -61,7 +57,6 @@ sub new {
     return $self;
 
 }
-
 
 sub insert_row {
 

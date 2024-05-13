@@ -36,6 +36,7 @@ our @EXPORT_OK = qw(
     delete_row
 
     findby_id
+    findby_uuid
     findby_contractid
     findby_domainid_username_states
     countby_status_resellerid
@@ -95,6 +96,23 @@ sub findby_id {
     my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
             $db->columnidentifier('id') . ' = ?';
     my @params = ($id);
+    my $rows = $db->db_get_all_arrayref($stmt,@params);
+
+    return buildrecords_fromrows($rows,$load_recursive)->[0];
+
+}
+
+sub findby_uuid {
+
+    my ($uuid,$load_recursive) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'SELECT * FROM ' . $table . ' WHERE ' .
+            $db->columnidentifier('uuid') . ' = ?';
+    my @params = ($uuid);
     my $rows = $db->db_get_all_arrayref($stmt,@params);
 
     return buildrecords_fromrows($rows,$load_recursive)->[0];

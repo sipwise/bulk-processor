@@ -19,6 +19,7 @@ Homepage: https://www.sipwise.com/
 Package: libngcp-bulkprocessor-perl
 Architecture: all
 Depends:
+ libarchive-zip-perl,
  libconfig-any-perl,
  libdata-dump-perl,
  libdata-rmap-perl,
@@ -35,12 +36,14 @@ Depends:
  libdbd-sqlite3-perl,
  libemail-mime-attachment-stripper-perl,
  libemail-mime-perl,
+ libeval-closure-perl,
  libexcel-reader-xlsx-perl,
  libgearman-client-perl,
  libhtml-parser-perl,
  libhttp-message-perl,
  libintl-perl,
  libio-socket-ssl-perl,
+ libje-perl,
  libjson-perl,
  liblog-log4perl-perl,
  libmail-imapclient-perl,
@@ -48,6 +51,7 @@ Depends:
  libmime-lite-perl,
  libmime-tools-perl,
  libnet-address-ip-local-perl,
+ libobject-destroyer-perl,
  libphp-serialization-perl,
  libredis-perl,
  libspreadsheet-parseexcel-perl,
@@ -62,11 +66,12 @@ Depends:
  libwww-perl,
  libxml-dumper-perl,
  libyaml-libyaml-perl,
+ libyaml-perl,
  ${misc:Depends},
  ${perl:Depends},
 Suggests:
  libdbd-odbc-perl,
- libdbd-orable-perl,
+ libdbd-oracle-perl,
  libdbd-pg-perl,
  tdsodbc,
 Description: NGCP bulk processor framework perl modules

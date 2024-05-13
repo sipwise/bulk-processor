@@ -11,6 +11,8 @@ use NGCP::BulkProcessor::SqlProcessor qw(init_record);
 
 use NGCP::BulkProcessor::Utils qw(load_module);
 
+use NGCP::BulkProcessor::Closure qw(is_code);
+
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw();
@@ -66,24 +68,25 @@ sub load_relation {
             $transform = $include->{transform};
             if (exists $include->{include}) {
                 $include = $include->{include};
+            } elsif (exists $include->{load}) {
+                $include = $include->{load};                
             } elsif ($transform or $filter) {
                 $include = 1;
             } 
         }
-        if (('CODE' eq ref $include and $include->($self))
+        if ((is_code($include) and $self->_calc_closure($relation_path,'load',$include,$load_recursive->{_context},$load_recursive->{_cache},$self))
              or (not ref $include and $include)) {
             load_module($findby);
             no strict "refs";  ## no critic (ProhibitNoStrict)
             $load_recursive->{_relation_path} = $relation_path;
             $self->{$relation} = $findby->(@findby_args);
             if ('ARRAY' eq ref $self->{$relation}
-                and 'CODE' eq ref $filter) {
-                my $closure = _closure($filter,$load_recursive->{_context});
-                $self->{$relation} = [ grep { $closure->($_); } @{$self->{$relation}}];
+                and is_code($filter)) {
+                my $cache = $load_recursive->{_cache} // {};
+                $self->{$relation} = [ grep { $self->_calc_closure($relation_path,'filter',$filter,$load_recursive->{_context},$cache,$_,$self); } @{$self->{$relation}} ];
             }
-            if ('CODE' eq ref $transform) {
-                my $closure = _closure($transform,$load_recursive->{_context});
-                $self->{$relation} = $closure->($self->{$relation});
+            if (is_code($transform)) {
+                $self->{$relation} = $self->_calc_closure($relation_path,'transform',$transform,$load_recursive->{_context},$load_recursive->{_cache},$self->{$relation},$self);
             }
             $load_recursive->{_relation_path} = $relation_path_backup;
             return 1;
@@ -92,15 +95,15 @@ sub load_relation {
     return 0;
 }
 
-sub _closure {
-    my ($sub,$context) = @_;
-    return sub {
-        foreach my $key (keys %$context) {
-            no strict "refs";  ## no critic (ProhibitNoStrict)
-            *{"main::$key"} = $context->{$key} if 'CODE' eq ref $context->{$key};
-        }
-        return $sub->(@_,$context);
-    };
+sub _calc_closure {
+
+    my $self = shift;
+    my ($relation_path,$func,$code,$context,$cache,@args) = @_;
+    my $id = '_relations_' . $func . '_' . $relation_path;
+    $cache //= {};
+    $cache->{$id} = NGCP::BulkProcessor::Closure->new($code,$context,"relations '$relation_path' $func'") unless exists $cache->{$id};
+    return $cache->{$id}->calc($context,@args);
+
 }
 
 1;

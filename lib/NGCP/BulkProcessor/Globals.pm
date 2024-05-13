@@ -47,6 +47,7 @@ our @EXPORT_OK = qw(
 	$enablemultithreading
 	$root_threadid
 	$cpucount
+    get_threadqueuelength
 
 	$cells_transfer_memory_limit
 	$LongReadLen_limit
@@ -130,6 +131,10 @@ our @EXPORT_OK = qw(
     $jobnamespace
 
     @config_search_paths
+
+    $provisioning_conf_data
+    $constants_yml_data
+    $config_yml_data
 );
 
 #set process umask for open and mkdir calls:
@@ -163,6 +168,14 @@ if ($is_perl_debug) {
 }
 
 our $cpucount = get_cpucount();
+
+sub get_threadqueuelength {
+    my $length = shift;
+    if ($length < 2 * $cpucount) {
+        $length = 2 * $cpucount;
+    }
+    return $length;
+}
 
 our $root_threadid = 0; #threadid() . ''; #0
 our $cells_transfer_memory_limit = 10000000; #db fields
@@ -222,8 +235,11 @@ our $working_path = tempdir(CLEANUP => 0) . '/'; #'/var/sipwise/';
 
 
 our $provisioning_conf = undef;
+our $provisioning_conf_data = undef;
 our $constants_yml = undef;
-
+our $constants_yml_data = undef;
+our $config_yml = undef;
+our $config_yml_data = undef;
 
 # csv
 our $csv_path = $working_path . 'csv/';
@@ -368,6 +384,14 @@ sub update_masterconfig {
         $screenloglevel = $data->{screenloglevel} if exists $data->{screenloglevel};
         $emailloglevel = $data->{emailloglevel} if exists $data->{emailloglevel};
 
+        eval {
+            if ('debug' eq lc($fileloglevel)
+                or 'debug' eq lc($screenloglevel)
+                or 'debug' eq lc($emailloglevel)) {
+                $NGCP::BulkProcessor::SqlConnector::log_db_operations = 1;
+            }
+        };
+
         if (exists $data->{working_path}) {
             $result &= _prepare_working_paths($data->{working_path},1,$fileerrorcode,$configlogger);
         } else {
@@ -384,6 +408,16 @@ sub update_masterconfig {
                 \&_update_provisioning_conf,
                 $anyconfigtype,
                 { force_plugins => [ 'Config::Any::XML' ] }
+            ]);
+        }
+
+        $config_yml = $data->{config_yml} if exists $data->{config_yml};
+
+        if (defined $config_yml and length($config_yml) > 0) {
+            push(@loadconfig_args,[
+                $config_yml,
+                \&_update_config_yml,
+                $yamlconfigtype,
             ]);
         }
         
@@ -408,6 +442,8 @@ sub _update_provisioning_conf {
 
     my ($data,$configfile) = @_;
 
+    $provisioning_conf_data = $data;
+
     if (defined $data) {
 
         my $result = 1;
@@ -424,6 +460,8 @@ sub _update_provisioning_conf {
 sub _update_constants_yml {
 
     my ($data,$configfile) = @_;
+
+    $constants_yml_data = $data;
 
     if (defined $data) {
 
@@ -469,6 +507,23 @@ sub _update_constants_yml {
         $location_host = $data->{database}->{central}->{dbhost};
         $location_port = $data->{database}->{central}->{redis_port};
         #$location_sock = 
+
+        return $result;
+
+    }
+    return 0;
+
+}
+
+sub _update_config_yml {
+
+    my ($data,$configfile) = @_;
+
+    $config_yml_data = $data;
+
+    if (defined $data) {
+
+        my $result = 1;
 
         return $result;
 
