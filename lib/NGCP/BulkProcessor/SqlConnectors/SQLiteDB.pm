@@ -64,7 +64,7 @@ my $texttable_encoding = 'UTF-8'; # sqlite returns whats inserted...
 
 $DBD::SQLite::COLLATION{no_accents} = sub {
     my ( $a, $b ) = map lc, @_;
-    tr[àâáäåãçðèêéëìîíïñòôóöõøùûúüý]
+    tr[Ã Ã¢Ã¡Ã¤Ã¥Ã£Ã§Ã°Ã¨ÃªÃ©Ã«Ã¬Ã®Ã­Ã¯Ã±Ã²Ã´Ã³Ã¶ÃµÃ¸Ã¹Ã»ÃºÃ¼Ã½]
       [aaaaaacdeeeeiiiinoooooouuuuy] for $a, $b;
     $a cmp $b;
   };
@@ -269,6 +269,9 @@ sub db_connect {
     #PRAGMA locking_mode = NORMAL ... by default
     #$self->db_do('PRAGMA auto_vacuum = INCREMENTAL');
     #$self->db_do('PRAGMA read_uncommitted = ' . $read_uncommitted_isolation_level);
+    if ($local_db_path and ($filemode == $staticdbfilemode or $filemode == $timestampdbfilemode)) {
+        $self->db_do("PRAGMA temp_store_directory = '$local_db_path'");
+    }
 
     dbinfo($self,'connected',getlogger(__PACKAGE__));
 
