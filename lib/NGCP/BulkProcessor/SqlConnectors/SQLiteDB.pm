@@ -5,7 +5,8 @@ use strict;
 
 use NGCP::BulkProcessor::Globals qw(
     $local_db_path
-    $LongReadLen_limit);
+    $LongReadLen_limit
+    $cpucount);
 use NGCP::BulkProcessor::Logging qw(
     getlogger
     dbinfo
@@ -269,6 +270,10 @@ sub db_connect {
     #PRAGMA locking_mode = NORMAL ... by default
     #$self->db_do('PRAGMA auto_vacuum = INCREMENTAL');
     #$self->db_do('PRAGMA read_uncommitted = ' . $read_uncommitted_isolation_level);
+    
+    if ($cpucount) {
+        $self->db_do('PRAGMA threads = ' . $cpucount);
+    }
     if ($local_db_path and ($filemode == $staticdbfilemode or $filemode == $timestampdbfilemode)) {
         $self->db_do("PRAGMA temp_store_directory = '$local_db_path'");
     }
