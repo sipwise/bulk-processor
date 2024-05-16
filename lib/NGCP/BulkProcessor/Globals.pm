@@ -455,7 +455,7 @@ sub _update_constants_yml {
 
         $xa_host = $data->{database}->{central}->{dbhost};
         $xa_port = $data->{database}->{central}->{dbport};
-        $xa_databasename = 'ngcp';
+        $xa_databasename = 'billing';
         $xa_username = $data->{credentials}->{mysql}->{provisioning}->{u};
         $xa_password = $data->{credentials}->{mysql}->{provisioning}->{p};
 
