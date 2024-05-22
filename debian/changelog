@@ -1,3 +1,14 @@
+ngcp-bulk-processor (12.4.1.0+0~mr12.4.1.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [bb20bc5] MT#59932 remove lnp importer and customer exporter
+  * [ad3b6e4] MT#60120 set explicit tempdir for SQlite
+  * [ab37cf4] MT#60120 allow SQLite to use aux threads
+  * [71ff87e] MT#60120 use billing as default db when laoding from constants.yml
+  * [f43d2cb] MT#60120 do not bail out when processing 0 records
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 22 May 2024 14:29:56 +0200
+
 ngcp-bulk-processor (12.4.0.0+0~mr12.4.0.0) unstable; urgency=medium
 
   * New release.
