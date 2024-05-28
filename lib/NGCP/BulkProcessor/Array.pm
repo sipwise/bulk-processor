@@ -23,7 +23,8 @@ our @EXPORT_OK = qw(
     filter
     getroundrobinitem
     getrandomitem
-    array_to_map);
+    array_to_map
+    flatten);
 
 sub mergearrays {
     my ($array_ptr1, $array_ptr2) = @_;
@@ -321,6 +322,11 @@ sub mapeq {
     }
 
     return 1;
+}
+
+#https://metacpan.org/dist/List-Flatten/source/lib/List/Flatten.pm
+sub flatten(@) {
+    return map { ref eq 'ARRAY' ? @$_ : $_ } @_;
 }
 
 1;

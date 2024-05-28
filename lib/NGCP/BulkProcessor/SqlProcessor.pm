@@ -715,7 +715,7 @@ sub update_record {
 
 sub insert_stmt {
 
-    my ($get_db,$class,$insert_ignore,$exclude_identity_fieldnames) = @_;
+    my ($get_db,$class,$insert_ignore,$exclude_identity_fieldnames,$row_count) = @_;
     my $db = (ref $get_db eq 'CODE') ? &$get_db() : $get_db;
     my $connectidentifier = $db->connectidentifier();
     my $tid = threadid();
@@ -724,9 +724,11 @@ sub insert_stmt {
         $expected_fieldnames = [ grep { not contains($_,$exclude_identity_fieldnames); } @$expected_fieldnames ];
     }
     my $tablename = $table_names->{$tid}->{$connectidentifier}->{$class};
+    $row_count //= 1;
+    my $values = join ", ", ('(' . substr(',?' x scalar @$expected_fieldnames,1) . ')') x $row_count;
     return 'INSERT ' . ($insert_ignore ? $db->insert_ignore_phrase() . ' ' : '') . 'INTO ' . $db->tableidentifier($tablename) . ' (' .
       join(', ',map { local $_ = $_; $_ = $db->columnidentifier($_); $_; } @$expected_fieldnames) .
-      ') VALUES (' . substr(',?' x scalar @$expected_fieldnames,1) . ')';
+      ') VALUES ' . $values;
 
 }
 
