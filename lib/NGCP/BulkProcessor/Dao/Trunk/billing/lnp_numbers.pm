@@ -236,9 +236,9 @@ sub buildrecords_fromrows {
 
 sub getinsertstatement {
 
-    my ($insert_ignore) = @_;
+    my ($insert_ignore,$row_count) = @_;
     check_table();
-    return insert_stmt($get_db,__PACKAGE__,$insert_ignore);
+    return insert_stmt($get_db,__PACKAGE__,$insert_ignore,undef,$row_count);
 
 }
 
