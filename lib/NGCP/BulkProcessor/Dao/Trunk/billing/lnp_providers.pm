@@ -31,6 +31,8 @@ our @EXPORT_OK = qw(
     insert_row
     update_row
     delete_row
+
+    delete_all
     
     findby_prefix
     findby_nameprefixauthoritativeskiprewrite
@@ -155,6 +157,28 @@ sub delete_row {
 
     check_table();
     return delete_record($get_db,$xa_db,__PACKAGE__,$data);
+
+}
+
+sub delete_all {
+
+    my ($xa_db) = @_;
+
+    check_table();
+    my $db = &$get_db();
+    $xa_db //= $db;
+    my $table = $db->tableidentifier($tablename);
+
+    my $stmt = 'DELETE FROM ' . $table;
+
+    my $count;
+    if ($count = $xa_db->db_do($stmt,@params)) {
+        rowsdeleted($db,$tablename,$count,$count,getlogger(__PACKAGE__));
+        return 1;
+    } else {
+        rowsdeleted($db,$tablename,0,0,getlogger(__PACKAGE__));
+        return 0;
+    }
 
 }
 
