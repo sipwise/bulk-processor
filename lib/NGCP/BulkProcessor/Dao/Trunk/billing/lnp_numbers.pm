@@ -33,6 +33,8 @@ our @EXPORT_OK = qw(
     delete_row
     
     delete_numbers
+
+    truncate
     
     getinsertstatement
 
@@ -139,6 +141,15 @@ sub delete_row {
 
     check_table();
     return delete_record($get_db,$xa_db,__PACKAGE__,$data);
+
+}
+
+sub truncate {
+
+    check_table();
+    my $db = &$get_db();
+    $db->truncate_table($tablename);
+    $db->vacuum($tablename);
 
 }
 
