@@ -172,7 +172,7 @@ sub delete_all {
     my $stmt = 'DELETE FROM ' . $table;
 
     my $count;
-    if ($count = $xa_db->db_do($stmt,@params)) {
+    if ($count = $xa_db->db_do($stmt)) {
         rowsdeleted($db,$tablename,$count,$count,getlogger(__PACKAGE__));
         return 1;
     } else {
