@@ -1,3 +1,12 @@
+ngcp-bulk-processor (12.4.1.1+0~mr12.4.1.1) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [74425c5] MT#60189 support multi-insert stmts for lnp_numbers
+  * [f759560] MT#60120 dao methods to purge lnp numbers
+  * [9091b35] MT#60120 fix typo in lnp_providers.pm
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 06 Jun 2024 12:44:23 +0200
+
 ngcp-bulk-processor (12.4.1.0+0~mr12.4.1.0) unstable; urgency=medium
 
   [ Rene Krenn ]
