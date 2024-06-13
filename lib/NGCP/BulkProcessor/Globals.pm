@@ -146,7 +146,7 @@ our $system_instance_label;
 our $local_ip = get_ipaddress();
 our $local_fqdn = get_hostfqdn();
 our $application_path = get_applicationpath();
-our $executable_path = $FindBin::Bin . '/';
+our $executable_path = $FindBin::RealBin . '/';
 #my $remotefilesystem = "MSWin32";
 #our $system_username = 'system';
 
