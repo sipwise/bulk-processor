@@ -1,3 +1,10 @@
+ngcp-bulk-processor (11.5.1.3+0~mr11.5.1.3) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [8486c8c] MT#60120 resolve symlinks when looking for conf files
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 27 Jun 2024 10:43:07 +0200
+
 ngcp-bulk-processor (11.5.1.2+0~mr11.5.1.2) unstable; urgency=medium
 
   [ Rene Krenn ]
