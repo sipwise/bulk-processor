@@ -188,11 +188,16 @@ sub vacuum {
 }
 
 sub paginate_sort_query {
+
     my $self = shift;
     my $statement = shift;
     my $offset = shift;
     my $limit = shift;
     my $sortingconfigurations = shift;
+
+    if ($statement =~ /limit\s+\d+(,\s*\d+)?\s*$/i) {
+        $statement = "SELECT * FROM ($statement) AS _ps";
+    }
 
     my $orderby = $self->_orderby_columns($sortingconfigurations);
     if (length($orderby) > 0) {
@@ -937,7 +942,7 @@ sub rowblock_transactional {
 sub db_get_rowblock {
 
     my $self = shift;
-    my $max_rows = shift;
+    my $max_rows = shift; #https://www.perlmonks.org/?node_id=273952
 
     if ($enablemultithreading) {
 
