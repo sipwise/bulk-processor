@@ -11,7 +11,6 @@ setlocale(LC_NUMERIC, 'C');
 
 use List::Util qw(max min);
 
-use Data::UUID qw();
 use UUID qw();
 
 use Data::Validate::IP qw(is_ipv4 is_ipv6);
@@ -404,18 +403,11 @@ sub wrap_text {
 }
 
 sub create_guid {
-
-  my $ug = Data::UUID->new();
-  my $uuid = $ug->create();
-  return $ug->to_string( $uuid );
-
+    return uc UUID::uuid();
 }
 
 sub create_uuid {
-    my ($bin, $str);
-    UUID::generate($bin);
-    UUID::unparse($bin, $str);
-    return $str;
+    return UUID::uuid();
 }
 
 sub urlencode {
