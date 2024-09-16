@@ -5,7 +5,6 @@ Maintainer: Sipwise Development Team <support@sipwise.com>
 Rules-Requires-Root: binary-targets
 Build-Depends:
  debhelper-compat (= 13),
- libdata-uuid-perl <!nocheck>,
  libdata-validate-ip-perl <!nocheck>,
  libdate-calc-perl <!nocheck>,
  libdate-manip-perl <!nocheck>,
@@ -23,7 +22,6 @@ Depends:
  libconfig-any-perl,
  libdata-dump-perl,
  libdata-rmap-perl,
- libdata-uuid-perl,
  libdata-validate-ip-perl,
  libdate-calc-perl,
  libdate-manip-perl,

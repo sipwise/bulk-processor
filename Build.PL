@@ -34,7 +34,6 @@ my $builder = Module::Build->new(
                     'DBI'                                   => '1.608',
                     'Data::Dump'                            => 0,
                     'Data::Rmap'                            => 0,
-                    'Data::UUID'                            => 0,
                     'Data::Validate::IP'                    => 0,
                     'Date::Calc'                            => 0,
                     'Date::Manip'                           => 0,
