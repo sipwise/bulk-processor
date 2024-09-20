@@ -31,6 +31,7 @@ Depends:
  libdatetime-timezone-perl,
  libdbd-csv-perl,
  libdbd-mysql-perl,
+ libdbd-pg-perl,
  libdbd-sqlite3-perl,
  libemail-mime-attachment-stripper-perl,
  libemail-mime-perl,
@@ -70,7 +71,6 @@ Depends:
 Suggests:
  libdbd-odbc-perl,
  libdbd-oracle-perl,
- libdbd-pg-perl,
  tdsodbc,
 Description: NGCP bulk processor framework perl modules
  This package provides the NGCP::BulkProcessor perl modules that implement
