@@ -94,7 +94,7 @@ sub tableidentifier {
 
     my $self = shift;
     my $tablename = shift;
-    return $tablename;
+    return '"' . $tablename . '"';
 
 }
 
@@ -103,8 +103,7 @@ sub _columnidentifier {
     my $self = shift;
     my $columnname = shift;
 
-    return $columnname;
-
+    return '"' . $columnname . '"';
 }
 
 sub get_tableidentifier {
@@ -114,7 +113,7 @@ sub get_tableidentifier {
     #return SUPER::get_tableidentifier($tablename,$schemaname);
 
     if (defined $schemaname) {
-        return $schemaname . '.' . $tablename;
+        return $schemaname . "." . $tablename;
     } else {
         return $tablename;
     }
