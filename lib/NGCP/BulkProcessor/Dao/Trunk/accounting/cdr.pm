@@ -357,6 +357,7 @@ sub process_unexported {
         $alias,
         $joins,
         $conditions,
+        $loop,
         #$sort,
         $limit) = @params{qw/
             process_code
@@ -370,6 +371,7 @@ sub process_unexported {
             alias
             joins
             conditions
+            loop
             limit
         /};
     #sort
@@ -436,6 +438,7 @@ sub process_unexported {
         blocksize                   => $blocksize,
         select                      => $select_stmt,
         selectcount                 => $count_stmt,
+        loop                        => $loop,
     );
 }
 
