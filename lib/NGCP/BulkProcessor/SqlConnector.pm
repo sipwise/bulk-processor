@@ -955,7 +955,7 @@ sub db_get_rowblock {
 
             dbdebug($self,'db_get_rowblock: ' . $self->{query} . "\nparameters:\n" . join(', ', @{$self->{params}}),getlogger(__PACKAGE__)) if $log_db_operations;
 
-            foreach (@{$self->{sth}->fetchall_arrayref(undef, $max_rows)}) {
+            foreach (@{$self->{sth}->fetchall_arrayref(undef, $max_rows) // []}) {
                 my @row : shared = @{$_};
                 push @rows, \@row;
             }
