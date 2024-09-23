@@ -437,7 +437,7 @@ sub tabletransferstarted {
 
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table transfer started: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table transfer started: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . (defined $numofrows ? ': ' . $numofrows . ' row(s)' : ''));
     }
 
 }
@@ -446,7 +446,7 @@ sub tableprocessingstarted {
 
     my ($db,$tablename,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info('table processing started: [' . $db->connectidentifier() . '].' . $tablename . ': ' . $numofrows . ' row(s)');
+        $logger->info('table processing started: [' . $db->connectidentifier() . '].' . $tablename . (defined $numofrows ? ': ' . $numofrows . ' row(s)' : ''));
     }
 
 }
@@ -645,7 +645,7 @@ sub tabletransferdone {
 
     my ($db,$tablename,$target_db,$targettablename,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table transfer done: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . ': ' . $numofrows . ' row(s)');
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'table transfer done: [' . $db->connectidentifier() . '].' . $tablename . ' > ' . $targettablename . (defined $numofrows ? ': ' . $numofrows . ' row(s)' : ''));
     }
 
 }
@@ -663,7 +663,7 @@ sub tableprocessingdone {
 
     my ($db,$tablename,$numofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info('table processing done: [' . $db->connectidentifier() . '].' . $tablename . ': ' . $numofrows . ' row(s)');
+        $logger->info('table processing done: [' . $db->connectidentifier() . '].' . $tablename . (defined $numofrows ? ': ' . $numofrows . ' row(s)' : ''));
     }
 
 }
@@ -681,7 +681,7 @@ sub fetching_rows {
 
     my ($db,$tablename,$start,$blocksize,$totalnumofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getsqlconnectorinstanceprefix($db) . 'fetching rows from [' . $db->connectidentifier() . '].' . $tablename . ': ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'fetching rows from [' . $db->connectidentifier() . '].' . $tablename . ': ' . ($start + 1) . '-' . ($start + $blocksize) . (defined $totalnumofrows ? ' of ' . $totalnumofrows : ''));
     }
 
 }
@@ -690,7 +690,7 @@ sub writing_rows {
 
     my ($db,$tablename,$start,$blocksize,$totalnumofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_getsqlconnectorinstanceprefix($db) . 'writing rows to ' . $tablename . ': ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
+        $logger->info(_getsqlconnectorinstanceprefix($db) . 'writing rows to ' . $tablename . ': ' . ($start + 1) . '-' . ($start + $blocksize) . (defined $totalnumofrows ? ' of ' . $totalnumofrows : ''));
     }
 
 }
@@ -699,7 +699,7 @@ sub processing_rows {
 
     my ($context, $start,$blocksize,$totalnumofrows,$logger) = @_;
     if (defined $logger) {
-        $logger->info(_processing_prefix($context) . 'processing rows: ' . ($start + 1) . '-' . ($start + $blocksize) . ' of ' . $totalnumofrows);
+        $logger->info(_processing_prefix($context) . 'processing rows: ' . ($start + 1) . '-' . ($start + $blocksize) . (defined $totalnumofrows ? ' of ' . $totalnumofrows : ''));
     }
 
 }
