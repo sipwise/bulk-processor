@@ -2,7 +2,7 @@ Source: ngcp-bulk-processor
 Section: perl
 Priority: optional
 Maintainer: Sipwise Development Team <support@sipwise.com>
-Rules-Requires-Root: binary-targets
+Rules-Requires-Root: no
 Build-Depends:
  debhelper-compat (= 13),
  libdata-validate-ip-perl <!nocheck>,
