@@ -27,6 +27,7 @@ use NGCP::BulkProcessor::Logging qw(
 
 use NGCP::BulkProcessor::LogError qw(
     fileerror
+    filewarn
     configurationwarn
     configurationerror
 );
