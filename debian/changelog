@@ -1,3 +1,17 @@
+ngcp-bulk-processor (12.5.1.2+0~mr12.5.1.2) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [3e46f08] MT#59727 extend cdr data model for cdr exporter
+  * [10e2a9d] MT#59727 mysql: support LIMIT in sub SELECT
+  * [80f1458] MT#61111 escape postgres identifiers
+  * [4a20c37] MT#61121 support infinite processing of SQL tables
+  * [88ad9ca] MT#59727 fix missing filewarn import
+
+  [ Guillem Jover ]
+  * [3b1d0ae] MT#61074 Unify UUID generation to libuuid-perl new API
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 16 Jan 2025 21:23:42 +0100
+
 ngcp-bulk-processor (12.5.1.1+0~mr12.5.1.1) unstable; urgency=medium
 
   * New release.
