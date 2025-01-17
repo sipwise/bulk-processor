@@ -1,3 +1,11 @@
+ngcp-bulk-processor (13.0.1.2+0~mr13.0.1.2) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [14d8d67] MT#61121 support infinite processing of SQL tables
+  * [5b276ee] MT#59727 fix missing filewarn import
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 17 Jan 2025 11:56:11 +0100
+
 ngcp-bulk-processor (13.0.1.1+0~mr13.0.1.1) unstable; urgency=medium
 
   * New release.
