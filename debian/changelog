@@ -1,3 +1,10 @@
+ngcp-bulk-processor (12.5.1.4+0~mr12.5.1.4) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [d3ab5ec] MT#62020 rename cdr source_user -> source_subscriber
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 30 Jan 2025 00:28:42 +0100
+
 ngcp-bulk-processor (12.5.1.3+0~mr12.5.1.3) unstable; urgency=medium
 
   [ Rene Krenn ]
