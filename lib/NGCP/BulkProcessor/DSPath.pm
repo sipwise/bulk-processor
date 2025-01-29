@@ -99,10 +99,12 @@ sub get {
 
 	# check if last element is reached
 	if ($rest) {
-		if (defined $value and (reftype $value eq 'HASH' or blessed $value)) {
-			$value = $self->get($rest,$value);
-		} else {
-			$self->{callbacks}->{retrieve_key_from_non_hash}->($data, $key, $index, $value, $rest);
+		if (defined $value) {
+			if (reftype $value eq 'HASH' or blessed $value) {
+				$value = $self->get($rest,$value);
+			} else {
+				$self->{callbacks}->{retrieve_key_from_non_hash}->($data, $key, $index, $value, $rest);
+			}
 		}
 	}
 
