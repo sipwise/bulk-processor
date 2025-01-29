@@ -1,3 +1,10 @@
+ngcp-bulk-processor (13.1.1.3+0~mr13.1.1.3) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [060dadc] MT#62020 DSPath: prevent retrieve_key_from_non_hash for undef values
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Wed, 29 Jan 2025 11:18:20 +0100
+
 ngcp-bulk-processor (13.1.1.2+0~mr13.1.1.2) unstable; urgency=medium
 
   [ Rene Krenn ]
