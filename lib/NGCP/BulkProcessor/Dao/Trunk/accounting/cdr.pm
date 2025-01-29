@@ -584,11 +584,11 @@ sub buildrecords_fromrows {
             $record = __PACKAGE__->new($row);
 
             # transformations go here ...
-            $record->load_relation($load_recursive,'source_user','NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_uuid',$record->{source_user_id},$load_recursive) if $record->{source_user_id};
+            $record->load_relation($load_recursive,'source_subscriber','NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_uuid',$record->{source_user_id},$load_recursive) if $record->{source_user_id};
             $record->load_relation($load_recursive,'source_provider','NGCP::BulkProcessor::Dao::Trunk::billing::contracts::findby_id',$record->{source_provider_id},$load_recursive) if $record->{source_provider_id};
             $record->load_relation($load_recursive,'source_account','NGCP::BulkProcessor::Dao::Trunk::billing::contracts::findby_id',$record->{source_account_id},$load_recursive) if $record->{source_account_id};
 
-            $record->load_relation($load_recursive,'destination_user','NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_uuid',$record->{destination_user_id},$load_recursive) if $record->{destination_user_id};
+            $record->load_relation($load_recursive,'destination_subscriber','NGCP::BulkProcessor::Dao::Trunk::billing::voip_subscribers::findby_uuid',$record->{destination_user_id},$load_recursive) if $record->{destination_user_id};
             $record->load_relation($load_recursive,'destination_provider','NGCP::BulkProcessor::Dao::Trunk::billing::contracts::findby_id',$record->{destination_provider_id},$load_recursive) if $record->{destination_provider_id};
             $record->load_relation($load_recursive,'destination_account','NGCP::BulkProcessor::Dao::Trunk::billing::contracts::findby_id',$record->{destination_account_id},$load_recursive) if $record->{destination_account_id};
 
