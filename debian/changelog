@@ -1,3 +1,11 @@
+ngcp-bulk-processor (13.4.0.0+0~mr13.4.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [fd292b2] MT#62020 DSPath: prevent retrieve_key_from_non_hash for undef values
+  * [9c98f25] MT#62020 rename cdr source_user -> source_subscriber
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 10 Apr 2025 08:26:15 +0200
+
 ngcp-bulk-processor (13.3.0.0+0~mr13.3.0.0) unstable; urgency=medium
 
   [ Rene Krenn ]
