@@ -3,6 +3,10 @@ use strict;
 
 ## no critic
 
+use NGCP::BulkProcessor::Globals qw(
+    $config_yml_data
+);
+
 use NGCP::BulkProcessor::ConnectorPool qw(
     get_location_store
     destroy_stores
@@ -17,6 +21,8 @@ use NGCP::BulkProcessor::NoSqlConnectors::RedisEntry qw(
 );
 
 #use NGCP::BulkProcessor::Redis::Trunk::location::entry qw();
+
+use NGCP::BulkProcessor::Utils qw(stringtobool);
 
 require Exporter;
 our @ISA = qw(Exporter NGCP::BulkProcessor::NoSqlConnectors::RedisEntry);
@@ -33,7 +39,9 @@ my $type = $NGCP::BulkProcessor::NoSqlConnectors::RedisEntry::SET_TYPE;
 my $get_key = sub {
     my ($username,$domain) = @_;
     my $result = $table . '::' . $username;
-    $result .= ':' . $domain if $domain;
+    if (not $config_yml_data or stringtobool($config_yml_data->{proxy}->{ignore_auth_realm})) {
+        $result .= ':' . $domain if $domain;
+    }
     return $result;
 };
 
@@ -65,7 +73,7 @@ sub get_usrdom_by_username_domain {
     my ($username,$domain,$load_recursive) = @_;
     my $store = &$get_store();
     
-    if ($username and $domain and my @res = $store->smembers(my $key = &$get_key($username,$domain))) {
+    if ($username and my @res = $store->smembers(my $key = &$get_key($username,$domain))) {
         return builditems_fromrows($key,\@res,$load_recursive);
     }
     return undef;
