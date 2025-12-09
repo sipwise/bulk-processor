@@ -1,3 +1,9 @@
+ngcp-bulk-processor (14.0.2.0+0~mr14.0.2.0) unstable; urgency=medium
+
+  * New release.
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 09 Dec 2025 15:31:10 +0100
+
 ngcp-bulk-processor (14.0.1.0+0~mr14.0.1.0) unstable; urgency=medium
 
   [ Rene Krenn ]
