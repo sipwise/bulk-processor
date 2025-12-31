@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 
 use File::Basename;
 use Cwd;
@@ -83,7 +84,7 @@ my $inherited_methods = 0;
 
 #my @perlfileextensions = ('.pm'); #('.pl','.pm');
 my @perlfileextensions = ('.pm');
-my $rperlextensions = join('|',map { local $_ = $_ ; $_ = quotemeta($_); $_; } @perlfileextensions);
+my $rperlextensions = join('|', map { quotemeta } @perlfileextensions);
 
 my @parsedfiles = ();
 
@@ -281,13 +282,13 @@ sub createumldiagramsofdir {
     my ($inputdir,$outputdir) = @_;
     makepath($outputdir);
     
-    local *DOCDIR;
-    if (not opendir(DOCDIR, $inputdir)) {
+    my $docdirh;
+    if (not opendir($docdirh, $inputdir)) {
         fileerror('cannot opendir ' . $inputdir . ': ' . $!,$logger);
         return;
     }
-    my @files = grep { /$rperlextensions$/ && -f $inputdir . $_} readdir(DOCDIR);
-    closedir DOCDIR;
+    my @files = grep { /$rperlextensions$/ && -f $inputdir . $_} readdir($docdirh);
+    closedir $docdirh;
     
     my @inputfilepaths = ();
   
