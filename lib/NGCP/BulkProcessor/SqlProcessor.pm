@@ -1254,6 +1254,10 @@ sub process_table {
                         delete $processors{$processor->tid()};
                         #tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' joinded',getlogger(__PACKAGE__));
                         tablethreadingdebug('processor thread tid ' . $processor->tid() . ' joined',getlogger(__PACKAGE__));
+                    } elsif (defined $processor and not $processor->is_running()) {
+                        eval { $processor->join(); };
+                        delete $processors{$processor->tid()};
+                        tablethreadingdebug('processor thread tid ' . $processor->tid() . ' joined after exit',getlogger(__PACKAGE__));
                     }
                     #} else {
                     #    tablethreadingdebug('processor thread ' . ($i + 1) . ' of ' . $tableprocessing_threads . ' NOT joinded',getlogger(__PACKAGE__));
@@ -1483,6 +1487,8 @@ sub _reader {
         $reader_db->db_get_begin($context->{selectstatement},@{$context->{values_ref}}) if $reader_db->rowblock_transactional; #$context->{tablename}
         tablethreadingdebug('[' . $tid . '] reader thread waiting for consumer threads',getlogger(__PACKAGE__));
         while ((_get_other_threads_state($context->{errorstates},$tid) & $RUNNING) == 0) { #wait on cosumers to come up
+            my $other = _get_other_threads_state($context->{errorstates},$tid);
+            last if ($other & $ERROR) or ($other & $STOP);
             #yield();
             sleep($thread_sleep_secs);
         }
