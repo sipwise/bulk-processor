@@ -1,3 +1,10 @@
+ngcp-bulk-processor (13.5.1.3+0~mr13.5.1.3) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [e92ff52] TT#63253 SqlProcessor: Fix reader hang when processors fail on init
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 20 Aug 2026 13:34:10 +0200
+
 ngcp-bulk-processor (13.5.1.2+0~mr13.5.1.2) unstable; urgency=medium
 
   * New release.
