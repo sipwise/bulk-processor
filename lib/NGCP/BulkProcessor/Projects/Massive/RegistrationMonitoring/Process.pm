@@ -30,7 +30,6 @@ use NGCP::BulkProcessor::LogError qw(
 );
 
 use NGCP::BulkProcessor::FileProcessors::CSVFileSimple qw();
-#use NGCP::BulkProcessor::FileProcessors::XslxFileSimple qw();
 
 use NGCP::BulkProcessor::Projects::Massive::RegistrationMonitoring::ProjectConnectorPool qw(
     get_sqlite_db

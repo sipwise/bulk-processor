@@ -3,7 +3,7 @@ use strict;
 
 ## no critic
 
-use Excel::Reader::XLSX; qw();
+use Spreadsheet::ParseXLSX;
 
 use NGCP::BulkProcessor::Logging qw(
     getlogger
@@ -72,8 +72,8 @@ sub process {
         tid      => $tid,
     });
     eval {
-        my $reader = Excel::Reader::XLSX->new();
-        my $workbook = $reader->read_file($file);
+        my $parser = Spreadsheet::ParseXLSX->new();
+        my $workbook = $parser->parse($file);
         #my $workbook = Spreadsheet::Reader::ExcelXML->new($file);
         #    file => $file,
         #    #group_return_type => 'value',
@@ -91,14 +91,14 @@ sub process {
             &$init_process_context_code($context);
         }
         if (not defined $workbook) {
-            fileerror('processing file - error reading file ' . $file . ': ' . $reader->error(),getlogger(__PACKAGE__));
+            fileerror('processing file - error reading file ' . $file . ': ' . $parser->error(),getlogger(__PACKAGE__));
         } else {
             my $sheet;
             if ($self->{sheet_name}) {
                 $sheet = $workbook->worksheet($self->{sheet_name});
                 #xls2csvinfo('converting the ' . $sheet->name() . ' worksheet',getlogger(__PACKAGE__));
             } else {
-                $sheet = $workbook->worksheet(0);
+                ($sheet) = $workbook->worksheets();
                 #if (@{$workbook->worksheets()} > 1) {
                 #    xls2csvinfo('multiple worksheets found, converting ' . $sheet->name(),getlogger(__PACKAGE__));
                 #}
@@ -123,19 +123,27 @@ sub process {
                 processing_lines($tid,$i,$self->{blocksize},undef,getlogger(__PACKAGE__));
                 #my $value;
                 my @rows = ();
-                while ($result) {
-                    #$value = $worksheet->fetchrow_arrayref;
-                    my $row = $sheet->next_row();
-                    last unless $row; #if (not $value or 'EOF' eq $value);
-                    my @vals = $row->values();
-                    #$i++;
-                    #next if not ref $value;
-                    push(@rows,\@vals);
-                    if ((scalar @rows) >= $self->{blocksize}) {
-                        $result &= &$process_code($context,\@rows,$i);
-                        $i += scalar @rows;
-                        processing_lines($tid,$i,$self->{blocksize},undef,getlogger(__PACKAGE__));
-                        @rows = ();
+                my ($row_min, $row_max) = $sheet->row_range();
+                my ($col_min, $col_max) = $sheet->col_range();
+                if (defined $row_min && defined $row_max && $row_max >= $row_min
+                    && defined $col_min && defined $col_max && $col_max >= $col_min) {
+                    for (my $row = $row_min; $result && $row <= $row_max; $row++) {
+                        my @vals = ();
+                        for (my $col = $col_min; $col <= $col_max; $col++) {
+                            my $cell = $sheet->get_cell($row, $col);
+                            my $value = '';
+                            if ($cell && defined $cell->value()) {
+                                $value = $cell->value();
+                            }
+                            push(@vals, $value);
+                        }
+                        push(@rows, \@vals);
+                        if ((scalar @rows) >= $self->{blocksize}) {
+                            $result &= &$process_code($context,\@rows,$i);
+                            $i += scalar @rows;
+                            processing_lines($tid,$i,$self->{blocksize},undef,getlogger(__PACKAGE__));
+                            @rows = ();
+                        }
                     }
                 }
                 $result &= &$process_code($context,\@rows,$i);
