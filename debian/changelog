@@ -1,3 +1,11 @@
+ngcp-bulk-processor (27.0.0.0+0~mr27.0.0.0) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [fa67274] TT#63253 SqlProcessor: Fix reader hang when processors fail on init
+  * [6cc7b4d] MT#66117 drop Excel::Reader::XLSX dependency
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 05 Oct 2026 12:33:12 +0200
+
 ngcp-bulk-processor (26.3.0.0+0~mr26.3.0.0) unstable; urgency=medium
 
   * New release.
