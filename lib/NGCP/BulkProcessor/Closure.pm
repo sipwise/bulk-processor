@@ -47,28 +47,10 @@ my $eval_closure_validate_env = sub {
 };
 
 
-#use JE::Destroyer qw();
-use JE qw();
-
-{
-    no warnings 'redefine'; ## no critic (ProhibitNoWarnings)
-    *JE::Object::evall = sub { 
-        no warnings; ## no critic (ProhibitNoWarnings)
-        my $global = shift;
-        my $v = shift;
-        my $r = eval 'local *_;' . $v; ## no critic (ProhibitStringyEval)
-        if ($@) {
-            my $e = $@;
-            $r = eval "local *_;'$v'"; ## no critic (ProhibitStringyEval)
-            if ($@) {
-                die;
-            }
-        }
-        $r;
-    };
-}
+use JavaScript::QuickJS qw();
 
 use JSON qw();
+use JSON::PP qw();
 
 use YAML::Types;
 {
@@ -142,16 +124,35 @@ foreach my $f (@DISABLED_CORE_FUNCTIONS) {
     $PERL_ENV .= 'sub ' . $f . " { die('$f called'); }\n";
 }
 
-my $JS_ENV = '';
+# get_env() lists the context variables and helpers, ie. all globals except
+# the js builtins and _func:
+my $JS_ENV = <<'JS';
+globalThis._builtins = Object.getOwnPropertyNames(globalThis);
+globalThis.get_env = function() {
+    return Object.getOwnPropertyNames(globalThis).filter(function(k) {
+        return _builtins.indexOf(k) < 0 && k.charAt(0) != '_';
+    });
+};
+JS
 
-my $JE_ANON_CLASS = 'je_anon';
-sub je_anon::TO_JSON {
+my $ANON_CLASS = 'closure_anon';
+sub closure_anon::TO_JSON {
     return _unbless(@_);
 };
 
 my %interpreter_cache = ();
 my %stash = ();
-my %je_exported_map = ();
+my %js_exported_map = ();
+
+# a QuickJS engine cannot be shared with a new thread (its context would be
+# freed twice), so threads skip cloning it and create their own engines.
+sub JavaScript::QuickJS::CLONE_SKIP { 1 }
+sub CLONE {
+    foreach my $code (keys %js_exported_map) {
+        delete $interpreter_cache{$code};
+        delete $js_exported_map{$code};
+    }
+}
 
 sub _stash_get {
     my $k = shift;
@@ -164,19 +165,10 @@ sub _stash_set {
 
 sub cleanup {
 
-    eval {
-        #no warnings 'deprecated';
-        require JE::Destroyer;
-        JE::Destroyer->import();
-        1;
-    } or do {
-        return;
-    };
     clear_stash();
     foreach my $code (keys %interpreter_cache) {
-        JE::Destroyer::destroy($interpreter_cache{$code}) if 'JE' eq ref $interpreter_cache{$code}; # break circular refs
         delete $interpreter_cache{$code};
-        delete $je_exported_map{$code};
+        delete $js_exported_map{$code};
     }
 
 }
@@ -230,7 +222,7 @@ sub new {
                         } elsif ('HASH' eq ref $context->{$_}) {
                             push(@exported,$_);
                             ('$' . $_) => $context->{$_};
-                        } elsif ($JE_ANON_CLASS eq ref $context->{$_}) {
+                        } elsif ($ANON_CLASS eq ref $context->{$_}) {
                             push(@exported,$_);
                             ('$' . $_) => _unbless($context->{$_});
                         } elsif ('CODE' eq ref $context->{$_}) {
@@ -266,49 +258,51 @@ sub new {
         $self->{source} = $code;
         $self->{description} //= 'javascript function';
         $self->{type} = "js";
-        my $je;
-        if (exists $interpreter_cache{$code}) {
-            $je = $interpreter_cache{$code};
-        } else {
-            $je_exported_map{$code} = {};
-            $je = JE->new();
-            $je->eval($JS_ENV . "\nvar _func = " . $code . ';');
-            $interpreter_cache{$code} = $je;
-        }
-        $je->eval(_serialize_je_args($je,{
-            get_env => sub {
-                return [ _filter_js_env_symbols(keys %$je) ];
-            },
-            to_json => sub {
-                my ($obj,$pretty, $canonical) = @_;
-                return _to_json(_unbox_je_value($obj), _unbox_je_value($pretty), _unbox_je_value($canonical));
-            },
-            quotemeta => sub {
-                my $s = shift;
-                return quotemeta(_unbox_je_value($s));
-            },
-            sprintf => sub { 
-                my ($f,@p) = @_;
-                return sprintf(_unbox_je_value($f), map {
-                    _unbox_je_value($_);
-                } @p);
-            },
-            stash_get => sub {
-                my $k = shift;
-                return _stash_get(_unbox_je_value($k));
-            },
-            stash_set => sub {
-                my ($k,$v) = @_;
-                _stash_set(_unbox_je_value($k),_unbox_je_value($v));
-            },
-            %{$context // {}},
-        },$je_exported_map{$code}));
+        eval {
+            my $js = _get_js($code);
+            $js->eval(_serialize_js_args($js,$context,$js_exported_map{$code})) if $context;
+        };
         die("$self->{description}: " . $@) if $@;
     } else {
         die("unsupported expression langage");
     }
 
     return $self;
+
+}
+
+sub _get_js {
+
+    my $code = shift;
+    return $interpreter_cache{$code} if exists $interpreter_cache{$code};
+    my $js = JavaScript::QuickJS->new();
+    $js->eval($JS_ENV . "\nvar _func = " . $code . ';');
+    $interpreter_cache{$code} = $js;
+    $js_exported_map{$code} = {};
+    # not marked as exported, so context functions can override them:
+    _serialize_js_args($js,{
+        to_json => sub {
+            my ($obj,$pretty, $canonical) = @_;
+            return _to_json($obj, $pretty, $canonical);
+        },
+        quotemeta => sub {
+            my $s = shift;
+            return quotemeta($s);
+        },
+        sprintf => sub {
+            my ($f,@p) = @_;
+            return sprintf($f, @p);
+        },
+        stash_get => sub {
+            my $k = shift;
+            return _stash_get($k);
+        },
+        stash_set => sub {
+            my ($k,$v) = @_;
+            _stash_set($k,$v);
+        },
+    },{});
+    return $js;
 
 }
 
@@ -333,12 +327,12 @@ sub _get_public_vars {
 
 }
 
-sub _serialize_je_args {
+sub _serialize_js_args {
 
-    my ($je,$args,$je_env) = @_;
+    my ($js,$args,$js_env) = @_;
     my $sep;
     my @args;
-    if ('HASH' eq ref $args and $je_env) {
+    if ('HASH' eq ref $args and $js_env) {
         $sep = ";\n";
         @args = map { { k => $_, v => $args->{$_}, }; } _get_public_vars($args);
     } else {
@@ -347,24 +341,24 @@ sub _serialize_je_args {
     }
     return join ($sep,map {
         if ('CODE' eq ref $_->{v}) {
-            if ($_->{k} and not $je_env->{$_->{k}}) {
-                $je_env->{$_->{k}} = 1;
+            if ($_->{k} and not $js_env->{$_->{k}}) {
+                $js_env->{$_->{k}} = 1;
                 my $sub = $_->{v};
-                $je->new_function($_->{k} => sub {
-                    return $sub->(map { _unbox_je_value($_); } @_);
+                $js->set_globals($_->{k} => sub {
+                    return _to_js_value(scalar $sub->(map { _unbox_js_value($_); } @_));
                 });
             }
             ();
         } elsif (blessed $_->{v} and $_->{v}->isa('NGCP::BulkProcessor::SqlConnector')) {
-            if ($_->{k} and not $je_env->{$_->{k}}) {
-                $je_env->{$_->{k}} = 1;
+            if ($_->{k} and not $js_env->{$_->{k}}) {
+                $js_env->{$_->{k}} = 1;
                 my $db = $_->{v};
                 no strict 'refs'; ## no critic (ProhibitNoStrict)
                 foreach my $k (keys %NGCP::BulkProcessor::SqlConnector::) { 
                     next unless substr($k,0,3) eq "db_";
                     if (exists &{"NGCP::BulkProcessor::SqlConnector::$k"}) { # check if symbol is method
-                        $je->new_function($k => sub {
-                            return $db->$k(map { _unbox_je_value($_); } @_);
+                        $js->set_globals($k => sub {
+                            return _to_js_value(scalar $db->$k(map { _unbox_js_value($_); } @_));
                         });
                     }
                 }
@@ -372,23 +366,23 @@ sub _serialize_je_args {
             ();
         } elsif (('ARRAY' eq ref $_->{v})
                  or ('HASH' eq ref $_->{v})
-                 or ($JE_ANON_CLASS eq ref $_->{v})) {
+                 or ($ANON_CLASS eq ref $_->{v})) {
             if (not $_->{k}) {
                 _to_json($_->{v});
-            } elsif ($je_env->{$_->{k}}) {
+            } elsif ($js_env->{$_->{k}}) {
                 $_->{k} . ' = ' . _to_json($_->{v});
             } else {
-                $je_env->{$_->{k}} = 1;
+                $js_env->{$_->{k}} = 1;
                 'var ' . $_->{k} . ' = ' . _to_json($_->{v});
             }
         } elsif (('ARRAY' eq reftype($_->{v}))
                  or ('HASH' eq reftype($_->{v}))) {
             if (not $_->{k}) {
                 _unbless_to_json($_->{v});
-            } elsif ($je_env->{$_->{k}}) {
+            } elsif ($js_env->{$_->{k}}) {
                 $_->{k} . ' = ' . _unbless_to_json($_->{v});
             } else {
-                $je_env->{$_->{k}} = 1;
+                $js_env->{$_->{k}} = 1;
                 'var ' . $_->{k} . ' = ' . _unbless_to_json($_->{v});
             }            
         } elsif (ref $_->{v}) {
@@ -396,10 +390,10 @@ sub _serialize_je_args {
         } else {
             if (not $_->{k}) {
                 "'" . _escape_js($_->{v}) . "'";
-            } elsif ($je_env->{$_->{k}}) {
+            } elsif ($js_env->{$_->{k}}) {
                 $_->{k} . " = '" . _escape_js($_->{v}) . "'";
             } else { 
-                $je_env->{$_->{k}} = 1;
+                $js_env->{$_->{k}} = 1;
                 'var ' . $_->{k} . " = '" . _escape_js($_->{v}) . "'";
             }
         }
@@ -421,29 +415,33 @@ sub calc {
         }
         eval {
             @v = $self->{code}->(@_);
-            $v[0] = _unbless($v[0]) if ($JE_ANON_CLASS eq ref $v[0]);
+            $v[0] = _unbless($v[0]) if ($ANON_CLASS eq ref $v[0]);
         };
         if ($@) {
             die("$self->{description}: " . $@);
         }
     } elsif ("perl" eq $self->{type}) {
-        @v = $interpreter_cache{$self->{source}}->(@_);
-        $v[0] = _unbless($v[0]) if ($JE_ANON_CLASS eq ref $v[0]);
+        eval {
+            @v = $interpreter_cache{$self->{source}}->(@_);
+            $v[0] = _unbless($v[0]) if ($ANON_CLASS eq ref $v[0]);
+        };
         if ($@) {
             die("$self->{description}: " . $@);
         }
     } elsif ("js" eq $self->{type}) {
-        my $je = $interpreter_cache{$self->{source}};
-        my $updated_je_env = '';
-        $updated_je_env = _serialize_je_args($je,$context,$je_exported_map{$self->{source}}) if $context;
-        $updated_je_env .= ";\n" if length($updated_je_env);
-        my $call;
-        if (scalar @_) {
-            $call = "_func(" . _serialize_je_args($je,[ @_ ],$je_exported_map{$self->{source}}) . ");";
-        } else {
-            $call = "_func();"
-        }
-        $v[0] = _unbox_je_value($interpreter_cache{$self->{source}}->eval($updated_je_env . $call));
+        eval {
+            my $js = _get_js($self->{source});
+            my $updated_js_env = '';
+            $updated_js_env = _serialize_js_args($js,$context,$js_exported_map{$self->{source}}) if $context;
+            $updated_js_env .= ";\n" if length($updated_js_env);
+            my $call;
+            if (scalar @_) {
+                $call = "_func(" . _serialize_js_args($js,[ @_ ],$js_exported_map{$self->{source}}) . ");";
+            } else {
+                $call = "_func();"
+            }
+            $v[0] = _unbox_js_value($js->eval($updated_js_env . $call));
+        };
         if ($@) {
             die("$self->{description}: " . $@);
         }
@@ -471,22 +469,43 @@ sub is_code {
 
 }
 
-sub _unbox_je_value {
+sub _unbox_js_value {
 
     my $v = shift;
-    return undef unless defined $v; ## no critic (ProhibitExplicitReturnUndef)
-    if ((ref $v) =~ /^JE::/) {
-        $v = $v->value;
-    } elsif ($JE_ANON_CLASS eq ref $v) {
+    return $v unless defined $v; # keep null array elements and hash values
+    if (JSON::PP::is_bool($v)) {
+        $v = ($v ? 1 : 0);
+    } elsif ('JavaScript::QuickJS::Date' eq ref $v) {
+        $v = int($v->getTime() / 1000); # epoch seconds, as with JE
+    } elsif ((ref $v) =~ /^JavaScript::QuickJS::/) {
+        die('unsupported js value: ' . ref $v);
+    } elsif ($ANON_CLASS eq ref $v) {
         $v = _unbless($v);
     }
     if ('ARRAY' eq ref $v) {
-        return [ map { _unbox_je_value($_); } @$v ];
+        return [ map { _unbox_js_value($_); } @$v ];
     } elsif ('HASH' eq ref $v) {
-        return { map { $_ => _unbox_je_value($v->{$_}); } keys %$v };
+        return { map { $_ => _unbox_js_value($v->{$_}); } keys %$v };
     } else {
         return $v;
     }
+
+}
+
+sub _to_js_value {
+
+    my $v = shift;
+    return $v unless ref $v;
+    if (JSON::PP::is_bool($v)) {
+        return ($v ? 1 : 0);
+    } elsif ('CODE' eq ref $v or (ref $v) =~ /^JavaScript::QuickJS::/) {
+        return $v;
+    } elsif ('HASH' eq reftype($v)) {
+        return { map { $_ => _to_js_value($v->{$_}); } keys %$v };
+    } elsif ('ARRAY' eq reftype($v)) {
+        return [ map { _to_js_value($_); } @$v ];
+    }
+    return undef; ## no critic (ProhibitExplicitReturnUndef)
 
 }
 
@@ -529,14 +548,6 @@ sub _filter_perl_env_symbols {
             $_ !~ /^__ANON__/
         and $_ !~ /^BEGIN/
         and not (exists $DISABLED_CORE_FUNCTION_MAP->{$_} and $DISABLED_CORE_FUNCTION_MAP->{$_})
-    ; } @_;
-
-}
-
-sub _filter_js_env_symbols {
-
-    return grep {
-            $_ !~ /^_func/
     ; } @_;
 
 }

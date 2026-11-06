@@ -39,7 +39,7 @@ Depends:
  libhttp-message-perl,
  libintl-perl,
  libio-socket-ssl-perl,
- libje-perl,
+ libjavascript-quickjs-perl,
  libjson-perl,
  liblog-log4perl-perl,
  libmail-imapclient-perl,
