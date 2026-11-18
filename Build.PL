@@ -27,6 +27,7 @@ my $builder = Module::Build->new(
             },
             runtime => {
                 requires => {
+                    'Archive::Zip'                          => 0,
                     'Config::Any'                           => 0,
                     'DBD::CSV'                              => '0.26',
                     'DBD::SQLite'                           => '1.29',
@@ -79,6 +80,7 @@ my $builder = Module::Build->new(
                     'URI::Find'                             => 0,
                     'UUID'                                  => 0,
                     'XML::Dumper'                           => '0.81',
+                    'XML::LibXML'                           => 0,
                     'YAML::XS'                              => 0,
                 },
                 suggests => {
