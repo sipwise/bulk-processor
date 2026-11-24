@@ -915,9 +915,9 @@ sub transfer_table {
 	            local $SIG{QUIT} = $signal_handler;
 	            local $SIG{HUP} = $signal_handler;
 
-                $reader->join();
+                _join_thread($reader);
                 tablethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
-                $writer->join();
+                _join_thread($writer);
                 tablethreadingdebug('writer thread joined',getlogger(__PACKAGE__));
 
                 $errorstate = $COMPLETED if $errorstate == $RUNNING;
@@ -1241,7 +1241,7 @@ sub process_table {
 	        local $SIG{QUIT} = $signal_handler;
 	        local $SIG{HUP} = $signal_handler;
 
-            $reader->join();
+            _join_thread($reader);
             tablethreadingdebug('reader thread joined',getlogger(__PACKAGE__));
             #print 'threads running: ' . (scalar threads->list(threads::running));
             #while ((scalar threads->list(threads::running)) > 1 or (scalar threads->list(threads::joinable)) > 0) {
@@ -1398,6 +1398,17 @@ sub _calc_blocksize {
 
     }
 
+}
+
+sub _join_thread {
+    my $thread = shift;
+    # Poll instead of blocking in join(): with perl's default deferred
+    # ("safe") signals, a TERM/INT handler would not run before join()
+    # returns, so the threads would never be told to stop.
+    while (not $thread->is_joinable() and $thread->is_running()) {
+        sleep($thread_sleep_secs);
+    }
+    return $thread->join();
 }
 
 sub _get_other_threads_state {
