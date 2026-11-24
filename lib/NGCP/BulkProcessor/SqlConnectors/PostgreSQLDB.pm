@@ -57,6 +57,29 @@ my $transaction_isolation_level = ''; #'SERIALIZABLE'
 
 my $enable_numeric_sorting = 0;
 
+# libpq network timeouts, so a peer that silently disappears (host down,
+# VIP failover, dropped firewall state) is detected instead of blocking
+# a connect or a query forever (libpq keepalives otherwise use the kernel
+# default of 2 hours idle time):
+my %connection_options = (
+    connect_timeout     => 10, # seconds
+    keepalives          => 1,
+    keepalives_idle     => 30, # seconds
+    keepalives_interval => 10, # seconds
+    keepalives_count    => 3,
+    tcp_user_timeout    => 60000, # milliseconds, unacknowledged data
+);
+
+sub _dsn {
+    my ($schemaname,$host,$port) = @_;
+    return 'dbi:Pg:' . join(';',
+        'database=' . $schemaname,
+        'host=' . $host,
+        'port=' . $port,
+        map { $_ . '=' . $connection_options{$_}; } sort keys %connection_options,
+    );
+}
+
 sub new {
 
     my $class = shift;
@@ -188,7 +211,7 @@ sub _createdatabase {
     my ($schemaname) = @_;
 
         my $dbh = DBI->connect(
-            'dbi:Pg:database=template1;host=' . $self->{host} . ';port=' . $self->{port},$self->{username},$self->{password},
+            _dsn('template1',$self->{host},$self->{port}),$self->{username},$self->{password},
             {
                 PrintError      => 0,
                 RaiseError      => 0,
@@ -230,7 +253,7 @@ sub db_connect {
     dbdebug($self,'connecting',getlogger(__PACKAGE__));
 
     my $dbh = DBI->connect(
-        'dbi:Pg:database=' . $schemaname . ';host=' . $host . ';port=' . $port,$username,$password,
+        _dsn($schemaname,$host,$port),$username,$password,
         {
             PrintError      => 0,
             RaiseError      => 0,
