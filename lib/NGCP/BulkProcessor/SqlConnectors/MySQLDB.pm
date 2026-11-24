@@ -47,6 +47,27 @@ my $LongTruncOk = 0;
 
 my $net_read_timeout = 300;
 my $wait_timeout = 300;
+
+# client side network timeouts, so a server that silently disappears
+# (host down, VIP failover, dropped firewall state) is detected instead
+# of blocking a connect or a query forever. There is no keepalive knob,
+# so the read timeout also bounds the time until the first result of a
+# (long running) query:
+my %connection_options = (
+    mysql_connect_timeout => 10, # seconds
+    mysql_write_timeout   => 300, # seconds
+    mysql_read_timeout    => 900, # seconds
+);
+
+sub _dsn {
+    my ($databasename,$host,$port) = @_;
+    return 'dbi:mysql:' . join(';',
+        'database=' . $databasename,
+        'host=' . $host,
+        'port=' . $port,
+        map { $_ . '=' . $connection_options{$_}; } sort keys %connection_options,
+    );
+}
 #my $logger = getlogger(__PACKAGE__);
 
 #my $lock_do_chunk = 0; #1;
@@ -199,7 +220,7 @@ sub db_connect {
     dbdebug($self,'connecting',getlogger(__PACKAGE__));
 
     my $dbh = DBI->connect(
-        'dbi:mysql:database=' . $databasename . ';host=' . $host . ';port=' . $port,$username,$password,
+        _dsn($databasename,$host,$port),$username,$password,
         {
             PrintError      => 0,
             RaiseError      => 0,
