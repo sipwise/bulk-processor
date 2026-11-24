@@ -1,3 +1,11 @@
+ngcp-bulk-processor (26.1.1.3+0~mr26.1.1.3) unstable; urgency=medium
+
+  [ Rene Krenn ]
+  * [690233f] MT#66835 SqlProcessor: Poll thread joins to handle deferred signals
+  * [03d8c5e] MT#66835 SqlConnectors: Set connect timeouts and tcp keepalives
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Tue, 24 Nov 2026 18:46:53 +0100
+
 ngcp-bulk-processor (26.1.1.2+0~mr26.1.1.2) unstable; urgency=medium
 
   [ Rene Krenn ]
